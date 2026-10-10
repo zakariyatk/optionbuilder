@@ -33,6 +33,13 @@ jobs:
       - run: npx vite build
       - name: Package release (fails if secrets would ship)
         run: node ../scripts/package-release.mjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release
+          path: release/optionbuilder/
+          # .htaccess is a dotfile — without this it would be silently dropped.
+          include-hidden-files: true
+          retention-days: 7
 
   backend:
     name: Backend (PHP syntax)
@@ -45,3 +52,72 @@ jobs:
           coverage: none
       - name: Lint every PHP file
         run: find api -name '*.php' -print0 | xargs -0 -n1 php -l
+
+  # Uploads the release to the web host after every green push to main.
+  # Configure in GitHub → Settings → Secrets and variables → Actions:
+  #   secrets:   DEPLOY_HOST, DEPLOY_USER, DEPLOY_PASSWORD
+  #   variables: DEPLOY_PROTOCOL  (ftps | sftp | ftp, default ftps)
+  #              DEPLOY_DIR       (default public_html/optionbuilder)
+  # Until DEPLOY_HOST is set this job just reports that it skipped.
+  deploy:
+    name: Deploy to adddots.com
+    needs: [frontend, backend]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: production
+    concurrency:
+      group: deploy-production
+      cancel-in-progress: false
+    env:
+      DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+      DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+      DEPLOY_PASSWORD: ${{ secrets.DEPLOY_PASSWORD }}
+      SITE_URL: ${{ vars.DEPLOY_SITE_URL || 'https://www.adddots.com/optionbuilder' }}
+      PROTOCOL: ${{ vars.DEPLOY_PROTOCOL || 'ftps' }}
+      REMOTE_DIR: ${{ vars.DEPLOY_DIR || 'public_html/optionbuilder' }}
+    steps:
+      - name: Check deploy settings
+        id: check
+        run: |
+          if [ -z "$DEPLOY_HOST" ] || [ -z "$DEPLOY_USER" ] || [ -z "$DEPLOY_PASSWORD" ]; then
+            echo "::notice::Deploy skipped — DEPLOY_HOST / DEPLOY_USER / DEPLOY_PASSWORD secrets are not set."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/download-artifact@v4
+        if: steps.check.outputs.ready == 'true'
+        with:
+          name: release
+          path: release
+
+      - name: Install lftp
+        if: steps.check.outputs.ready == 'true'
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq lftp
+
+      # Upload only — nothing on the server is deleted, so the live config,
+      # broker token and cache in api/data/ are never touched. index.html goes
+      # last, so visitors only switch to the new build once its assets/ are there.
+      - name: Upload
+        if: steps.check.outputs.ready == 'true'
+        run: |
+          case "$PROTOCOL" in
+            sftp) URL="sftp://$DEPLOY_HOST"; OPTS="set sftp:auto-confirm yes;" ;;
+            ftp)  URL="ftp://$DEPLOY_HOST";  OPTS="set ftp:ssl-allow no;" ;;
+            *)    URL="ftp://$DEPLOY_HOST";  OPTS="set ftp:ssl-force true; set ftp:ssl-protect-data true;" ;;
+          esac
+          lftp -u "$DEPLOY_USER","$DEPLOY_PASSWORD" "$URL" -e "
+            $OPTS
+            set net:max-retries 2; set net:timeout 30;
+            mkdir -p -f $REMOTE_DIR;
+            mirror --reverse --verbose --parallel=4 --exclude-glob index.html release/ $REMOTE_DIR/;
+            put -O $REMOTE_DIR release/index.html;
+            bye"
+
+      - name: Smoke test
+        if: steps.check.outputs.ready == 'true'
+        run: |
+          code=$(curl -s -o /dev/null -w '%{http_code}' "$SITE_URL/api/health")
+          echo "api/health → $code"
+          [ "$code" = "200" ]
