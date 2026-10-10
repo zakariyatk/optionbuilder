@@ -1,0 +1,24 @@
+# --- secrets: never commit ---
+api/config.php
+optionbuilder-config.php
+api/data/*
+!api/data/README.txt
+.env
+.env.*
+
+# --- build output ---
+frontend/dist/
+release/
+node_modules/
+*.tsbuildinfo
+
+# --- the old prebuilt bundle, kept locally for reference only ---
+_legacy_build/
+
+# --- editor / OS ---
+.DS_Store
+Thumbs.db
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.log

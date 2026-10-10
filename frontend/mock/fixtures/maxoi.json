@@ -1,0 +1,339 @@
+{
+ "symbol": "NIFTY",
+ "currentMonthly": {
+  "expiry": "2026-08-25",
+  "spot": 24252,
+  "maxCallOi": {
+   "strike": 24300,
+   "oi": 13876980,
+   "ltp": 70.7,
+   "oiChange": 4091100
+  },
+  "maxPutOi": {
+   "strike": 24000,
+   "oi": 17814550,
+   "ltp": 11.1,
+   "oiChange": 1466660
+  },
+  "totalCallOi": 168482860,
+  "totalPutOi": 190815950,
+  "pcr": 1.1325540770141247,
+  "distribution": [
+   {
+    "strike": 23750,
+    "callOi": 45240,
+    "putOi": 2463370,
+    "callOiChange": -3510,
+    "putOiChange": 197925
+   },
+   {
+    "strike": 23800,
+    "callOi": 610350,
+    "putOi": 7440420,
+    "callOiChange": -13130,
+    "putOiChange": -645060
+   },
+   {
+    "strike": 23850,
+    "callOi": 70005,
+    "putOi": 3176875,
+    "callOiChange": -3770,
+    "putOiChange": -605280
+   },
+   {
+    "strike": 23900,
+    "callOi": 273780,
+    "putOi": 6711055,
+    "callOiChange": -33670,
+    "putOiChange": -24960
+   },
+   {
+    "strike": 23950,
+    "callOi": 200330,
+    "putOi": 3472560,
+    "callOiChange": -10855,
+    "putOiChange": 312975
+   },
+   {
+    "strike": 24000,
+    "callOi": 5939635,
+    "putOi": 17814550,
+    "callOiChange": -196365,
+    "putOiChange": 1466660
+   },
+   {
+    "strike": 24050,
+    "callOi": 572780,
+    "putOi": 3377400,
+    "callOiChange": -41015,
+    "putOiChange": 220870
+   },
+   {
+    "strike": 24100,
+    "callOi": 2777515,
+    "putOi": 8737365,
+    "callOiChange": -280215,
+    "putOiChange": 1114945
+   },
+   {
+    "strike": 24150,
+    "callOi": 1218880,
+    "putOi": 6141135,
+    "callOiChange": -33410,
+    "putOiChange": 1489085
+   },
+   {
+    "strike": 24200,
+    "callOi": 9122165,
+    "putOi": 15503670,
+    "callOiChange": 713570,
+    "putOiChange": 2214680
+   },
+   {
+    "strike": 24250,
+    "callOi": 6861530,
+    "putOi": 6958770,
+    "callOiChange": 2690935,
+    "putOiChange": 1981265
+   },
+   {
+    "strike": 24300,
+    "callOi": 13876980,
+    "putOi": 9835345,
+    "callOiChange": 4091100,
+    "putOiChange": 2358070
+   },
+   {
+    "strike": 24350,
+    "callOi": 4574635,
+    "putOi": 1989780,
+    "callOiChange": 1520090,
+    "putOiChange": -4420
+   },
+   {
+    "strike": 24400,
+    "callOi": 9774440,
+    "putOi": 3521960,
+    "callOiChange": 1553760,
+    "putOiChange": 361595
+   },
+   {
+    "strike": 24450,
+    "callOi": 3715790,
+    "putOi": 563745,
+    "callOiChange": 985855,
+    "putOiChange": -2925
+   },
+   {
+    "strike": 24500,
+    "callOi": 13250445,
+    "putOi": 3754530,
+    "callOiChange": 735800,
+    "putOiChange": -248495
+   },
+   {
+    "strike": 24550,
+    "callOi": 5039515,
+    "putOi": 184340,
+    "callOiChange": 2011360,
+    "putOiChange": -6305
+   },
+   {
+    "strike": 24600,
+    "callOi": 8538010,
+    "putOi": 873665,
+    "callOiChange": 306345,
+    "putOiChange": -76050
+   },
+   {
+    "strike": 24650,
+    "callOi": 3402035,
+    "putOi": 172965,
+    "callOiChange": 509145,
+    "putOiChange": -8905
+   },
+   {
+    "strike": 24700,
+    "callOi": 6814405,
+    "putOi": 768235,
+    "callOiChange": -741845,
+    "putOiChange": -97630
+   },
+   {
+    "strike": 24750,
+    "callOi": 3294980,
+    "putOi": 93275,
+    "callOiChange": 1234155,
+    "putOiChange": -2665
+   }
+  ]
+ },
+ "december": {
+  "expiry": "2026-12-29",
+  "spot": 24252,
+  "maxCallOi": {
+   "strike": 26000,
+   "oi": 3175975,
+   "ltp": 191.45,
+   "oiChange": 30855
+  },
+  "maxPutOi": {
+   "strike": 23000,
+   "oi": 2586940,
+   "ltp": 140.75,
+   "oiChange": 12070
+  },
+  "totalCallOi": 13042385,
+  "totalPutOi": 16490245,
+  "pcr": 1.2643580909473229,
+  "distribution": [
+   {
+    "strike": 16000,
+    "callOi": 505,
+    "putOi": 114200,
+    "callOiChange": 260,
+    "putOiChange": 130
+   },
+   {
+    "strike": 16500,
+    "callOi": 0,
+    "putOi": 3380,
+    "callOiChange": 0,
+    "putOiChange": 0
+   },
+   {
+    "strike": 18000,
+    "callOi": 2275,
+    "putOi": 492835,
+    "callOiChange": 585,
+    "putOiChange": -195
+   },
+   {
+    "strike": 19000,
+    "callOi": 54210,
+    "putOi": 612015,
+    "callOiChange": 0,
+    "putOiChange": -6760
+   },
+   {
+    "strike": 19500,
+    "callOi": 0,
+    "putOi": 133445,
+    "callOiChange": 0,
+    "putOiChange": -2990
+   },
+   {
+    "strike": 20000,
+    "callOi": 570530,
+    "putOi": 1149600,
+    "callOiChange": 130,
+    "putOiChange": -1650
+   },
+   {
+    "strike": 21000,
+    "callOi": 195625,
+    "putOi": 1090355,
+    "callOiChange": -455,
+    "putOiChange": -5395
+   },
+   {
+    "strike": 22000,
+    "callOi": 264095,
+    "putOi": 1617495,
+    "callOiChange": 845,
+    "putOiChange": 19240
+   },
+   {
+    "strike": 22500,
+    "callOi": 16380,
+    "putOi": 951600,
+    "callOiChange": 65,
+    "putOiChange": 20215
+   },
+   {
+    "strike": 23000,
+    "callOi": 330800,
+    "putOi": 2586940,
+    "callOiChange": 65,
+    "putOiChange": 12070
+   },
+   {
+    "strike": 24000,
+    "callOi": 1204665,
+    "putOi": 2366410,
+    "callOiChange": 7345,
+    "putOiChange": 15345
+   },
+   {
+    "strike": 25000,
+    "callOi": 2242915,
+    "putOi": 2084235,
+    "callOiChange": 31330,
+    "putOiChange": -880
+   },
+   {
+    "strike": 25500,
+    "callOi": 911755,
+    "putOi": 373685,
+    "callOiChange": 13195,
+    "putOiChange": -4940
+   },
+   {
+    "strike": 26000,
+    "callOi": 3175975,
+    "putOi": 1402545,
+    "callOiChange": 30855,
+    "putOiChange": -2600
+   },
+   {
+    "strike": 27000,
+    "callOi": 2463940,
+    "putOi": 916735,
+    "callOiChange": -23225,
+    "putOiChange": 2955
+   },
+   {
+    "strike": 28000,
+    "callOi": 0,
+    "putOi": 0,
+    "callOiChange": 0,
+    "putOiChange": 0
+   },
+   {
+    "strike": 28500,
+    "callOi": 119145,
+    "putOi": 65,
+    "callOiChange": 2990,
+    "putOiChange": -65
+   },
+   {
+    "strike": 29000,
+    "callOi": 552210,
+    "putOi": 214580,
+    "callOiChange": 3705,
+    "putOiChange": 130
+   },
+   {
+    "strike": 30000,
+    "callOi": 801965,
+    "putOi": 380125,
+    "callOiChange": 14365,
+    "putOiChange": 195
+   },
+   {
+    "strike": 31500,
+    "callOi": 30355,
+    "putOi": 0,
+    "callOiChange": -1300,
+    "putOiChange": 0
+   },
+   {
+    "strike": 33000,
+    "callOi": 105040,
+    "putOi": 0,
+    "callOiChange": -2210,
+    "putOiChange": 0
+   }
+  ]
+ }
+}

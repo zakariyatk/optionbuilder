@@ -1,0 +1,3539 @@
+{
+ "source": "upstox",
+ "symbol": "NIFTY",
+ "lotSize": 65,
+ "underlyingValue": 24252,
+ "timestamp": "2026-08-23T15:15:54+00:00",
+ "expiryDates": [
+  "2026-08-25",
+  "2026-09-01",
+  "2026-09-08",
+  "2026-09-15",
+  "2026-09-22",
+  "2026-09-29",
+  "2026-10-27",
+  "2026-12-29",
+  "2027-03-30",
+  "2027-06-29",
+  "2027-12-28",
+  "2028-06-27",
+  "2028-12-26",
+  "2029-06-26",
+  "2029-12-24",
+  "2030-06-25",
+  "2030-12-31",
+  "2031-06-24"
+ ],
+ "expiry": "2026-08-25",
+ "rows": [
+  {
+   "strike": 21200,
+   "call": {
+    "instrumentKey": "NSE_FO|61148",
+    "ltp": 3100,
+    "change": -20.800000000000182,
+    "oi": 7605,
+    "oiChange": -455,
+    "volume": 650,
+    "iv": 68.73,
+    "delta": 0.9728,
+    "theta": -13.7011,
+    "bid": 3042.05,
+    "ask": 3149.35
+   },
+   "put": {
+    "instrumentKey": "NSE_FO|61153",
+    "ltp": 0.45,
+    "change": -0.3,
+    "oi": 2732340,
+    "oiChange": -180310,
+    "volume": 3210675,
+    "iv": 42.97,
+    "delta": -0.0012,
+    "theta": -0.5333,
+    "bid": 0.4,
+    "ask": 0.45
+   }
+  },
+  {
+   "strike": 21250,
+   "call": {
+    "instrumentKey": "NSE_FO|61154",
+    "ltp": 2971,
+    "change": 0,
+    "oi": 65,
+    "oiChange": 0,
+    "volume": 0,
+    "iv": 0,
+    "delta": 1,
+    "theta": 0,
+    "bid": 2981.9,
+    "ask": 3097.65
+   },
+   "put": {
+    "instrumentKey": "NSE_FO|61155",
+    "ltp": 0.5,
+    "change": -0.30000000000000004,
+    "oi": 157300,
+    "oiChange": 56615,
+    "volume": 294320,
+    "iv": 43.46,
+    "delta": -0.0015,
+    "theta": -0.6887,
+    "bid": 0.4,
+    "ask": 0.5
+   }
+  },
+  {
+   "strike": 21300,
+   "call": {
+    "instrumentKey": "NSE_FO|61156",
+    "ltp": 3070,
+    "change": 0,
+    "oi": 3770,
+    "oiChange": 65,
+    "volume": 0,
+    "iv": 92.36,
+    "delta": 0.9199,
+    "theta": -43.7087,
+    "bid": 2723.95,
+    "ask": 3046.1
+   },
+   "put": {
+    "instrumentKey": "NSE_FO|61172",
+    "ltp": 0.4,
+    "change": -0.29999999999999993,
+    "oi": 856245,
+    "oiChange": 3250,
+    "volume": 988845,
+    "iv": 41.99,
+    "delta": -0.0013,
+    "theta": -0.5836,
+    "bid": 0.4,
+    "ask": 0.45
+   }
+  },
+  {
+   "strike": 21350,
+   "call": {
+    "instrumentKey": "NSE_FO|61173",
+    "ltp": 0,
+    "change": 0,
+    "oi": 0,
+    "oiChange": 0,
+    "volume": 0,
+    "iv": 0,
+    "delta": 1,
+    "theta": 0,
+    "bid": 2767.95,
+    "ask": 2997.75
+   },
+   "put": {
+    "instrumentKey": "NSE_FO|61174",
+    "ltp": 0.6,
+    "change": -0.20000000000000007,
+    "oi": 58630,
+    "oiChange": 5005,
+    "volume": 46605,
+    "iv": 42.97,
+    "delta": -0.0019,
+    "theta": -0.839,
+    "bid": 0.5,
+    "ask": 0.6
+   }
+  },
+  {
+   "strike": 21400,
+   "call": {
+    "instrumentKey": "NSE_FO|61175",
+    "ltp": 2940.75,
+    "change": 324.4499999999998,
+    "oi": 65,
+    "oiChange": -65,
+    "volume": 130,
+    "iv": 81.51,
+    "delta": 0.9363,
+    "theta": -32.3642,
+    "bid": 2819.55,
+    "ask": 2946.55
+   },
+   "put": {
+    "instrumentKey": "NSE_FO|61176",
+    "ltp": 0.45,
+    "change": -0.3,
+    "oi": 600470,
+    "oiChange": -195,
+    "volume": 912015,
+    "iv": 41.02,
+    "delta": -0.0015,
+    "theta": -0.6399,
+    "bid": 0.45,
+    "ask": 0.55
+   }
+  },
+  {
+   "strike": 21450,
+   "call": {
+    "instrumentKey": "NSE_FO|61177",
+    "ltp": 0,
+    "change": 0,
+    "oi": 0,
+    "oiChange": 0,
+    "volume": 0,
+    "iv": 0,
+    "delta": 1,
+    "theta": 0,
+    "bid": 2667.5,
+    "ask": 2897.95
+   },
+   "put": {
+    "instrumentKey": "NSE_FO|61208",
+    "ltp": 0.5,
+    "change": -0.35,
+    "oi": 50115,
+    "oiChange": 15600,
+    "volume": 58175,
+    "iv": 41.02,
+    "delta": -0.0018,
+    "theta": -0.7507,
+    "bid": 0.5,
+    "ask": 0.65
+   }
+  },
+  {
+   "strike": 21500,
+   "call": {
+    "instrumentKey": "NSE_FO|61211",
+    "ltp": 2782.75,
+    "change": -10.199999999999818,
+    "oi": 307125,
+    "oiChange": -12935,
+    "volume": 18330,
+    "iv": 43.95,
+    "delta": 0.9962,
+    "theta": -1.5795,
+    "bid": 2780.3,
+    "ask": 2783.85
+   },
+   "put": {
+    "instrumentKey": "NSE_FO|61212",
+    "ltp": 0.5,
+    "change": -0.35,
+    "oi": 1564030,
+    "oiChange": -60970,
+    "volume": 1467245,
+    "iv": 40.04,
+    "delta": -0.0017,
+    "theta": -0.7028,
+    "bid": 0.55,
+    "ask": 0.6
+   }
+  },
+  {
+   "strike": 21550,
+   "call": {
+    "instrumentKey": "NSE_FO|61271",
+    "ltp": 0,
+    "change": 0,
+    "oi": 0,
+    "oiChange": 0,
+    "volume": 0,
+    "iv": 0,
+    "delta": 1,
+    "theta": 0,
+    "bid": 2579.45,
+    "ask": 2795.6
+   },
+   "put": {
+    "instrumentKey": "NSE_FO|61333",
+    "ltp": 0.6,
+    "change": -0.25,
+    "oi": 42250,
+    "oiChange": 14365,
+    "volume": 67795,
+    "iv": 40.04,
+    "delta": -0.002,
+    "theta": -0.8253,
+    "bid": 0.55,
+    "ask": 0.7
+   }
+  },
+  {
+   "strike": 21600,
+   "call": {
+    "instrumentKey": "NSE_FO|61334",
+    "ltp": 0,
+    "change": 0,
+    "oi": 0,
+    "oiChange": 0,
+    "volume": 0,
+    "iv": 0,
+    "delta": 1,
+    "theta": 0,
+    "bid": 2548.65,
+    "ask": 2747.8
+   },
+   "put": {
+    "instrumentKey": "NSE_FO|61335",
+    "ltp": 0.75,
+    "change": -0.09999999999999998,
+    "oi": 211510,
+    "oiChange": 7085,
+    "volume": 406055,
+    "iv": 39.06,
+    "delta": -0.002,
+    "theta": -0.7734,
+    "bid": 0.45,
+    "ask": 0.55
+   }
+  },
+  {
+   "strike": 21650,
+   "call": {
+    "instrumentKey": "NSE_FO|61336",
+    "ltp": 0,
+    "change": 0,
+    "oi": 0,
+    "oiChange": 0,
+    "volume": 0,
+    "iv": 0,
+    "delta": 1,
+    "theta": 0,
+    "bid": 2423.55,
+    "ask": 2697.8
+   },
+   "put": {
+    "instrumentKey": "NSE_FO|61337",
+    "ltp": 0.75,
+    "change": -0.15000000000000002,
+    "oi": 41015,
+    "oiChange": 7735,
+    "volume": 67080,
+    "iv": 39.55,
+    "delta": -0.0026,
+    "theta": -1.0138,
+    "bid": 0.5,
+    "ask": 0.75
+   }
+  },
+  {
+   "strike": 21700,
+   "call": {
+    "instrumentKey": "NSE_FO|61338",
+    "ltp": 2535,
+    "change": 0,
+    "oi": 650,
+    "oiChange": 0,
+    "volume": 0,
+    "iv": 0,
+    "delta": 1,
+    "theta": 0,
+    "bid": 2527.9,
+    "ask": 2648.6
+   },
+   "put": {
+    "instrumentKey": "NSE_FO|61339",
+    "ltp": 0.55,
+    "change": -0.29999999999999993,
+    "oi": 249860,
+    "oiChange": -27430,
+    "volume": 429000,
+    "iv": 38.09,
+    "delta": -0.0022,
+    "theta": -0.8529,
+    "bid": 0.5,
+    "ask": 0.75
+   }
+  },
+  {
+   "strike": 21750,
+   "call": {
+    "instrumentKey": "NSE_FO|61340",
+    "ltp": 0,
+    "change": 0,
+    "oi": 0,
+    "oiChange": 0,
+    "volume": 0,
+    "iv": 0,
+    "delta": 1,
+    "theta": 0,
+    "bid": 2397.3,
+    "ask": 2597.9
+   },
+   "put": {
+    "instrumentKey": "NSE_FO|61341",
+    "ltp": 0.9,
+    "change": -0.04999999999999993,
+    "oi": 58045,
+    "oiChange": 650,
+    "volume": 79430,
+    "iv": 38.57,
+    "delta": -0.003,
+    "theta": -1.1187,
+    "bid": 0.5,
+    "ask": 0.8
+   }
+  },
+  {
+   "strike": 21800,
+   "call": {
+    "instrumentKey": "NSE_FO|61342",
+    "ltp": 2540,
+    "change": 0,
+    "oi": 130,
+    "oiChange": 65,
+    "volume": 0,
+    "iv": 71.81,
+    "delta": 0.9296,
+    "theta": -30.7942,
+    "bid": 2343.05,
+    "ask": 2545
+   },
+   "put": {
+    "instrumentKey": "NSE_FO|61343",
+    "ltp": 0.75,
+    "change": -0.19999999999999996,
+    "oi": 346125,
+    "oiChange": -21385,
+    "volume": 947115,
+    "iv": 37.11,
+    "delta": -0.0026,
+    "theta": -0.9426,
+    "bid": 0.5,
+    "ask": 0.75
+   }
+  },
+  {
+   "strike": 21850,
+   "call": {
+    "instrumentKey": "NSE_FO|61344",
+    "ltp": 0,
+    "change": 0,
+    "oi": 0,
+    "oiChange": 0,
+    "volume": 0,
+    "iv": 0,
+    "delta": 1,
+    "theta": 0,
+    "bid": 2344.05,
+    "ask": 2497.65
+   },
+   "put": {
+    "instrumentKey": "NSE_FO|61345",
+    "ltp": 0.7,
+    "change": -0.30000000000000004,
+    "oi": 48165,
+    "oiChange": 8125,
+    "volume": 137020,
+    "iv": 36.13,
+    "delta": -0.0025,
+    "theta": -0.8827,
+    "bid": 0.7,
+    "ask": 0.9
+   }
+  },
+  {
+   "strike": 21900,
+   "call": {
+    "instrumentKey": "NSE_FO|61346",
+    "ltp": 2340,
+    "change": 0,
+    "oi": 455,
+    "oiChange": 65,
+    "volume": 0,
+    "iv": 0,
+    "delta": 1,
+    "theta": 0,
+    "bid": 2318.8,
+    "ask": 2447.5
+   },
+   "put": {
+    "instrumentKey": "NSE_FO|61347",
+    "ltp": 0.7,
+    "change": -0.30000000000000004,
+    "oi": 254605,
+    "oiChange": -4940,
+    "volume": 589355,
+    "iv": 35.64,
+    "delta": -0.0027,
+    "theta": -0.9295,
+    "bid": 0.65,
+    "ask": 0.9
+   }
+  },
+  {
+   "strike": 21950,
+   "call": {
+    "instrumentKey": "NSE_FO|61350",
+    "ltp": 0,
+    "change": 0,
+    "oi": 0,
+    "oiChange": 0,
+    "volume": 0,
+    "iv": 0,
+    "delta": 1,
+    "theta": 0,
+    "bid": 2254.05,
+    "ask": 2397.6
+   },
+   "put": {
+    "instrumentKey": "NSE_FO|61351",
+    "ltp": 0.7,
+    "change": -0.3500000000000001,
+    "oi": 85410,
+    "oiChange": 29510,
+    "volume": 195000,
+    "iv": 34.67,
+    "delta": -0.0025,
+    "theta": -0.8679,
+    "bid": 0.65,
+    "ask": 0.9
+   }
+  },
+  {
+   "strike": 22000,
+   "call": {
+    "instrumentKey": "NSE_FO|61352",
+    "ltp": 2282.5,
+    "change": -12.300000000000182,
+    "oi": 430820,
+    "oiChange": -103545,
+    "volume": 122590,
+    "iv": 35.64,
+    "delta": 0.9962,
+    "theta": -1.2969,
+    "bid": 2280.3,
+    "ask": 2288.4
+   },
+   "put": {
+    "instrumentKey": "NSE_FO|61353",
+    "ltp": 0.9,
+    "change": -0.15000000000000002,
+    "oi": 3901625,
+    "oiChange": -751465,
+    "volume": 6382155,
+    "iv": 34.67,
+    "delta": -0.0031,
+    "theta": -1.0327,
+    "bid": 0.75,
+    "ask": 0.9
+   }
+  },
+  {
+   "strike": 22050,
+   "call": {
+    "instrumentKey": "NSE_FO|61354",
+    "ltp": 0,
+    "change": 0,
+    "oi": 0,
+    "oiChange": 0,
+    "volume": 0,
+    "iv": 0,
+    "delta": 1,
+    "theta": 0,
+    "bid": 2180.95,
+    "ask": 2297.3
+   },
+   "put": {
+    "instrumentKey": "NSE_FO|61355",
+    "ltp": 0.85,
+    "change": -0.35,
+    "oi": 131885,
+    "oiChange": 51480,
+    "volume": 481910,
+    "iv": 34.18,
+    "delta": -0.0033,
+    "theta": -1.0743,
+    "bid": 0.85,
+    "ask": 0.9
+   }
+  },
+  {
+   "strike": 22100,
+   "call": {
+    "instrumentKey": "NSE_FO|61356",
+    "ltp": 0,
+    "change": 0,
+    "oi": 0,
+    "oiChange": 0,
+    "volume": 0,
+    "iv": 0,
+    "delta": 1,
+    "theta": 0,
+    "bid": 2061.6,
+    "ask": 2247
+   },
+   "put": {
+    "instrumentKey": "NSE_FO|61357",
+    "ltp": 0.85,
+    "change": -0.29999999999999993,
+    "oi": 715780,
+    "oiChange": 82615,
+    "volume": 2054065,
+    "iv": 33.2,
+    "delta": -0.0032,
+    "theta": -1.0201,
+    "bid": 0.8,
+    "ask": 0.9
+   }
+  },
+  {
+   "strike": 22150,
+   "call": {
+    "instrumentKey": "NSE_FO|61364",
+    "ltp": 2147.4,
+    "change": 0,
+    "oi": 130,
+    "oiChange": 0,
+    "volume": 0,
+    "iv": 48.34,
+    "delta": 0.9673,
+    "theta": -11.2354,
+    "bid": 2090.15,
+    "ask": 2185.55
+   },
+   "put": {
+    "instrumentKey": "NSE_FO|61365",
+    "ltp": 0.75,
+    "change": -0.5,
+    "oi": 309790,
+    "oiChange": 91520,
+    "volume": 1612585,
+    "iv": 32.23,
+    "delta": -0.003,
+    "theta": -0.9514,
+    "bid": 0.75,
+    "ask": 0.95
+   }
+  },
+  {
+   "strike": 22200,
+   "call": {
+    "instrumentKey": "NSE_FO|61366",
+    "ltp": 2105.2,
+    "change": -17.050000000000182,
+    "oi": 390,
+    "oiChange": 0,
+    "volume": 65,
+    "iv": 51.03,
+    "delta": 0.956,
+    "theta": -15.1088,
+    "bid": 2038.55,
+    "ask": 2136.1
+   },
+   "put": {
+    "instrumentKey": "NSE_FO|61367",
+    "ltp": 0.85,
+    "change": -0.4,
+    "oi": 632580,
+    "oiChange": -89050,
+    "volume": 1756170,
+    "iv": 31.74,
+    "delta": -0.0033,
+    "theta": -1.0065,
+    "bid": 0.85,
+    "ask": 0.95
+   }
+  },
+  {
+   "strike": 22250,
+   "call": {
+    "instrumentKey": "NSE_FO|61372",
+    "ltp": 1585.4,
+    "change": 0,
+    "oi": 65,
+    "oiChange": 0,
+    "volume": 0,
+    "iv": 0,
+    "delta": 1,
+    "theta": 0,
+    "bid": 1910,
+    "ask": 2100.55
+   },
+   "put": {
+    "instrumentKey": "NSE_FO|61373",
+    "ltp": 0.8,
+    "change": -0.5999999999999999,
+    "oi": 288340,
+    "oiChange": 49270,
+    "volume": 1437800,
+    "iv": 30.76,
+    "delta": -0.0032,
+    "theta": -0.9359,
+    "bid": 0.6,
+    "ask": 1.15
+   }
+  },
+  {
+   "strike": 22300,
+   "call": {
+    "instrumentKey": "NSE_FO|61376",
+    "ltp": 2113.8,
+    "change": 0,
+    "oi": 2080,
+    "oiChange": 260,
+    "volume": 0,
+    "iv": 75.64,
+    "delta": 0.8677,
+    "theta": -51.5073,
+    "bid": 1935.15,
+    "ask": 1986.3
+   },
+   "put": {
+    "instrumentKey": "NSE_FO|61377",
+    "ltp": 0.95,
+    "change": -0.44999999999999996,
+    "oi": 599430,
+    "oiChange": -87100,
+    "volume": 2888730,
+    "iv": 30.76,
+    "delta": -0.0039,
+    "theta": -1.1295,
+    "bid": 0.9,
+    "ask": 1.15
+   }
+  },
+  {
+   "strike": 22350,
+   "call": {
+    "instrumentKey": "NSE_FO|61378",
+    "ltp": 1780,
+    "change": 0,
+    "oi": 130,
+    "oiChange": 0,
+    "volume": 0,
+    "iv": 0,
+    "delta": 1,
+    "theta": 0,
+    "bid": 1894.45,
+    "ask": 1992.85
+   },
+   "put": {
+    "instrumentKey": "NSE_FO|61379",
+    "ltp": 1.05,
+    "change": -0.3999999999999999,
+    "oi": 184470,
+    "oiChange": -77610,
+    "volume": 1233700,
+    "iv": 30.27,
+    "delta": -0.0042,
+    "theta": -1.1981,
+    "bid": 0.95,
+    "ask": 1.2
+   }
+  },
+  {
+   "strike": 22400,
+   "call": {
+    "instrumentKey": "NSE_FO|61380",
+    "ltp": 1702.75,
+    "change": 0,
+    "oi": 2145,
+    "oiChange": 130,
+    "volume": 0,
+    "iv": 0,
+    "delta": 1,
+    "theta": 0,
+    "bid": 1847.55,
+    "ask": 1937.25
+   },
+   "put": {
+    "instrumentKey": "NSE_FO|61381",
+    "ltp": 1,
+    "change": -0.44999999999999996,
+    "oi": 357370,
+    "oiChange": -22750,
+    "volume": 1514435,
+    "iv": 29.54,
+    "delta": -0.0043,
+    "theta": -1.1934,
+    "bid": 1,
+    "ask": 1.1
+   }
+  },
+  {
+   "strike": 22450,
+   "call": {
+    "instrumentKey": "NSE_FO|61389",
+    "ltp": 2199.25,
+    "change": 0,
+    "oi": 65,
+    "oiChange": 0,
+    "volume": 0,
+    "iv": 106.38,
+    "delta": 0.7765,
+    "theta": -101.0822,
+    "bid": 1794.15,
+    "ask": 1889.4
+   },
+   "put": {
+    "instrumentKey": "NSE_FO|61396",
+    "ltp": 1.15,
+    "change": -0.3500000000000001,
+    "oi": 178945,
+    "oiChange": -101530,
+    "volume": 816725,
+    "iv": 29.3,
+    "delta": -0.005,
+    "theta": -1.3518,
+    "bid": 1.15,
+    "ask": 1.3
+   }
+  },
+  {
+   "strike": 22500,
+   "call": {
+    "instrumentKey": "NSE_FO|61397",
+    "ltp": 1785.6,
+    "change": -9.950000000000045,
+    "oi": 183365,
+    "oiChange": -65910,
+    "volume": 85345,
+    "iv": 33.39,
+    "delta": 0.9861,
+    "theta": -3.7709,
+    "bid": 1781.25,
+    "ask": 1784.9
+   },
+   "put": {
+    "instrumentKey": "NSE_FO|61398",
+    "ltp": 1.25,
+    "change": -0.30000000000000004,
+    "oi": 5650905,
+    "oiChange": 793455,
+    "volume": 14518010,
+    "iv": 28.81,
+    "delta": -0.0055,
+    "theta": -1.438,
+    "bid": 1.2,
+    "ask": 1.3
+   }
+  },
+  {
+   "strike": 22550,
+   "call": {
+    "instrumentKey": "NSE_FO|61399",
+    "ltp": 1719,
+    "change": -0.5499999999999545,
+    "oi": 1560,
+    "oiChange": 0,
+    "volume": 130,
+    "iv": 0,
+    "delta": 1,
+    "theta": 0,
+    "bid": 1711.75,
+    "ask": 1777.75
+   },
+   "put": {
+    "instrumentKey": "NSE_FO|61400",
+    "ltp": 1.3,
+    "change": -0.30000000000000004,
+    "oi": 261885,
+    "oiChange": -11375,
+    "volume": 1496950,
+    "iv": 27.83,
+    "delta": -0.0053,
+    "theta": -1.3475,
+    "bid": 0.8,
+    "ask": 1.3
+   }
+  },
+  {
+   "strike": 22600,
+   "call": {
+    "instrumentKey": "NSE_FO|61401",
+    "ltp": 1689,
+    "change": 4.75,
+    "oi": 2275,
+    "oiChange": -715,
+    "volume": 780,
+    "iv": 34.67,
+    "delta": 0.9771,
+    "theta": -5.9863,
+    "bid": 1655.35,
+    "ask": 1736.45
+   },
+   "put": {
+    "instrumentKey": "NSE_FO|61402",
+    "ltp": 1.2,
+    "change": -0.3500000000000001,
+    "oi": 345670,
+    "oiChange": -92495,
+    "volume": 1942980,
+    "iv": 27.1,
+    "delta": -0.0055,
+    "theta": -1.3454,
+    "bid": 1.2,
+    "ask": 1.35
+   }
+  },
+  {
+   "strike": 22650,
+   "call": {
+    "instrumentKey": "NSE_FO|61403",
+    "ltp": 1637.05,
+    "change": 0,
+    "oi": 5590,
+    "oiChange": 3445,
+    "volume": 0,
+    "iv": 32.23,
+    "delta": 0.9812,
+    "theta": -4.6977,
+    "bid": 1603.05,
+    "ask": 1688
+   },
+   "put": {
+    "instrumentKey": "NSE_FO|61408",
+    "ltp": 1.4,
+    "change": -0.25,
+    "oi": 155935,
+    "oiChange": 40820,
+    "volume": 753740,
+    "iv": 26.86,
+    "delta": -0.0064,
+    "theta": -1.5344,
+    "bid": 1.25,
+    "ask": 1.45
+   }
+  },
+  {
+   "strike": 22700,
+   "call": {
+    "instrumentKey": "NSE_FO|61409",
+    "ltp": 1601,
+    "change": 3.099999999999909,
+    "oi": 4680,
+    "oiChange": -390,
+    "volume": 520,
+    "iv": 38.94,
+    "delta": 0.9529,
+    "theta": -12.1717,
+    "bid": 1569.65,
+    "ask": 1601.9
+   },
+   "put": {
+    "instrumentKey": "NSE_FO|61410",
+    "ltp": 1.4,
+    "change": -0.15000000000000013,
+    "oi": 962585,
+    "oiChange": -586820,
+    "volume": 5161195,
+    "iv": 25.63,
+    "delta": -0.0058,
+    "theta": -1.3415,
+    "bid": 1.1,
+    "ask": 1.4
+   }
+  },
+  {
+   "strike": 22750,
+   "call": {
+    "instrumentKey": "NSE_FO|61411",
+    "ltp": 1568.35,
+    "change": 0,
+    "oi": 520,
+    "oiChange": 65,
+    "volume": 0,
+    "iv": 43.61,
+    "delta": 0.9266,
+    "theta": -19.308,
+    "bid": 1328.25,
+    "ask": 1599.25
+   },
+   "put": {
+    "instrumentKey": "NSE_FO|61412",
+    "ltp": 1.35,
+    "change": -0.44999999999999996,
+    "oi": 313105,
+    "oiChange": 3900,
+    "volume": 1955915,
+    "iv": 25.15,
+    "delta": -0.0064,
+    "theta": -1.4372,
+    "bid": 1.35,
+    "ask": 1.4
+   }
+  },
+  {
+   "strike": 22800,
+   "call": {
+    "instrumentKey": "NSE_FO|61416",
+    "ltp": 1498.95,
+    "change": -49.049999999999955,
+    "oi": 4745,
+    "oiChange": -325,
+    "volume": 520,
+    "iv": 36.07,
+    "delta": 0.9542,
+    "theta": -11.0223,
+    "bid": 1469.55,
+    "ask": 1549.6
+   },
+   "put": {
+    "instrumentKey": "NSE_FO|61417",
+    "ltp": 1.05,
+    "change": -0.7,
+    "oi": 1488955,
+    "oiChange": -172315,
+    "volume": 5630885,
+    "iv": 24.66,
+    "delta": -0.0071,
+    "theta": -1.5416,
+    "bid": 1.05,
+    "ask": 1.55
+   }
+  },
+  {
+   "strike": 22850,
+   "call": {
+    "instrumentKey": "NSE_FO|61422",
+    "ltp": 1435.65,
+    "change": 0,
+    "oi": 1885,
+    "oiChange": 0,
+    "volume": 0,
+    "iv": 27.53,
+    "delta": 0.9832,
+    "theta": -3.6543,
+    "bid": 1404.45,
+    "ask": 1501.65
+   },
+   "put": {
+    "instrumentKey": "NSE_FO|61423",
+    "ltp": 1.5,
+    "change": -0.30000000000000004,
+    "oi": 513045,
+    "oiChange": 40040,
+    "volume": 2843295,
+    "iv": 23.93,
+    "delta": -0.0073,
+    "theta": -1.5449,
+    "bid": 1.4,
+    "ask": 1.7
+   }
+  },
+  {
+   "strike": 22900,
+   "call": {
+    "instrumentKey": "NSE_FO|61424",
+    "ltp": 1393.9,
+    "change": 26.90000000000009,
+    "oi": 3965,
+    "oiChange": -910,
+    "volume": 1885,
+    "iv": 31.86,
+    "delta": 0.962,
+    "theta": -8.3742,
+    "bid": 1352.3,
+    "ask": 1435.8
+   },
+   "put": {
+    "instrumentKey": "NSE_FO|61425",
+    "ltp": 1.55,
+    "change": -0.34999999999999987,
+    "oi": 1962870,
+    "oiChange": 57980,
+    "volume": 6131385,
+    "iv": 23.32,
+    "delta": -0.0079,
+    "theta": -1.6051,
+    "bid": 1.5,
+    "ask": 1.65
+   }
+  },
+  {
+   "strike": 22950,
+   "call": {
+    "instrumentKey": "NSE_FO|61426",
+    "ltp": 1350,
+    "change": -230.54999999999995,
+    "oi": 195,
+    "oiChange": 0,
+    "volume": 65,
+    "iv": 33.42,
+    "delta": 0.9485,
+    "theta": -11.2133,
+    "bid": 1297.3,
+    "ask": 1356.75
+   },
+   "put": {
+    "instrumentKey": "NSE_FO|61427",
+    "ltp": 1.65,
+    "change": -0.30000000000000004,
+    "oi": 336830,
+    "oiChange": 57135,
+    "volume": 2436330,
+    "iv": 22.71,
+    "delta": -0.0085,
+    "theta": -1.6702,
+    "bid": 1.3,
+    "ask": 1.7
+   }
+  },
+  {
+   "strike": 23000,
+   "call": {
+    "instrumentKey": "NSE_FO|61428",
+    "ltp": 1287,
+    "change": -6.150000000000091,
+    "oi": 254930,
+    "oiChange": -88335,
+    "volume": 157040,
+    "iv": 26,
+    "delta": 0.9776,
+    "theta": -4.4005,
+    "bid": 1284.3,
+    "ask": 1288.5
+   },
+   "put": {
+    "instrumentKey": "NSE_FO|61429",
+    "ltp": 1.55,
+    "change": -0.3999999999999999,
+    "oi": 11569545,
+    "oiChange": 1507675,
+    "volume": 28102880,
+    "iv": 21.85,
+    "delta": -0.0086,
+    "theta": -1.6181,
+    "bid": 1.55,
+    "ask": 1.65
+   }
+  },
+  {
+   "strike": 23050,
+   "call": {
+    "instrumentKey": "NSE_FO|61430",
+    "ltp": 1088.05,
+    "change": 0,
+    "oi": 390,
+    "oiChange": 0,
+    "volume": 0,
+    "iv": 0,
+    "delta": 1,
+    "theta": 0,
+    "bid": 1195.15,
+    "ask": 1301.6
+   },
+   "put": {
+    "instrumentKey": "NSE_FO|61431",
+    "ltp": 1.5,
+    "change": -0.6000000000000001,
+    "oi": 451555,
+    "oiChange": 152750,
+    "volume": 3635710,
+    "iv": 21,
+    "delta": -0.0086,
+    "theta": -1.5652,
+    "bid": 1.3,
+    "ask": 1.75
+   }
+  },
+  {
+   "strike": 23100,
+   "call": {
+    "instrumentKey": "NSE_FO|61436",
+    "ltp": 1197.45,
+    "change": -24.049999999999955,
+    "oi": 4290,
+    "oiChange": -520,
+    "volume": 1105,
+    "iv": 29.39,
+    "delta": 0.9493,
+    "theta": -9.7476,
+    "bid": 1154.9,
+    "ask": 1249.25
+   },
+   "put": {
+    "instrumentKey": "NSE_FO|61437",
+    "ltp": 1.75,
+    "change": -0.4500000000000002,
+    "oi": 1874795,
+    "oiChange": 746330,
+    "volume": 10528245,
+    "iv": 20.51,
+    "delta": -0.0097,
+    "theta": -1.6993,
+    "bid": 1.4,
+    "ask": 1.7
+   }
+  },
+  {
+   "strike": 23150,
+   "call": {
+    "instrumentKey": "NSE_FO|61440",
+    "ltp": 1146.9,
+    "change": 28,
+    "oi": 585,
+    "oiChange": 0,
+    "volume": 65,
+    "iv": 28.17,
+    "delta": 0.9489,
+    "theta": -9.3995,
+    "bid": 1109.05,
+    "ask": 1154.4
+   },
+   "put": {
+    "instrumentKey": "NSE_FO|61444",
+    "ltp": 1.45,
+    "change": -1.05,
+    "oi": 1303445,
+    "oiChange": -189540,
+    "volume": 10892570,
+    "iv": 19.78,
+    "delta": -0.0102,
+    "theta": -1.7119,
+    "bid": 1.45,
+    "ask": 1.75
+   }
+  },
+  {
+   "strike": 23200,
+   "call": {
+    "instrumentKey": "NSE_FO|61445",
+    "ltp": 1095,
+    "change": -2.5,
+    "oi": 19305,
+    "oiChange": -650,
+    "volume": 7215,
+    "iv": 26.43,
+    "delta": 0.9517,
+    "theta": -8.4263,
+    "bid": 1074.4,
+    "ask": 1099.5
+   },
+   "put": {
+    "instrumentKey": "NSE_FO|61446",
+    "ltp": 1.7,
+    "change": -0.55,
+    "oi": 3894280,
+    "oiChange": 411970,
+    "volume": 18334680,
+    "iv": 18.92,
+    "delta": -0.0104,
+    "theta": -1.6581,
+    "bid": 1.7,
+    "ask": 1.75
+   }
+  },
+  {
+   "strike": 23250,
+   "call": {
+    "instrumentKey": "NSE_FO|61450",
+    "ltp": 1045,
+    "change": -30.09999999999991,
+    "oi": 2080,
+    "oiChange": 65,
+    "volume": 715,
+    "iv": 25.42,
+    "delta": 0.9501,
+    "theta": -8.3254,
+    "bid": 990.15,
+    "ask": 1092.95
+   },
+   "put": {
+    "instrumentKey": "NSE_FO|61454",
+    "ltp": 1.6,
+    "change": -0.8500000000000001,
+    "oi": 1598805,
+    "oiChange": 860015,
+    "volume": 8700315,
+    "iv": 17.94,
+    "delta": -0.0101,
+    "theta": -1.5362,
+    "bid": 1.75,
+    "ask": 1.9
+   }
+  },
+  {
+   "strike": 23300,
+   "call": {
+    "instrumentKey": "NSE_FO|61455",
+    "ltp": 984.5,
+    "change": -11.950000000000045,
+    "oi": 26910,
+    "oiChange": 1690,
+    "volume": 8515,
+    "iv": 18.86,
+    "delta": 0.9822,
+    "theta": -2.6305,
+    "bid": 948.9,
+    "ask": 1039.2
+   },
+   "put": {
+    "instrumentKey": "NSE_FO|61458",
+    "ltp": 1.8,
+    "change": -0.7,
+    "oi": 3883360,
+    "oiChange": 834925,
+    "volume": 18325840,
+    "iv": 17.46,
+    "delta": -0.0116,
+    "theta": -1.6886,
+    "bid": 1.8,
+    "ask": 1.9
+   }
+  },
+  {
+   "strike": 23350,
+   "call": {
+    "instrumentKey": "NSE_FO|61459",
+    "ltp": 931.6,
+    "change": -18.399999999999977,
+    "oi": 2470,
+    "oiChange": -585,
+    "volume": 2860,
+    "iv": 13.18,
+    "delta": 0.9978,
+    "theta": -0.2936,
+    "bid": 909.2,
+    "ask": 970.25
+   },
+   "put": {
+    "instrumentKey": "NSE_FO|61467",
+    "ltp": 2.2,
+    "change": -0.44999999999999973,
+    "oi": 698880,
+    "oiChange": -49595,
+    "volume": 6775275,
+    "iv": 17.09,
+    "delta": -0.014,
+    "theta": -1.9402,
+    "bid": 2.05,
+    "ask": 2.2
+   }
+  },
+  {
+   "strike": 23400,
+   "call": {
+    "instrumentKey": "NSE_FO|61468",
+    "ltp": 883.4,
+    "change": -9.649999999999977,
+    "oi": 28340,
+    "oiChange": -585,
+    "volume": 3120,
+    "iv": 16.11,
+    "delta": 0.9862,
+    "theta": -1.8086,
+    "bid": 868.15,
+    "ask": 936.1
+   },
+   "put": {
+    "instrumentKey": "NSE_FO|61492",
+    "ltp": 2.1,
+    "change": -0.7999999999999998,
+    "oi": 4061915,
+    "oiChange": -137995,
+    "volume": 26328315,
+    "iv": 16.36,
+    "delta": -0.015,
+    "theta": -1.9717,
+    "bid": 2.1,
+    "ask": 2.3
+   }
+  },
+  {
+   "strike": 23450,
+   "call": {
+    "instrumentKey": "NSE_FO|61493",
+    "ltp": 838.25,
+    "change": -39.10000000000002,
+    "oi": 2340,
+    "oiChange": 0,
+    "volume": 65,
+    "iv": 18.62,
+    "delta": 0.964,
+    "theta": -4.6816,
+    "bid": 807.45,
+    "ask": 892.2
+   },
+   "put": {
+    "instrumentKey": "NSE_FO|61498",
+    "ltp": 2.15,
+    "change": -0.8500000000000001,
+    "oi": 1137500,
+    "oiChange": -38090,
+    "volume": 14577745,
+    "iv": 15.56,
+    "delta": -0.0158,
+    "theta": -1.9646,
+    "bid": 2.15,
+    "ask": 2.4
+   }
+  },
+  {
+   "strike": 23500,
+   "call": {
+    "instrumentKey": "NSE_FO|61499",
+    "ltp": 787.1,
+    "change": -7.2999999999999545,
+    "oi": 390845,
+    "oiChange": -29380,
+    "volume": 149240,
+    "iv": 17.09,
+    "delta": 0.967,
+    "theta": -3.9977,
+    "bid": 784,
+    "ask": 787.1
+   },
+   "put": {
+    "instrumentKey": "NSE_FO|61500",
+    "ltp": 2.4,
+    "change": -0.8500000000000001,
+    "oi": 10668710,
+    "oiChange": 1101425,
+    "volume": 46994870,
+    "iv": 15.01,
+    "delta": -0.0183,
+    "theta": -2.1414,
+    "bid": 2.4,
+    "ask": 2.5
+   }
+  },
+  {
+   "strike": 23550,
+   "call": {
+    "instrumentKey": "NSE_FO|61501",
+    "ltp": 742.7,
+    "change": -4.0499999999999545,
+    "oi": 13195,
+    "oiChange": 975,
+    "volume": 6760,
+    "iv": 18.52,
+    "delta": 0.9439,
+    "theta": -6.6579,
+    "bid": 717.85,
+    "ask": 781.85
+   },
+   "put": {
+    "instrumentKey": "NSE_FO|61514",
+    "ltp": 2.6,
+    "change": -0.75,
+    "oi": 1770145,
+    "oiChange": 152685,
+    "volume": 18388825,
+    "iv": 14.22,
+    "delta": -0.0195,
+    "theta": -2.1456,
+    "bid": 2.4,
+    "ask": 2.6
+   }
+  },
+  {
+   "strike": 23600,
+   "call": {
+    "instrumentKey": "NSE_FO|61517",
+    "ltp": 688,
+    "change": -7.149999999999977,
+    "oi": 229710,
+    "oiChange": -4940,
+    "volume": 24895,
+    "iv": 15.69,
+    "delta": 0.9593,
+    "theta": -4.356,
+    "bid": 685,
+    "ask": 690.65
+   },
+   "put": {
+    "instrumentKey": "NSE_FO|61518",
+    "ltp": 2.6,
+    "change": -1.0499999999999998,
+    "oi": 5144035,
+    "oiChange": -554320,
+    "volume": 31702320,
+    "iv": 13.31,
+    "delta": -0.0201,
+    "theta": -2.0551,
+    "bid": 2.6,
+    "ask": 2.8
+   }
+  },
+  {
+   "strike": 23650,
+   "call": {
+    "instrumentKey": "NSE_FO|61519",
+    "ltp": 638.15,
+    "change": -5.149999999999977,
+    "oi": 36205,
+    "oiChange": -390,
+    "volume": 11960,
+    "iv": 14.8,
+    "delta": 0.9563,
+    "theta": -4.3544,
+    "bid": 630.85,
+    "ask": 640.9
+   },
+   "put": {
+    "instrumentKey": "NSE_FO|61529",
+    "ltp": 3,
+    "change": -1.0499999999999998,
+    "oi": 1969045,
+    "oiChange": 42120,
+    "volume": 18249855,
+    "iv": 12.57,
+    "delta": -0.0222,
+    "theta": -2.1157,
+    "bid": 2.6,
+    "ask": 2.95
+   }
+  },
+  {
+   "strike": 23700,
+   "call": {
+    "instrumentKey": "NSE_FO|61530",
+    "ltp": 580.9,
+    "change": -16.850000000000023,
+    "oi": 171340,
+    "oiChange": -13455,
+    "volume": 86840,
+    "iv": 14.28,
+    "delta": 0.9484,
+    "theta": -4.8009,
+    "bid": 581.8,
+    "ask": 589.2
+   },
+   "put": {
+    "instrumentKey": "NSE_FO|61531",
+    "ltp": 3.1,
+    "change": -1.4499999999999997,
+    "oi": 6962475,
+    "oiChange": 268515,
+    "volume": 34796125,
+    "iv": 12.02,
+    "delta": -0.0266,
+    "theta": -2.3535,
+    "bid": 3,
+    "ask": 3.1
+   }
+  },
+  {
+   "strike": 23750,
+   "call": {
+    "instrumentKey": "NSE_FO|61532",
+    "ltp": 540.25,
+    "change": -8.899999999999977,
+    "oi": 45240,
+    "oiChange": -3510,
+    "volume": 23985,
+    "iv": 13.61,
+    "delta": 0.9408,
+    "theta": -5.1025,
+    "bid": 534.7,
+    "ask": 537.15
+   },
+   "put": {
+    "instrumentKey": "NSE_FO|61533",
+    "ltp": 3.55,
+    "change": -1.8500000000000005,
+    "oi": 2463370,
+    "oiChange": 197925,
+    "volume": 23206235,
+    "iv": 11.29,
+    "delta": -0.0301,
+    "theta": -2.449,
+    "bid": 3.3,
+    "ask": 3.55
+   }
+  },
+  {
+   "strike": 23800,
+   "call": {
+    "instrumentKey": "NSE_FO|61534",
+    "ltp": 487.65,
+    "change": -10.600000000000023,
+    "oi": 610350,
+    "oiChange": -13130,
+    "volume": 555230,
+    "iv": 11.69,
+    "delta": 0.9499,
+    "theta": -3.8381,
+    "bid": 484.15,
+    "ask": 490.95
+   },
+   "put": {
+    "instrumentKey": "NSE_FO|61535",
+    "ltp": 4.1,
+    "change": -2.5500000000000007,
+    "oi": 7440420,
+    "oiChange": -645060,
+    "volume": 42912090,
+    "iv": 10.68,
+    "delta": -0.0361,
+    "theta": -2.6912,
+    "bid": 3.7,
+    "ask": 4.05
+   }
+  },
+  {
+   "strike": 23850,
+   "call": {
+    "instrumentKey": "NSE_FO|61536",
+    "ltp": 438.5,
+    "change": -11.899999999999977,
+    "oi": 70005,
+    "oiChange": -3770,
+    "volume": 153400,
+    "iv": 10.99,
+    "delta": 0.9413,
+    "theta": -4.0911,
+    "bid": 436.35,
+    "ask": 438.45
+   },
+   "put": {
+    "instrumentKey": "NSE_FO|61550",
+    "ltp": 4.75,
+    "change": -3.4000000000000004,
+    "oi": 3176875,
+    "oiChange": -605280,
+    "volume": 27194830,
+    "iv": 10.13,
+    "delta": -0.0449,
+    "theta": -3.0463,
+    "bid": 4.5,
+    "ask": 4.8
+   }
+  },
+  {
+   "strike": 23900,
+   "call": {
+    "instrumentKey": "NSE_FO|61557",
+    "ltp": 389.4,
+    "change": -13.450000000000045,
+    "oi": 273780,
+    "oiChange": -33670,
+    "volume": 1208415,
+    "iv": 10.25,
+    "delta": 0.9308,
+    "theta": -4.3411,
+    "bid": 386.55,
+    "ask": 389.4
+   },
+   "put": {
+    "instrumentKey": "NSE_FO|61586",
+    "ltp": 5.9,
+    "change": -4.549999999999999,
+    "oi": 6711055,
+    "oiChange": -24960,
+    "volume": 43467515,
+    "iv": 9.61,
+    "delta": -0.0571,
+    "theta": -3.5025,
+    "bid": 5.75,
+    "ask": 6.05
+   }
+  },
+  {
+   "strike": 23950,
+   "call": {
+    "instrumentKey": "NSE_FO|61587",
+    "ltp": 341.75,
+    "change": -14.899999999999977,
+    "oi": 200330,
+    "oiChange": -10855,
+    "volume": 795275,
+    "iv": 9.7,
+    "delta": 0.9129,
+    "theta": -4.8901,
+    "bid": 338.75,
+    "ask": 341.2
+   },
+   "put": {
+    "instrumentKey": "NSE_FO|61588",
+    "ltp": 7.85,
+    "change": -5.9,
+    "oi": 3472560,
+    "oiChange": 312975,
+    "volume": 33085455,
+    "iv": 9.19,
+    "delta": -0.0756,
+    "theta": -4.1613,
+    "bid": 7.6,
+    "ask": 7.9
+   }
+  },
+  {
+   "strike": 24000,
+   "call": {
+    "instrumentKey": "NSE_FO|61593",
+    "ltp": 292.8,
+    "change": -17.94999999999999,
+    "oi": 5939635,
+    "oiChange": -196365,
+    "volume": 12145380,
+    "iv": 8.9,
+    "delta": 0.8957,
+    "theta": -5.119,
+    "bid": 292.05,
+    "ask": 294
+   },
+   "put": {
+    "instrumentKey": "NSE_FO|61604",
+    "ltp": 11.1,
+    "change": -7.299999999999999,
+    "oi": 17814550,
+    "oiChange": 1466660,
+    "volume": 104812435,
+    "iv": 8.83,
+    "delta": -0.1027,
+    "theta": -5.0289,
+    "bid": 10.95,
+    "ask": 11.05
+   }
+  },
+  {
+   "strike": 24050,
+   "call": {
+    "instrumentKey": "NSE_FO|61605",
+    "ltp": 248.7,
+    "change": -18.5,
+    "oi": 572780,
+    "oiChange": -41015,
+    "volume": 4437485,
+    "iv": 9.03,
+    "delta": 0.8457,
+    "theta": -6.8244,
+    "bid": 247.05,
+    "ask": 248.45
+   },
+   "put": {
+    "instrumentKey": "NSE_FO|61609",
+    "ltp": 15.4,
+    "change": -8.85,
+    "oi": 3377400,
+    "oiChange": 220870,
+    "volume": 48079720,
+    "iv": 8.51,
+    "delta": -0.1401,
+    "theta": -6.0307,
+    "bid": 15.45,
+    "ask": 15.75
+   }
+  },
+  {
+   "strike": 24100,
+   "call": {
+    "instrumentKey": "NSE_FO|61610",
+    "ltp": 203.65,
+    "change": -21.19999999999999,
+    "oi": 2777515,
+    "oiChange": -280215,
+    "volume": 29656380,
+    "iv": 8.33,
+    "delta": 0.8065,
+    "theta": -7.2716,
+    "bid": 203.6,
+    "ask": 204.75
+   },
+   "put": {
+    "instrumentKey": "NSE_FO|61622",
+    "ltp": 21.85,
+    "change": -10.449999999999996,
+    "oi": 8737365,
+    "oiChange": 1114945,
+    "volume": 94637140,
+    "iv": 8.22,
+    "delta": -0.1905,
+    "theta": -7.1092,
+    "bid": 21.9,
+    "ask": 22.1
+   }
+  },
+  {
+   "strike": 24150,
+   "call": {
+    "instrumentKey": "NSE_FO|61623",
+    "ltp": 163.55,
+    "change": -22.349999999999994,
+    "oi": 1218880,
+    "oiChange": -33410,
+    "volume": 35383660,
+    "iv": 8.12,
+    "delta": 0.74,
+    "theta": -8.3736,
+    "bid": 163.65,
+    "ask": 164.55
+   },
+   "put": {
+    "instrumentKey": "NSE_FO|61646",
+    "ltp": 31.5,
+    "change": -11.049999999999997,
+    "oi": 6141135,
+    "oiChange": 1489085,
+    "volume": 95788225,
+    "iv": 8,
+    "delta": -0.2569,
+    "theta": -8.196,
+    "bid": 31.3,
+    "ask": 31.5
+   }
+  },
+  {
+   "strike": 24200,
+   "call": {
+    "instrumentKey": "NSE_FO|61647",
+    "ltp": 127.1,
+    "change": -23.349999999999994,
+    "oi": 9122165,
+    "oiChange": 713570,
+    "volume": 179019750,
+    "iv": 8.03,
+    "delta": 0.657,
+    "theta": -9.3839,
+    "bid": 127.35,
+    "ask": 128.25
+   },
+   "put": {
+    "instrumentKey": "NSE_FO|61670",
+    "ltp": 44.65,
+    "change": -11.700000000000003,
+    "oi": 15503670,
+    "oiChange": 2214680,
+    "volume": 291295420,
+    "iv": 7.8,
+    "delta": -0.3389,
+    "theta": -9.0833,
+    "bid": 44.65,
+    "ask": 44.9
+   }
+  },
+  {
+   "strike": 24250,
+   "call": {
+    "instrumentKey": "NSE_FO|61671",
+    "ltp": 96.25,
+    "change": -21.299999999999997,
+    "oi": 6861530,
+    "oiChange": 2690935,
+    "volume": 217831705,
+    "iv": 7.87,
+    "delta": 0.5641,
+    "theta": -9.86,
+    "bid": 96,
+    "ask": 96.85
+   },
+   "put": {
+    "instrumentKey": "NSE_FO|61684",
+    "ltp": 63.5,
+    "change": -10.700000000000003,
+    "oi": 6958770,
+    "oiChange": 1981265,
+    "volume": 273855010,
+    "iv": 7.68,
+    "delta": -0.4345,
+    "theta": -9.6152,
+    "bid": 63.1,
+    "ask": 63.45
+   }
+  },
+  {
+   "strike": 24300,
+   "call": {
+    "instrumentKey": "NSE_FO|61685",
+    "ltp": 70.7,
+    "change": -18.89999999999999,
+    "oi": 13876980,
+    "oiChange": 4091100,
+    "volume": 262705170,
+    "iv": 7.86,
+    "delta": 0.4645,
+    "theta": -9.9302,
+    "bid": 70.3,
+    "ask": 70.7
+   },
+   "put": {
+    "instrumentKey": "NSE_FO|61703",
+    "ltp": 86.85,
+    "change": -9.200000000000003,
+    "oi": 9835345,
+    "oiChange": 2358070,
+    "volume": 230028045,
+    "iv": 7.57,
+    "delta": -0.537,
+    "theta": -9.5606,
+    "bid": 86.65,
+    "ask": 87
+   }
+  },
+  {
+   "strike": 24350,
+   "call": {
+    "instrumentKey": "NSE_FO|61717",
+    "ltp": 49.1,
+    "change": -17.1,
+    "oi": 4574635,
+    "oiChange": 1520090,
+    "volume": 119408055,
+    "iv": 7.8,
+    "delta": 0.3662,
+    "theta": -9.3308,
+    "bid": 48.7,
+    "ask": 48.95
+   },
+   "put": {
+    "instrumentKey": "NSE_FO|61719",
+    "ltp": 115.4,
+    "change": -7.349999999999994,
+    "oi": 1989780,
+    "oiChange": -4420,
+    "volume": 77230595,
+    "iv": 7.42,
+    "delta": -0.6405,
+    "theta": -8.8184,
+    "bid": 115.65,
+    "ask": 116.8
+   }
+  },
+  {
+   "strike": 24400,
+   "call": {
+    "instrumentKey": "NSE_FO|61720",
+    "ltp": 33,
+    "change": -14.350000000000001,
+    "oi": 9774440,
+    "oiChange": 1553760,
+    "volume": 127463570,
+    "iv": 7.74,
+    "delta": 0.2749,
+    "theta": -8.2072,
+    "bid": 32.8,
+    "ask": 33.2
+   },
+   "put": {
+    "instrumentKey": "NSE_FO|61726",
+    "ltp": 148.7,
+    "change": -4.300000000000011,
+    "oi": 3521960,
+    "oiChange": 361595,
+    "volume": 65975260,
+    "iv": 7.26,
+    "delta": -0.7381,
+    "theta": -7.5198,
+    "bid": 148.6,
+    "ask": 149.15
+   }
+  },
+  {
+   "strike": 24450,
+   "call": {
+    "instrumentKey": "NSE_FO|61727",
+    "ltp": 21.4,
+    "change": -11.200000000000003,
+    "oi": 3715790,
+    "oiChange": 985855,
+    "volume": 62607415,
+    "iv": 7.72,
+    "delta": 0.1969,
+    "theta": -6.8092,
+    "bid": 21.25,
+    "ask": 21.4
+   },
+   "put": {
+    "instrumentKey": "NSE_FO|61733",
+    "ltp": 187.25,
+    "change": -2,
+    "oi": 563745,
+    "oiChange": -2925,
+    "volume": 15626845,
+    "iv": 7.42,
+    "delta": -0.8128,
+    "theta": -6.3415,
+    "bid": 187.45,
+    "ask": 188.9
+   }
+  },
+  {
+   "strike": 24500,
+   "call": {
+    "instrumentKey": "NSE_FO|61734",
+    "ltp": 13.75,
+    "change": -8.149999999999999,
+    "oi": 13250445,
+    "oiChange": 735800,
+    "volume": 108157075,
+    "iv": 7.78,
+    "delta": 0.1363,
+    "theta": -5.4089,
+    "bid": 13.45,
+    "ask": 13.7
+   },
+   "put": {
+    "instrumentKey": "NSE_FO|61771",
+    "ltp": 229.5,
+    "change": 1.3499999999999943,
+    "oi": 3754530,
+    "oiChange": -248495,
+    "volume": 19721650,
+    "iv": 7.08,
+    "delta": -0.8862,
+    "theta": -4.3378,
+    "bid": 229,
+    "ask": 229.7
+   }
+  },
+  {
+   "strike": 24550,
+   "call": {
+    "instrumentKey": "NSE_FO|61772",
+    "ltp": 8.5,
+    "change": -5.9,
+    "oi": 5039515,
+    "oiChange": 2011360,
+    "volume": 52815035,
+    "iv": 7.87,
+    "delta": 0.0915,
+    "theta": -4.1153,
+    "bid": 8.5,
+    "ask": 8.65
+   },
+   "put": {
+    "instrumentKey": "NSE_FO|61774",
+    "ltp": 275.05,
+    "change": 4.550000000000011,
+    "oi": 184340,
+    "oiChange": -6305,
+    "volume": 2104635,
+    "iv": 7.35,
+    "delta": -0.9231,
+    "theta": -3.3744,
+    "bid": 272.65,
+    "ask": 277.1
+   }
+  },
+  {
+   "strike": 24600,
+   "call": {
+    "instrumentKey": "NSE_FO|61775",
+    "ltp": 5.45,
+    "change": -3.8,
+    "oi": 8538010,
+    "oiChange": 306345,
+    "volume": 57086120,
+    "iv": 8.12,
+    "delta": 0.0629,
+    "theta": -3.1897,
+    "bid": 5.55,
+    "ask": 5.65
+   },
+   "put": {
+    "instrumentKey": "NSE_FO|61776",
+    "ltp": 321.9,
+    "change": 7.0499999999999545,
+    "oi": 873665,
+    "oiChange": -76050,
+    "volume": 3511365,
+    "iv": 7.2,
+    "delta": -0.9579,
+    "theta": -2.0577,
+    "bid": 319.85,
+    "ask": 321.9
+   }
+  },
+  {
+   "strike": 24650,
+   "call": {
+    "instrumentKey": "NSE_FO|61778",
+    "ltp": 3.8,
+    "change": -2.4000000000000004,
+    "oi": 3402035,
+    "oiChange": 509145,
+    "volume": 27453140,
+    "iv": 8.48,
+    "delta": 0.0452,
+    "theta": -2.5659,
+    "bid": 3.8,
+    "ask": 3.95
+   },
+   "put": {
+    "instrumentKey": "NSE_FO|61786",
+    "ltp": 368.9,
+    "change": 7.5,
+    "oi": 172965,
+    "oiChange": -8905,
+    "volume": 426010,
+    "iv": 5.86,
+    "delta": -0.993,
+    "theta": -0.3649,
+    "bid": 369,
+    "ask": 371.95
+   }
+  },
+  {
+   "strike": 24700,
+   "call": {
+    "instrumentKey": "NSE_FO|61793",
+    "ltp": 2.95,
+    "change": -1.2000000000000002,
+    "oi": 6814405,
+    "oiChange": -741845,
+    "volume": 36594350,
+    "iv": 8.91,
+    "delta": 0.0337,
+    "theta": -2.1218,
+    "bid": 2.9,
+    "ask": 2.95
+   },
+   "put": {
+    "instrumentKey": "NSE_FO|61796",
+    "ltp": 419.85,
+    "change": 12.150000000000034,
+    "oi": 768235,
+    "oiChange": -97630,
+    "volume": 685815,
+    "iv": 7.75,
+    "delta": -0.9823,
+    "theta": -1.0747,
+    "bid": 416.95,
+    "ask": 419.85
+   }
+  },
+  {
+   "strike": 24750,
+   "call": {
+    "instrumentKey": "NSE_FO|61797",
+    "ltp": 2.35,
+    "change": -0.75,
+    "oi": 3294980,
+    "oiChange": 1234155,
+    "volume": 21098350,
+    "iv": 9.34,
+    "delta": 0.0255,
+    "theta": -1.7625,
+    "bid": 2.3,
+    "ask": 2.35
+   },
+   "put": {
+    "instrumentKey": "NSE_FO|61798",
+    "ltp": 469.15,
+    "change": 9.199999999999989,
+    "oi": 93275,
+    "oiChange": -2665,
+    "volume": 74035,
+    "iv": 7.57,
+    "delta": -0.992,
+    "theta": -0.5253,
+    "bid": 465.45,
+    "ask": 470.55
+   }
+  },
+  {
+   "strike": 24800,
+   "call": {
+    "instrumentKey": "NSE_FO|61845",
+    "ltp": 1.9,
+    "change": -0.5500000000000003,
+    "oi": 7231640,
+    "oiChange": 320645,
+    "volume": 33866170,
+    "iv": 9.83,
+    "delta": 0.0201,
+    "theta": -1.5217,
+    "bid": 1.75,
+    "ask": 1.9
+   },
+   "put": {
+    "instrumentKey": "NSE_FO|61846",
+    "ltp": 516.4,
+    "change": 7.349999999999966,
+    "oi": 400335,
+    "oiChange": -72670,
+    "volume": 278525,
+    "iv": 0,
+    "delta": -1,
+    "theta": 0,
+    "bid": 516.55,
+    "ask": 521.45
+   }
+  },
+  {
+   "strike": 24850,
+   "call": {
+    "instrumentKey": "NSE_FO|61855",
+    "ltp": 1.65,
+    "change": -0.3999999999999999,
+    "oi": 2403505,
+    "oiChange": 730535,
+    "volume": 14262040,
+    "iv": 10.38,
+    "delta": 0.0167,
+    "theta": -1.3696,
+    "bid": 1.55,
+    "ask": 1.65
+   },
+   "put": {
+    "instrumentKey": "NSE_FO|61856",
+    "ltp": 566.1,
+    "change": 11.050000000000068,
+    "oi": 52845,
+    "oiChange": 3900,
+    "volume": 11765,
+    "iv": 0,
+    "delta": -1,
+    "theta": 0,
+    "bid": 565.85,
+    "ask": 572.9
+   }
+  },
+  {
+   "strike": 24900,
+   "call": {
+    "instrumentKey": "NSE_FO|61857",
+    "ltp": 1.5,
+    "change": -0.19999999999999996,
+    "oi": 3666520,
+    "oiChange": 352040,
+    "volume": 19005480,
+    "iv": 10.99,
+    "delta": 0.0145,
+    "theta": -1.2849,
+    "bid": 1.4,
+    "ask": 1.5
+   },
+   "put": {
+    "instrumentKey": "NSE_FO|61859",
+    "ltp": 618.35,
+    "change": 11.899999999999977,
+    "oi": 134225,
+    "oiChange": -15925,
+    "volume": 60775,
+    "iv": 0,
+    "delta": -1,
+    "theta": 0,
+    "bid": 613.6,
+    "ask": 621.6
+   }
+  },
+  {
+   "strike": 24950,
+   "call": {
+    "instrumentKey": "NSE_FO|61865",
+    "ltp": 1.3,
+    "change": -0.25,
+    "oi": 1177410,
+    "oiChange": -196755,
+    "volume": 7143240,
+    "iv": 11.84,
+    "delta": 0.0144,
+    "theta": -1.3742,
+    "bid": 1.2,
+    "ask": 1.4
+   },
+   "put": {
+    "instrumentKey": "NSE_FO|61866",
+    "ltp": 666.9,
+    "change": 11.149999999999977,
+    "oi": 19760,
+    "oiChange": 0,
+    "volume": 4680,
+    "iv": 0,
+    "delta": -1,
+    "theta": 0,
+    "bid": 662.6,
+    "ask": 671.35
+   }
+  },
+  {
+   "strike": 25000,
+   "call": {
+    "instrumentKey": "NSE_FO|61897",
+    "ltp": 1.3,
+    "change": -0.1499999999999999,
+    "oi": 11785670,
+    "oiChange": -138450,
+    "volume": 33745855,
+    "iv": 12.21,
+    "delta": 0.0114,
+    "theta": -1.1567,
+    "bid": 1.25,
+    "ask": 1.3
+   },
+   "put": {
+    "instrumentKey": "NSE_FO|61898",
+    "ltp": 717.95,
+    "change": 11.150000000000091,
+    "oi": 1596400,
+    "oiChange": -30940,
+    "volume": 689975,
+    "iv": 0,
+    "delta": -1,
+    "theta": 0,
+    "bid": 715.6,
+    "ask": 717.95
+   }
+  },
+  {
+   "strike": 25050,
+   "call": {
+    "instrumentKey": "NSE_FO|61909",
+    "ltp": 1.05,
+    "change": -0.1499999999999999,
+    "oi": 1174550,
+    "oiChange": 248885,
+    "volume": 6099405,
+    "iv": 12.7,
+    "delta": 0.0096,
+    "theta": -1.0417,
+    "bid": 1,
+    "ask": 1.05
+   },
+   "put": {
+    "instrumentKey": "NSE_FO|61910",
+    "ltp": 764.35,
+    "change": 2.3500000000000227,
+    "oi": 10270,
+    "oiChange": 845,
+    "volume": 13390,
+    "iv": 0,
+    "delta": -1,
+    "theta": 0,
+    "bid": 738.7,
+    "ask": 772.75
+   }
+  },
+  {
+   "strike": 25100,
+   "call": {
+    "instrumentKey": "NSE_FO|61913",
+    "ltp": 0.95,
+    "change": -0.15000000000000013,
+    "oi": 3614000,
+    "oiChange": 545415,
+    "volume": 17121260,
+    "iv": 13.18,
+    "delta": 0.0082,
+    "theta": -0.9442,
+    "bid": 0.9,
+    "ask": 0.95
+   },
+   "put": {
+    "instrumentKey": "NSE_FO|61914",
+    "ltp": 815,
+    "change": 12.25,
+    "oi": 84110,
+    "oiChange": -4030,
+    "volume": 8060,
+    "iv": 0,
+    "delta": -1,
+    "theta": 0,
+    "bid": 812.05,
+    "ask": 822.85
+   }
+  },
+  {
+   "strike": 25150,
+   "call": {
+    "instrumentKey": "NSE_FO|61921",
+    "ltp": 0.9,
+    "change": -0.09999999999999998,
+    "oi": 721565,
+    "oiChange": -30420,
+    "volume": 4254640,
+    "iv": 13.92,
+    "delta": 0.008,
+    "theta": -0.9735,
+    "bid": 0.9,
+    "ask": 0.95
+   },
+   "put": {
+    "instrumentKey": "NSE_FO|61922",
+    "ltp": 859.85,
+    "change": -33.75,
+    "oi": 2535,
+    "oiChange": 130,
+    "volume": 910,
+    "iv": 0,
+    "delta": -1,
+    "theta": 0,
+    "bid": 841.05,
+    "ask": 882.5
+   }
+  },
+  {
+   "strike": 25200,
+   "call": {
+    "instrumentKey": "NSE_FO|61929",
+    "ltp": 0.85,
+    "change": -0.050000000000000044,
+    "oi": 5102630,
+    "oiChange": 125515,
+    "volume": 20462845,
+    "iv": 14.4,
+    "delta": 0.007,
+    "theta": -0.8929,
+    "bid": 0.8,
+    "ask": 0.85
+   },
+   "put": {
+    "instrumentKey": "NSE_FO|61930",
+    "ltp": 918.15,
+    "change": 12.5,
+    "oi": 94315,
+    "oiChange": -14040,
+    "volume": 21580,
+    "iv": 0,
+    "delta": -1,
+    "theta": 0,
+    "bid": 912.55,
+    "ask": 925.3
+   }
+  },
+  {
+   "strike": 25250,
+   "call": {
+    "instrumentKey": "NSE_FO|61931",
+    "ltp": 0.8,
+    "change": 0,
+    "oi": 1539655,
+    "oiChange": 649025,
+    "volume": 6112015,
+    "iv": 15.01,
+    "delta": 0.0065,
+    "theta": -0.8734,
+    "bid": 0.8,
+    "ask": 0.85
+   },
+   "put": {
+    "instrumentKey": "NSE_FO|61934",
+    "ltp": 933,
+    "change": 0,
+    "oi": 1690,
+    "oiChange": 65,
+    "volume": 0,
+    "iv": 0,
+    "delta": -1,
+    "theta": 0,
+    "bid": 913.1,
+    "ask": 1000.85
+   }
+  },
+  {
+   "strike": 25300,
+   "call": {
+    "instrumentKey": "NSE_FO|61943",
+    "ltp": 0.65,
+    "change": -0.09999999999999998,
+    "oi": 4426760,
+    "oiChange": -150150,
+    "volume": 11024780,
+    "iv": 15.38,
+    "delta": 0.0054,
+    "theta": -0.7627,
+    "bid": 0.65,
+    "ask": 0.7
+   },
+   "put": {
+    "instrumentKey": "NSE_FO|61944",
+    "ltp": 1012,
+    "change": 7.4500000000000455,
+    "oi": 70655,
+    "oiChange": -1560,
+    "volume": 5720,
+    "iv": 0,
+    "delta": -1,
+    "theta": 0,
+    "bid": 1009.4,
+    "ask": 1020.6
+   }
+  },
+  {
+   "strike": 25350,
+   "call": {
+    "instrumentKey": "NSE_FO|61953",
+    "ltp": 0.6,
+    "change": -0.09999999999999998,
+    "oi": 480415,
+    "oiChange": -152360,
+    "volume": 1943825,
+    "iv": 15.87,
+    "delta": 0.0048,
+    "theta": -0.71,
+    "bid": 0.6,
+    "ask": 0.65
+   },
+   "put": {
+    "instrumentKey": "NSE_FO|61954",
+    "ltp": 1212.25,
+    "change": 0,
+    "oi": 1560,
+    "oiChange": 0,
+    "volume": 0,
+    "iv": 49.19,
+    "delta": -0.7914,
+    "theta": -44.9102,
+    "bid": 972.25,
+    "ask": 1092.95
+   }
+  },
+  {
+   "strike": 25400,
+   "call": {
+    "instrumentKey": "NSE_FO|61955",
+    "ltp": 0.55,
+    "change": -0.04999999999999993,
+    "oi": 4549675,
+    "oiChange": 205985,
+    "volume": 14921270,
+    "iv": 16.36,
+    "delta": 0.0043,
+    "theta": -0.6638,
+    "bid": 0.55,
+    "ask": 0.6
+   },
+   "put": {
+    "instrumentKey": "NSE_FO|61956",
+    "ltp": 1116.25,
+    "change": 10.049999999999955,
+    "oi": 36270,
+    "oiChange": -260,
+    "volume": 455,
+    "iv": 0,
+    "delta": -1,
+    "theta": 0,
+    "bid": 1108.3,
+    "ask": 1123
+   }
+  },
+  {
+   "strike": 25450,
+   "call": {
+    "instrumentKey": "NSE_FO|61973",
+    "ltp": 0.6,
+    "change": -0.050000000000000044,
+    "oi": 460655,
+    "oiChange": 62140,
+    "volume": 1716715,
+    "iv": 17.09,
+    "delta": 0.0044,
+    "theta": -0.6994,
+    "bid": 0.55,
+    "ask": 0.6
+   },
+   "put": {
+    "instrumentKey": "NSE_FO|61974",
+    "ltp": 1170,
+    "change": 0,
+    "oi": 1105,
+    "oiChange": 65,
+    "volume": 0,
+    "iv": 18.8,
+    "delta": -0.9914,
+    "theta": -1.4018,
+    "bid": 1059.35,
+    "ask": 1200.15
+   }
+  },
+  {
+   "strike": 25500,
+   "call": {
+    "instrumentKey": "NSE_FO|61975",
+    "ltp": 0.55,
+    "change": -0.04999999999999993,
+    "oi": 8959340,
+    "oiChange": 159835,
+    "volume": 20390435,
+    "iv": 17.58,
+    "delta": 0.004,
+    "theta": -0.6586,
+    "bid": 0.55,
+    "ask": 0.6
+   },
+   "put": {
+    "instrumentKey": "NSE_FO|61976",
+    "ltp": 1219,
+    "change": 11.799999999999955,
+    "oi": 1084005,
+    "oiChange": -82160,
+    "volume": 700440,
+    "iv": 17.09,
+    "delta": -0.9968,
+    "theta": -0.5213,
+    "bid": 1213,
+    "ask": 1218.85
+   }
+  },
+  {
+   "strike": 25550,
+   "call": {
+    "instrumentKey": "NSE_FO|61977",
+    "ltp": 0.5,
+    "change": -0.050000000000000044,
+    "oi": 764725,
+    "oiChange": 20605,
+    "volume": 2311140,
+    "iv": 18.07,
+    "delta": 0.0036,
+    "theta": -0.6224,
+    "bid": 0.5,
+    "ask": 0.55
+   },
+   "put": {
+    "instrumentKey": "NSE_FO|61978",
+    "ltp": 1261.9,
+    "change": 181.9000000000001,
+    "oi": 5200,
+    "oiChange": -260,
+    "volume": 585,
+    "iv": 0,
+    "delta": -1,
+    "theta": 0,
+    "bid": 1212.9,
+    "ask": 1292.5
+   }
+  },
+  {
+   "strike": 25600,
+   "call": {
+    "instrumentKey": "NSE_FO|61979",
+    "ltp": 0.5,
+    "change": 0,
+    "oi": 3457220,
+    "oiChange": -842725,
+    "volume": 11780210,
+    "iv": 18.55,
+    "delta": 0.0033,
+    "theta": -0.5902,
+    "bid": 0.45,
+    "ask": 0.5
+   },
+   "put": {
+    "instrumentKey": "NSE_FO|61980",
+    "ltp": 1312,
+    "change": 3.5499999999999545,
+    "oi": 13585,
+    "oiChange": -1170,
+    "volume": 2535,
+    "iv": 0,
+    "delta": -1,
+    "theta": 0,
+    "bid": 1261.7,
+    "ask": 1335.25
+   }
+  },
+  {
+   "strike": 25650,
+   "call": {
+    "instrumentKey": "NSE_FO|61981",
+    "ltp": 0.45,
+    "change": -0.04999999999999999,
+    "oi": 796055,
+    "oiChange": 2275,
+    "volume": 1338610,
+    "iv": 19.04,
+    "delta": 0.003,
+    "theta": -0.5614,
+    "bid": 0.45,
+    "ask": 0.5
+   },
+   "put": {
+    "instrumentKey": "NSE_FO|61982",
+    "ltp": 1500,
+    "change": 0,
+    "oi": 195,
+    "oiChange": -520,
+    "volume": 0,
+    "iv": 55.11,
+    "delta": -0.8218,
+    "theta": -45.6964,
+    "bid": 1233.85,
+    "ask": 1450.85
+   }
+  },
+  {
+   "strike": 25700,
+   "call": {
+    "instrumentKey": "NSE_FO|61983",
+    "ltp": 0.45,
+    "change": 0,
+    "oi": 1950455,
+    "oiChange": -452855,
+    "volume": 3466645,
+    "iv": 19.53,
+    "delta": 0.0028,
+    "theta": -0.5356,
+    "bid": 0.45,
+    "ask": 0.5
+   },
+   "put": {
+    "instrumentKey": "NSE_FO|61984",
+    "ltp": 1411,
+    "change": 31,
+    "oi": 15080,
+    "oiChange": -2405,
+    "volume": 5525,
+    "iv": 0,
+    "delta": -1,
+    "theta": 0,
+    "bid": 1400,
+    "ask": 1452.95
+   }
+  },
+  {
+   "strike": 25750,
+   "call": {
+    "instrumentKey": "NSE_FO|61994",
+    "ltp": 0.4,
+    "change": -0.09999999999999998,
+    "oi": 679185,
+    "oiChange": -28080,
+    "volume": 837330,
+    "iv": 20.02,
+    "delta": 0.0026,
+    "theta": -0.5124,
+    "bid": 0.4,
+    "ask": 0.45
+   },
+   "put": {
+    "instrumentKey": "NSE_FO|61995",
+    "ltp": 1621.15,
+    "change": 0,
+    "oi": 195,
+    "oiChange": -65,
+    "volume": 0,
+    "iv": 61.29,
+    "delta": -0.8108,
+    "theta": -52.7626,
+    "bid": 1412.3,
+    "ask": 1512.3
+   }
+  },
+  {
+   "strike": 25800,
+   "call": {
+    "instrumentKey": "NSE_FO|61997",
+    "ltp": 0.4,
+    "change": -0.04999999999999999,
+    "oi": 1420380,
+    "oiChange": -55770,
+    "volume": 2658435,
+    "iv": 20.51,
+    "delta": 0.0024,
+    "theta": -0.4916,
+    "bid": 0.4,
+    "ask": 0.45
+   },
+   "put": {
+    "instrumentKey": "NSE_FO|62000",
+    "ltp": 0,
+    "change": 0,
+    "oi": 0,
+    "oiChange": 0,
+    "volume": 0,
+    "iv": 0,
+    "delta": null,
+    "theta": null,
+    "bid": 0,
+    "ask": 0
+   }
+  },
+  {
+   "strike": 25850,
+   "call": {
+    "instrumentKey": "NSE_FO|62002",
+    "ltp": 0,
+    "change": 0,
+    "oi": 0,
+    "oiChange": 0,
+    "volume": 0,
+    "iv": 0,
+    "delta": null,
+    "theta": null,
+    "bid": 0,
+    "ask": 0
+   },
+   "put": {
+    "instrumentKey": "NSE_FO|62003",
+    "ltp": 0,
+    "change": 0,
+    "oi": 0,
+    "oiChange": 0,
+    "volume": 0,
+    "iv": 0,
+    "delta": null,
+    "theta": null,
+    "bid": 0,
+    "ask": 0
+   }
+  },
+  {
+   "strike": 25900,
+   "call": {
+    "instrumentKey": "NSE_FO|62022",
+    "ltp": 0,
+    "change": 0,
+    "oi": 0,
+    "oiChange": 0,
+    "volume": 0,
+    "iv": 0,
+    "delta": null,
+    "theta": null,
+    "bid": 0,
+    "ask": 0
+   },
+   "put": {
+    "instrumentKey": "NSE_FO|62023",
+    "ltp": 0,
+    "change": 0,
+    "oi": 0,
+    "oiChange": 0,
+    "volume": 0,
+    "iv": 0,
+    "delta": null,
+    "theta": null,
+    "bid": 0,
+    "ask": 0
+   }
+  },
+  {
+   "strike": 25950,
+   "call": {
+    "instrumentKey": "NSE_FO|62036",
+    "ltp": 0,
+    "change": 0,
+    "oi": 0,
+    "oiChange": 0,
+    "volume": 0,
+    "iv": 0,
+    "delta": null,
+    "theta": null,
+    "bid": 0,
+    "ask": 0
+   },
+   "put": {
+    "instrumentKey": "NSE_FO|62037",
+    "ltp": 0,
+    "change": 0,
+    "oi": 0,
+    "oiChange": 0,
+    "volume": 0,
+    "iv": 0,
+    "delta": null,
+    "theta": null,
+    "bid": 0,
+    "ask": 0
+   }
+  },
+  {
+   "strike": 26000,
+   "call": {
+    "instrumentKey": "NSE_FO|62038",
+    "ltp": 0,
+    "change": 0,
+    "oi": 0,
+    "oiChange": 0,
+    "volume": 0,
+    "iv": 0,
+    "delta": null,
+    "theta": null,
+    "bid": 0,
+    "ask": 0
+   },
+   "put": {
+    "instrumentKey": "NSE_FO|62039",
+    "ltp": 0,
+    "change": 0,
+    "oi": 0,
+    "oiChange": 0,
+    "volume": 0,
+    "iv": 0,
+    "delta": null,
+    "theta": null,
+    "bid": 0,
+    "ask": 0
+   }
+  },
+  {
+   "strike": 26050,
+   "call": {
+    "instrumentKey": "NSE_FO|62043",
+    "ltp": 0,
+    "change": 0,
+    "oi": 0,
+    "oiChange": 0,
+    "volume": 0,
+    "iv": 0,
+    "delta": null,
+    "theta": null,
+    "bid": 0,
+    "ask": 0
+   },
+   "put": {
+    "instrumentKey": "NSE_FO|62044",
+    "ltp": 0,
+    "change": 0,
+    "oi": 0,
+    "oiChange": 0,
+    "volume": 0,
+    "iv": 0,
+    "delta": null,
+    "theta": null,
+    "bid": 0,
+    "ask": 0
+   }
+  },
+  {
+   "strike": 26100,
+   "call": {
+    "instrumentKey": "NSE_FO|62045",
+    "ltp": 0,
+    "change": 0,
+    "oi": 0,
+    "oiChange": 0,
+    "volume": 0,
+    "iv": 0,
+    "delta": null,
+    "theta": null,
+    "bid": 0,
+    "ask": 0
+   },
+   "put": {
+    "instrumentKey": "NSE_FO|62052",
+    "ltp": 0,
+    "change": 0,
+    "oi": 0,
+    "oiChange": 0,
+    "volume": 0,
+    "iv": 0,
+    "delta": null,
+    "theta": null,
+    "bid": 0,
+    "ask": 0
+   }
+  },
+  {
+   "strike": 26150,
+   "call": {
+    "instrumentKey": "NSE_FO|62053",
+    "ltp": 0,
+    "change": 0,
+    "oi": 0,
+    "oiChange": 0,
+    "volume": 0,
+    "iv": 0,
+    "delta": null,
+    "theta": null,
+    "bid": 0,
+    "ask": 0
+   },
+   "put": {
+    "instrumentKey": "NSE_FO|62054",
+    "ltp": 0,
+    "change": 0,
+    "oi": 0,
+    "oiChange": 0,
+    "volume": 0,
+    "iv": 0,
+    "delta": null,
+    "theta": null,
+    "bid": 0,
+    "ask": 0
+   }
+  },
+  {
+   "strike": 26200,
+   "call": {
+    "instrumentKey": "NSE_FO|62055",
+    "ltp": 0,
+    "change": 0,
+    "oi": 0,
+    "oiChange": 0,
+    "volume": 0,
+    "iv": 0,
+    "delta": null,
+    "theta": null,
+    "bid": 0,
+    "ask": 0
+   },
+   "put": {
+    "instrumentKey": "NSE_FO|62056",
+    "ltp": 0,
+    "change": 0,
+    "oi": 0,
+    "oiChange": 0,
+    "volume": 0,
+    "iv": 0,
+    "delta": null,
+    "theta": null,
+    "bid": 0,
+    "ask": 0
+   }
+  },
+  {
+   "strike": 26250,
+   "call": {
+    "instrumentKey": "NSE_FO|62058",
+    "ltp": 0,
+    "change": 0,
+    "oi": 0,
+    "oiChange": 0,
+    "volume": 0,
+    "iv": 0,
+    "delta": null,
+    "theta": null,
+    "bid": 0,
+    "ask": 0
+   },
+   "put": {
+    "instrumentKey": "NSE_FO|62059",
+    "ltp": 0,
+    "change": 0,
+    "oi": 0,
+    "oiChange": 0,
+    "volume": 0,
+    "iv": 0,
+    "delta": null,
+    "theta": null,
+    "bid": 0,
+    "ask": 0
+   }
+  },
+  {
+   "strike": 26300,
+   "call": {
+    "instrumentKey": "NSE_FO|62066",
+    "ltp": 0,
+    "change": 0,
+    "oi": 0,
+    "oiChange": 0,
+    "volume": 0,
+    "iv": 0,
+    "delta": null,
+    "theta": null,
+    "bid": 0,
+    "ask": 0
+   },
+   "put": {
+    "instrumentKey": "NSE_FO|62068",
+    "ltp": 0,
+    "change": 0,
+    "oi": 0,
+    "oiChange": 0,
+    "volume": 0,
+    "iv": 0,
+    "delta": null,
+    "theta": null,
+    "bid": 0,
+    "ask": 0
+   }
+  },
+  {
+   "strike": 26350,
+   "call": {
+    "instrumentKey": "NSE_FO|62101",
+    "ltp": 0,
+    "change": 0,
+    "oi": 0,
+    "oiChange": 0,
+    "volume": 0,
+    "iv": 0,
+    "delta": null,
+    "theta": null,
+    "bid": 0,
+    "ask": 0
+   },
+   "put": {
+    "instrumentKey": "NSE_FO|62106",
+    "ltp": 0,
+    "change": 0,
+    "oi": 0,
+    "oiChange": 0,
+    "volume": 0,
+    "iv": 0,
+    "delta": null,
+    "theta": null,
+    "bid": 0,
+    "ask": 0
+   }
+  },
+  {
+   "strike": 26400,
+   "call": {
+    "instrumentKey": "NSE_FO|62117",
+    "ltp": 0,
+    "change": 0,
+    "oi": 0,
+    "oiChange": 0,
+    "volume": 0,
+    "iv": 0,
+    "delta": null,
+    "theta": null,
+    "bid": 0,
+    "ask": 0
+   },
+   "put": {
+    "instrumentKey": "NSE_FO|62118",
+    "ltp": 0,
+    "change": 0,
+    "oi": 0,
+    "oiChange": 0,
+    "volume": 0,
+    "iv": 0,
+    "delta": null,
+    "theta": null,
+    "bid": 0,
+    "ask": 0
+   }
+  },
+  {
+   "strike": 26450,
+   "call": {
+    "instrumentKey": "NSE_FO|62119",
+    "ltp": 0,
+    "change": 0,
+    "oi": 0,
+    "oiChange": 0,
+    "volume": 0,
+    "iv": 0,
+    "delta": null,
+    "theta": null,
+    "bid": 0,
+    "ask": 0
+   },
+   "put": {
+    "instrumentKey": "NSE_FO|62120",
+    "ltp": 0,
+    "change": 0,
+    "oi": 0,
+    "oiChange": 0,
+    "volume": 0,
+    "iv": 0,
+    "delta": null,
+    "theta": null,
+    "bid": 0,
+    "ask": 0
+   }
+  },
+  {
+   "strike": 26500,
+   "call": {
+    "instrumentKey": "NSE_FO|62125",
+    "ltp": 0,
+    "change": 0,
+    "oi": 0,
+    "oiChange": 0,
+    "volume": 0,
+    "iv": 0,
+    "delta": null,
+    "theta": null,
+    "bid": 0,
+    "ask": 0
+   },
+   "put": {
+    "instrumentKey": "NSE_FO|62126",
+    "ltp": 0,
+    "change": 0,
+    "oi": 0,
+    "oiChange": 0,
+    "volume": 0,
+    "iv": 0,
+    "delta": null,
+    "theta": null,
+    "bid": 0,
+    "ask": 0
+   }
+  },
+  {
+   "strike": 26550,
+   "call": {
+    "instrumentKey": "NSE_FO|62135",
+    "ltp": 0,
+    "change": 0,
+    "oi": 0,
+    "oiChange": 0,
+    "volume": 0,
+    "iv": 0,
+    "delta": null,
+    "theta": null,
+    "bid": 0,
+    "ask": 0
+   },
+   "put": {
+    "instrumentKey": "NSE_FO|62136",
+    "ltp": 0,
+    "change": 0,
+    "oi": 0,
+    "oiChange": 0,
+    "volume": 0,
+    "iv": 0,
+    "delta": null,
+    "theta": null,
+    "bid": 0,
+    "ask": 0
+   }
+  },
+  {
+   "strike": 26600,
+   "call": {
+    "instrumentKey": "NSE_FO|62166",
+    "ltp": 0,
+    "change": 0,
+    "oi": 0,
+    "oiChange": 0,
+    "volume": 0,
+    "iv": 0,
+    "delta": null,
+    "theta": null,
+    "bid": 0,
+    "ask": 0
+   },
+   "put": {
+    "instrumentKey": "NSE_FO|62168",
+    "ltp": 0,
+    "change": 0,
+    "oi": 0,
+    "oiChange": 0,
+    "volume": 0,
+    "iv": 0,
+    "delta": null,
+    "theta": null,
+    "bid": 0,
+    "ask": 0
+   }
+  },
+  {
+   "strike": 26650,
+   "call": {
+    "instrumentKey": "NSE_FO|62170",
+    "ltp": 0,
+    "change": 0,
+    "oi": 0,
+    "oiChange": 0,
+    "volume": 0,
+    "iv": 0,
+    "delta": null,
+    "theta": null,
+    "bid": 0,
+    "ask": 0
+   },
+   "put": {
+    "instrumentKey": "NSE_FO|62171",
+    "ltp": 0,
+    "change": 0,
+    "oi": 0,
+    "oiChange": 0,
+    "volume": 0,
+    "iv": 0,
+    "delta": null,
+    "theta": null,
+    "bid": 0,
+    "ask": 0
+   }
+  },
+  {
+   "strike": 26700,
+   "call": {
+    "instrumentKey": "NSE_FO|62172",
+    "ltp": 0,
+    "change": 0,
+    "oi": 0,
+    "oiChange": 0,
+    "volume": 0,
+    "iv": 0,
+    "delta": null,
+    "theta": null,
+    "bid": 0,
+    "ask": 0
+   },
+   "put": {
+    "instrumentKey": "NSE_FO|62176",
+    "ltp": 0,
+    "change": 0,
+    "oi": 0,
+    "oiChange": 0,
+    "volume": 0,
+    "iv": 0,
+    "delta": null,
+    "theta": null,
+    "bid": 0,
+    "ask": 0
+   }
+  },
+  {
+   "strike": 26750,
+   "call": {
+    "instrumentKey": "NSE_FO|62195",
+    "ltp": 0,
+    "change": 0,
+    "oi": 0,
+    "oiChange": 0,
+    "volume": 0,
+    "iv": 0,
+    "delta": null,
+    "theta": null,
+    "bid": 0,
+    "ask": 0
+   },
+   "put": {
+    "instrumentKey": "NSE_FO|62196",
+    "ltp": 0,
+    "change": 0,
+    "oi": 0,
+    "oiChange": 0,
+    "volume": 0,
+    "iv": 0,
+    "delta": null,
+    "theta": null,
+    "bid": 0,
+    "ask": 0
+   }
+  },
+  {
+   "strike": 26800,
+   "call": {
+    "instrumentKey": "NSE_FO|62197",
+    "ltp": 0,
+    "change": 0,
+    "oi": 0,
+    "oiChange": 0,
+    "volume": 0,
+    "iv": 0,
+    "delta": null,
+    "theta": null,
+    "bid": 0,
+    "ask": 0
+   },
+   "put": {
+    "instrumentKey": "NSE_FO|62198",
+    "ltp": 0,
+    "change": 0,
+    "oi": 0,
+    "oiChange": 0,
+    "volume": 0,
+    "iv": 0,
+    "delta": null,
+    "theta": null,
+    "bid": 0,
+    "ask": 0
+   }
+  },
+  {
+   "strike": 26850,
+   "call": {
+    "instrumentKey": "NSE_FO|62220",
+    "ltp": 0,
+    "change": 0,
+    "oi": 0,
+    "oiChange": 0,
+    "volume": 0,
+    "iv": 0,
+    "delta": null,
+    "theta": null,
+    "bid": 0,
+    "ask": 0
+   },
+   "put": {
+    "instrumentKey": "NSE_FO|62221",
+    "ltp": 0,
+    "change": 0,
+    "oi": 0,
+    "oiChange": 0,
+    "volume": 0,
+    "iv": 0,
+    "delta": null,
+    "theta": null,
+    "bid": 0,
+    "ask": 0
+   }
+  },
+  {
+   "strike": 26900,
+   "call": {
+    "instrumentKey": "NSE_FO|62222",
+    "ltp": 0,
+    "change": 0,
+    "oi": 0,
+    "oiChange": 0,
+    "volume": 0,
+    "iv": 0,
+    "delta": null,
+    "theta": null,
+    "bid": 0,
+    "ask": 0
+   },
+   "put": {
+    "instrumentKey": "NSE_FO|62226",
+    "ltp": 0,
+    "change": 0,
+    "oi": 0,
+    "oiChange": 0,
+    "volume": 0,
+    "iv": 0,
+    "delta": null,
+    "theta": null,
+    "bid": 0,
+    "ask": 0
+   }
+  },
+  {
+   "strike": 26950,
+   "call": {
+    "instrumentKey": "NSE_FO|62227",
+    "ltp": 0,
+    "change": 0,
+    "oi": 0,
+    "oiChange": 0,
+    "volume": 0,
+    "iv": 0,
+    "delta": null,
+    "theta": null,
+    "bid": 0,
+    "ask": 0
+   },
+   "put": {
+    "instrumentKey": "NSE_FO|62228",
+    "ltp": 0,
+    "change": 0,
+    "oi": 0,
+    "oiChange": 0,
+    "volume": 0,
+    "iv": 0,
+    "delta": null,
+    "theta": null,
+    "bid": 0,
+    "ask": 0
+   }
+  },
+  {
+   "strike": 27000,
+   "call": {
+    "instrumentKey": "NSE_FO|62229",
+    "ltp": 0,
+    "change": 0,
+    "oi": 0,
+    "oiChange": 0,
+    "volume": 0,
+    "iv": 0,
+    "delta": null,
+    "theta": null,
+    "bid": 0,
+    "ask": 0
+   },
+   "put": {
+    "instrumentKey": "NSE_FO|62230",
+    "ltp": 0,
+    "change": 0,
+    "oi": 0,
+    "oiChange": 0,
+    "volume": 0,
+    "iv": 0,
+    "delta": null,
+    "theta": null,
+    "bid": 0,
+    "ask": 0
+   }
+  },
+  {
+   "strike": 27050,
+   "call": {
+    "instrumentKey": "NSE_FO|62234",
+    "ltp": 0,
+    "change": 0,
+    "oi": 0,
+    "oiChange": 0,
+    "volume": 0,
+    "iv": 0,
+    "delta": null,
+    "theta": null,
+    "bid": 0,
+    "ask": 0
+   },
+   "put": {
+    "instrumentKey": "NSE_FO|62235",
+    "ltp": 0,
+    "change": 0,
+    "oi": 0,
+    "oiChange": 0,
+    "volume": 0,
+    "iv": 0,
+    "delta": null,
+    "theta": null,
+    "bid": 0,
+    "ask": 0
+   }
+  },
+  {
+   "strike": 27100,
+   "call": {
+    "instrumentKey": "NSE_FO|62236",
+    "ltp": 0,
+    "change": 0,
+    "oi": 0,
+    "oiChange": 0,
+    "volume": 0,
+    "iv": 0,
+    "delta": null,
+    "theta": null,
+    "bid": 0,
+    "ask": 0
+   },
+   "put": {
+    "instrumentKey": "NSE_FO|62237",
+    "ltp": 0,
+    "change": 0,
+    "oi": 0,
+    "oiChange": 0,
+    "volume": 0,
+    "iv": 0,
+    "delta": null,
+    "theta": null,
+    "bid": 0,
+    "ask": 0
+   }
+  },
+  {
+   "strike": 27150,
+   "call": {
+    "instrumentKey": "NSE_FO|62238",
+    "ltp": 0,
+    "change": 0,
+    "oi": 0,
+    "oiChange": 0,
+    "volume": 0,
+    "iv": 0,
+    "delta": null,
+    "theta": null,
+    "bid": 0,
+    "ask": 0
+   },
+   "put": {
+    "instrumentKey": "NSE_FO|62241",
+    "ltp": 0,
+    "change": 0,
+    "oi": 0,
+    "oiChange": 0,
+    "volume": 0,
+    "iv": 0,
+    "delta": null,
+    "theta": null,
+    "bid": 0,
+    "ask": 0
+   }
+  },
+  {
+   "strike": 27200,
+   "call": {
+    "instrumentKey": "NSE_FO|62242",
+    "ltp": 0,
+    "change": 0,
+    "oi": 0,
+    "oiChange": 0,
+    "volume": 0,
+    "iv": 0,
+    "delta": null,
+    "theta": null,
+    "bid": 0,
+    "ask": 0
+   },
+   "put": {
+    "instrumentKey": "NSE_FO|62245",
+    "ltp": 0,
+    "change": 0,
+    "oi": 0,
+    "oiChange": 0,
+    "volume": 0,
+    "iv": 0,
+    "delta": null,
+    "theta": null,
+    "bid": 0,
+    "ask": 0
+   }
+  }
+ ]
+}

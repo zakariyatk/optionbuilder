@@ -1,0 +1,164 @@
+{
+ "groups": [
+  {
+   "group": "US — overnight cue",
+   "equity": true,
+   "items": [
+    {
+     "name": "S&P 500",
+     "symbol": "^GSPC",
+     "ok": true,
+     "price": 7730.99,
+     "previousClose": 7675.7,
+     "change": 55.289999999999964,
+     "changePct": 0.7203251820680845,
+     "marketTime": 1787864304
+    },
+    {
+     "name": "Nasdaq",
+     "symbol": "^IXIC",
+     "ok": true,
+     "price": 26541.352,
+     "previousClose": 26130.197,
+     "change": 411.15499999999884,
+     "changePct": 1.573486032271394,
+     "marketTime": 1787865359
+    },
+    {
+     "name": "Dow Jones",
+     "symbol": "^DJI",
+     "ok": true,
+     "price": 53569.44,
+     "previousClose": 53463.9,
+     "change": 105.54000000000087,
+     "changePct": 0.19740422976999597,
+     "marketTime": 1787864312
+    }
+   ]
+  },
+  {
+   "group": "Asia — this morning",
+   "equity": true,
+   "items": [
+    {
+     "name": "Nikkei 225",
+     "symbol": "^N225",
+     "ok": true,
+     "price": 66405.56,
+     "previousClose": 66131.98,
+     "change": 273.58000000000175,
+     "changePct": 0.4136879010729783,
+     "marketTime": 1787899503
+    },
+    {
+     "name": "Hang Seng",
+     "symbol": "^HSI",
+     "ok": true,
+     "price": 25584.79,
+     "previousClose": 25653,
+     "change": -68.20999999999913,
+     "changePct": -0.2658948271157336,
+     "marketTime": 1787904534
+    },
+    {
+     "name": "Shanghai",
+     "symbol": "000001.SS",
+     "ok": true,
+     "price": 3952.179,
+     "previousClose": 3912.52,
+     "change": 39.659000000000106,
+     "changePct": 1.0136433807367147,
+     "marketTime": 1787900424
+    }
+   ]
+  },
+  {
+   "group": "Commodities & FX",
+   "equity": false,
+   "items": [
+    {
+     "name": "Brent crude",
+     "symbol": "BZ=F",
+     "inverseForIndia": true,
+     "ok": true,
+     "price": 88.15,
+     "previousClose": 88.52,
+     "change": -0.36999999999999034,
+     "changePct": -0.41798463624038673,
+     "marketTime": 1787911888
+    },
+    {
+     "name": "Gold",
+     "symbol": "GC=F",
+     "ok": true,
+     "price": 4661.5,
+     "previousClose": 4664,
+     "change": -2.5,
+     "changePct": -0.053602058319039456,
+     "marketTime": 1787911893
+    },
+    {
+     "name": "USD/INR",
+     "symbol": "INR=X",
+     "inverseForIndia": true,
+     "ok": true,
+     "price": 95.368,
+     "previousClose": 95.53,
+     "change": -0.16200000000000614,
+     "changePct": -0.16958023657490437,
+     "marketTime": 1787911333
+    },
+    {
+     "name": "Dollar index",
+     "symbol": "DX-Y.NYB",
+     "inverseForIndia": true,
+     "ok": true,
+     "price": 99.211,
+     "previousClose": 99.159,
+     "change": 0.0519999999999925,
+     "changePct": 0.05244102905433949,
+     "marketTime": 1787911898
+    }
+   ]
+  },
+  {
+   "group": "Volatility",
+   "equity": false,
+   "items": [
+    {
+     "name": "India VIX",
+     "symbol": "^INDIAVIX",
+     "inverseForIndia": true,
+     "ok": true,
+     "price": 10.68,
+     "previousClose": 10.57,
+     "change": 0.10999999999999943,
+     "changePct": 1.0406811731314989,
+     "marketTime": 1787911983
+    },
+    {
+     "name": "US VIX",
+     "symbol": "^VIX",
+     "inverseForIndia": true,
+     "ok": true,
+     "price": 14.47,
+     "previousClose": 14.51,
+     "change": -0.03999999999999915,
+     "changePct": -0.2756719503790431,
+     "marketTime": 1787911591
+    }
+   ]
+  }
+ ],
+ "sentiment": {
+  "label": "Risk-on",
+  "equityAvg": 0.608775316467239,
+  "drivers": [
+   "Nasdaq +1.57%",
+   "India VIX +1.04%",
+   "Shanghai +1.01%"
+  ],
+  "caveats": []
+ },
+ "asOf": "2026-08-28T10:21:41+00:00"
+}

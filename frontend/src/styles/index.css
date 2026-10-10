@@ -1,0 +1,340 @@
+@import 'tailwindcss';
+
+/*
+ * Design tokens. Components only ever reference these variables, so a theme
+ * is just a different set of values. Light is the default; dark applies when
+ * the OS asks for it (until the user picks explicitly) or when [data-theme=dark].
+ */
+:root {
+  color-scheme: light;
+  --surface-page: #f9f9f7;
+  --surface-card: #fcfcfb;
+  --surface-raised: #ffffff;
+  --surface-sunken: #f1f1ee;
+  --text-primary: #0b0b0b;
+  --text-secondary: #52514e;
+  --text-muted: #6f6d68;
+  --border: #0b0b0b1a;
+  --border-strong: #0b0b0b33;
+  --gridline: #e1e0d9;
+  --baseline: #c3c2b7;
+  --series-blue: #2a78d6;
+  --series-violet: #4a3aa7;
+  --good: #0ca30c;
+  --good-text: #006300;
+  --critical: #c42f2f;
+  --warning: #9a6700;
+  --good-fill: #0ca30c1f;
+  --critical-fill: #d03b3b1f;
+  --warning-fill: #fab2191f;
+  --itm-fill: #eda1001a;
+  --unusual: #4a3aa7;
+  --focus: #2a78d6;
+  --accent: #0b0b0b;
+  --accent-text: #ffffff;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    color-scheme: dark;
+    --surface-page: #050505;
+    --surface-card: #0d0d0d;
+    --surface-raised: #141414;
+    --surface-sunken: #090909;
+    --text-primary: #ffffff;
+    --text-secondary: #cfcfcf;
+    --text-muted: #8d8d8d;
+    --border: #ffffff1f;
+    --border-strong: #ffffff3d;
+    --gridline: #1f1f1f;
+    --baseline: #3a3a3a;
+    --series-blue: #5b8fd9;
+    --series-violet: #9a90e0;
+    --good: #0ca30c;
+    --good-text: #2fbf2f;
+    --critical: #e66767;
+    --warning: #e0a12b;
+    --good-fill: #0ca30c29;
+    --critical-fill: #e6676729;
+    --warning-fill: #e0a12b24;
+    --itm-fill: #eda10024;
+    --unusual: #9a90e0;
+    --focus: #5b8fd9;
+    --accent: #ffffff;
+    --accent-text: #050505;
+  }
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --surface-page: #050505;
+  --surface-card: #0d0d0d;
+  --surface-raised: #141414;
+  --surface-sunken: #090909;
+  --text-primary: #ffffff;
+  --text-secondary: #cfcfcf;
+  --text-muted: #8d8d8d;
+  --border: #ffffff1f;
+  --border-strong: #ffffff3d;
+  --gridline: #1f1f1f;
+  --baseline: #3a3a3a;
+  --series-blue: #5b8fd9;
+  --series-violet: #9a90e0;
+  --good: #0ca30c;
+  --good-text: #2fbf2f;
+  --critical: #e66767;
+  --warning: #e0a12b;
+  --good-fill: #0ca30c29;
+  --critical-fill: #e6676729;
+  --warning-fill: #e0a12b24;
+  --itm-fill: #eda10024;
+  --unusual: #9a90e0;
+  --focus: #5b8fd9;
+  --accent: #ffffff;
+  --accent-text: #050505;
+}
+
+@theme {
+  --font-sans: Arial, Helvetica, system-ui, sans-serif;
+  --font-mono: ui-monospace, 'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--surface-page);
+  color: var(--text-primary);
+  font: 14px/1.5 Arial, Helvetica, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+:root[data-theme='dark'] body {
+  background:
+    radial-gradient(circle at 78% 22%, #1e1e1e 0%, #0e0e0e 28%, transparent 60%) fixed,
+    #050505;
+}
+
+:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
+
+/* Native <option> lists don't inherit the dark surface on Windows. */
+select option {
+  background: var(--surface-raised);
+  color: var(--text-primary);
+}
+
+input[type='number'] {
+  -moz-appearance: textfield;
+}
+input[type='number']::-webkit-inner-spin-button {
+  opacity: 0.4;
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- brand marks (shared with the other ADD DOTS products) ---------- */
+.ad-mark {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  margin: 0 auto 20px;
+  padding-left: 2px;
+  background: #050505;
+  color: #fff;
+  border: 1px solid #777;
+  font: 700 13px/1 Arial, Helvetica, sans-serif;
+  letter-spacing: 2.5px;
+}
+
+.ob-title {
+  margin: 0;
+  font: 800 1.35rem/1.1 Arial, Helvetica, sans-serif;
+  letter-spacing: -0.02em;
+  text-transform: uppercase;
+  color: var(--text-primary);
+}
+
+.ob-sub {
+  margin-top: 4px;
+  font: 400 9px/1.4 Arial, Helvetica, sans-serif;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+/* ---------- skeleton shimmer ---------- */
+@keyframes ob-shimmer {
+  from {
+    background-position: -200px 0;
+  }
+  to {
+    background-position: calc(200px + 100%) 0;
+  }
+}
+.skeleton {
+  background: linear-gradient(90deg, var(--gridline) 0, var(--surface-raised) 40%, var(--gridline) 80%) no-repeat;
+  background-size: 200px 100%;
+  background-color: var(--gridline);
+  animation: ob-shimmer 1.3s linear infinite;
+  border-radius: 4px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .skeleton {
+    animation: none;
+  }
+}
+
+/* ---------- ADD DOTS site menu (static, rendered in index.html above the app) ---------- */
+.adnav {
+  position: relative;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: calc(64px + env(safe-area-inset-top));
+  padding: env(safe-area-inset-top) 24px 0;
+  background: #050505;
+  border-bottom: 1px solid #1f1f1f;
+  font-family: Arial, Helvetica, sans-serif;
+  color: #fff;
+}
+.adnav-logo {
+  width: 40px;
+  height: 40px;
+  border: 1px solid #777;
+  display: grid;
+  place-items: center;
+  padding-left: 2px;
+  color: #fff;
+  text-decoration: none;
+  font: 700 10px/1 Arial, Helvetica, sans-serif;
+  letter-spacing: 2px;
+}
+.adnav-logo:hover {
+  border-color: #fff;
+}
+.adnav-links {
+  display: flex;
+  align-items: center;
+  gap: 34px;
+  height: 100%;
+}
+.adnav-links > a,
+.adnav-trigger {
+  margin: 0;
+  padding: 12px 2px;
+  background: none;
+  border: 0;
+  cursor: pointer;
+  color: #aaa;
+  text-decoration: none;
+  text-transform: uppercase;
+  font: 400 10px/1 Arial, Helvetica, sans-serif;
+  letter-spacing: 2px;
+}
+.adnav-links > a:hover,
+.adnav-trigger:hover,
+.adnav-trigger[aria-expanded='true'] {
+  color: #fff;
+}
+.adnav-menu {
+  position: relative;
+  height: 100%;
+  display: flex;
+  align-items: center;
+}
+.adnav-drop {
+  position: absolute;
+  top: 100%;
+  right: -10px;
+  z-index: 31;
+  width: 245px;
+  padding: 8px;
+  background: #0a0a0a;
+  border: 1px solid #333;
+  box-shadow: 0 20px 50px #0008;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-6px);
+  transition: 0.2s;
+}
+.adnav-drop a {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 13px 12px;
+  color: #999;
+  text-decoration: none;
+  text-transform: uppercase;
+  font: 400 9px/1.3 Arial, Helvetica, sans-serif;
+  letter-spacing: 1.5px;
+}
+.adnav-drop a:hover {
+  color: #fff;
+  background: #181818;
+}
+.adnav-drop a[aria-current] {
+  color: #fff;
+}
+.adnav-drop i {
+  font-style: normal;
+  font-size: 7px;
+  letter-spacing: 1px;
+  color: #666;
+  border: 1px solid #333;
+  padding: 3px 6px;
+}
+.adnav-menu.adnav-open .adnav-drop {
+  opacity: 1;
+  visibility: visible;
+  transform: none;
+}
+@media (hover: hover) and (pointer: fine) {
+  .adnav-menu:hover .adnav-drop {
+    opacity: 1;
+    visibility: visible;
+    transform: none;
+  }
+}
+@media (max-width: 800px) {
+  .adnav {
+    height: calc(56px + env(safe-area-inset-top));
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+  .adnav-links {
+    gap: 18px;
+  }
+  .adnav-drop {
+    position: fixed;
+    top: calc(56px + env(safe-area-inset-top));
+    left: 16px;
+    right: 16px;
+    width: auto;
+  }
+}
+@media (max-width: 400px) {
+  .adnav-logo {
+    width: 34px;
+    height: 34px;
+    font-size: 9px;
+  }
+  .adnav-links {
+    gap: 10px;
+  }
+  .adnav-links > a,
+  .adnav-trigger {
+    font-size: 9px;
+    letter-spacing: 1px;
+  }
+}
