@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { ChainRow, ChainSide } from '../api/types';
-import { atmIv, detectUnusual, generateStrikes, strikeStep } from './chain';
+import { atmIv, detectUnusual, generateStrikes, strikeOi, strikeStep } from './chain';
 import { TEMPLATES, buildFromTemplate } from './templates';
 import { parseExpiry, yearsToExpiry } from './dates';
 
@@ -84,5 +84,34 @@ describe('dates', () => {
 
   it('never returns negative time to expiry', () => {
     expect(yearsToExpiry(new Date('2030-01-01'), '2026-08-25')).toBe(0);
+  });
+});
+
+describe('strikeOi', () => {
+  const chain: ChainRow[] = [
+    { strike: 24100, call: side({ oi: 300, oiChange: -50 }), put: side({ oi: 900, oiChange: 40 }) },
+    { strike: 24000, call: side({ oi: 100, oiChange: 10 }), put: null },
+    { strike: 24200, call: side({ oi: 500, oiChange: 20 }), put: side({ oi: 200, oiChange: -80 }) },
+    { strike: 24300, call: null, put: null },
+  ];
+
+  it('keeps strikes in range, sorted, with the peak and narrowest spacing', () => {
+    const r = strikeOi(chain, 24000, 24150, 'oi');
+    expect(r.bars).toEqual([
+      { strike: 24000, call: 100, put: 0 },
+      { strike: 24100, call: 300, put: 900 },
+    ]);
+    expect(r.peak).toBe(900);
+    expect(r.step).toBe(100);
+  });
+
+  it('scales OI change by absolute value', () => {
+    const r = strikeOi(chain, 0, Infinity, 'change');
+    expect(r.bars.map((b) => b.strike)).toEqual([24000, 24100, 24200]);
+    expect(r.peak).toBe(80);
+  });
+
+  it('has no step for a single strike', () => {
+    expect(strikeOi(chain, 24200, 24200, 'oi').step).toBeNull();
   });
 });
