@@ -108,3 +108,28 @@ export function describeFlags(flags: UnusualFlag[]): string {
     .map((f) => `${f.side === 'call' ? 'Call' : 'Put'} ${KIND_LABEL[f.kind]} — ${f.ratio.toFixed(1)}× nearby strikes`)
     .join(' · ');
 }
+
+export type OiMode = 'oi' | 'change';
+
+export interface StrikeOi {
+  strike: number;
+  call: number;
+  put: number;
+}
+
+/**
+ * Per-strike call / put open interest (or its change) for strikes inside
+ * [min, max], plus the largest absolute value — the scale for OI bars drawn
+ * behind the payoff chart — and the narrowest strike spacing, for bar width.
+ */
+export function strikeOi(rows: ChainRow[], min: number, max: number, mode: OiMode) {
+  const pick = (s: ChainRow['call']) => (s ? (mode === 'oi' ? s.oi : s.oiChange) : 0);
+  const bars: StrikeOi[] = rows
+    .filter((r) => r.strike >= min && r.strike <= max && (r.call || r.put))
+    .map((r) => ({ strike: r.strike, call: pick(r.call), put: pick(r.put) }))
+    .sort((a, b) => a.strike - b.strike);
+  const peak = bars.reduce((m, b) => Math.max(m, Math.abs(b.call), Math.abs(b.put)), 0);
+  let step = Infinity;
+  for (let i = 1; i < bars.length; i++) step = Math.min(step, bars[i].strike - bars[i - 1].strike);
+  return { bars, peak, step: Number.isFinite(step) ? step : null };
+}

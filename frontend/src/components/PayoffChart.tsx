@@ -1,15 +1,18 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent } from 'react';
+import type { ChainRow } from '../api/types';
+import { strikeOi, type OiMode } from '../domain/chain';
 import { parseExpiry, toDateInput } from '../domain/dates';
 import { expiryCurve, pnlAtExpiry, pnlOnDate, targetDateCurve, type PayoffPoint } from '../domain/payoff';
 import { isLinear, type Leg, type StrategyMetrics } from '../domain/types';
-import { signedInr } from '../lib/format';
+import { axisIndian, signedInr } from '../lib/format';
 import { Card, LegendSwatch } from './ui';
 
 // SVG coordinate space; the element scales to its container.
 const W = 800;
 const H = 380;
 const LEFT = 56;
-const RIGHT = W - 16;
+// Room on the right for the open-interest axis.
+const RIGHT = W - 44;
 const TOP = 20;
 const BOTTOM = H - 28;
 const PLOT_W = RIGHT - LEFT;
@@ -37,6 +40,12 @@ function svgX(svg: SVGSVGElement, clientX: number): number | null {
   return Number.isFinite(x) ? x : null;
 }
 
+const OI_MODES: { id: OiMode | 'off'; label: string }[] = [
+  { id: 'oi', label: 'OI' },
+  { id: 'change', label: 'OI chg' },
+  { id: 'off', label: 'Off' },
+];
+
 const axisLabel = (v: number) => (Math.abs(v) >= 1000 ? `${(v / 1000).toFixed(0)}k` : v.toFixed(0));
 
 export function PayoffChart({
@@ -44,11 +53,14 @@ export function PayoffChart({
   spot,
   metrics,
   fallbackIv,
+  oiRows,
 }: {
   legs: Leg[];
   spot: number | null;
   metrics: StrategyMetrics;
   fallbackIv: number | null;
+  /** Option chain rows; when present, call / put OI is drawn as bars behind the payoff. */
+  oiRows?: ChainRow[] | null;
 }) {
   const svgRef = useRef<SVGSVGElement>(null);
   const [hoverX, setHoverX] = useState<number | null>(null);
@@ -56,6 +68,7 @@ export function PayoffChart({
   const [zoom, setZoom] = useState<{ min: number; max: number } | null>(null);
   const drag = useRef<{ startX: number; startMin: number; startMax: number } | null>(null);
   const [dragging, setDragging] = useState(false);
+  const [oiMode, setOiMode] = useState<OiMode | 'off'>('oi');
 
   const lastExpiry = useMemo(() => {
     const dates = legs
@@ -107,6 +120,12 @@ export function PayoffChart({
       yMax: ys.length ? Math.max(...ys, 0) + pad : 1,
     };
   }, [legs, xMin, xMax, target, fallbackIv]);
+
+  const oi = useMemo(
+    () => (oiRows?.length && oiMode !== 'off' ? strikeOi(oiRows, xMin, xMax, oiMode) : null),
+    [oiRows, oiMode, xMin, xMax],
+  );
+  const hasOi = !!oiRows?.some((r) => r.call || r.put);
 
   const toPrice = useCallback((x: number) => xMin + ((x - LEFT) / PLOT_W) * (xMax - xMin), [xMin, xMax]);
   const px = (price: number) => LEFT + ((price - xMin) / (xMax - xMin || 1)) * PLOT_W;
@@ -210,6 +229,18 @@ export function PayoffChart({
   const hoverPrice = hoverX === null ? null : toPrice(hoverX);
   const hoverExpiry = hoverPrice !== null ? pnlAtExpiry(legs, hoverPrice) : null;
   const hoverTarget = hoverPrice !== null && targetSeries ? pnlOnDate(legs, hoverPrice, target, fallbackIv) : null;
+  const oiBars = oi && oi.peak > 0 ? oi : null;
+  const oiY = (v: number) => BOTTOM - (Math.abs(v) / (oiBars?.peak || 1)) * PLOT_H;
+  const oiTicks = oiBars ? ticks(0, oiBars.peak, 4).filter((v) => v > 0) : [];
+  const oiBarW = oiBars?.step ? Math.min(Math.max((oiBars.step / (xMax - xMin || 1)) * PLOT_W * 0.38, 1), 12) : 6;
+  const hoverOi =
+    oiBars && hoverPrice !== null
+      ? oiBars.bars.reduce<(typeof oiBars.bars)[number] | null>(
+          (best, b) => (!best || Math.abs(b.strike - hoverPrice) < Math.abs(best.strike - hoverPrice) ? b : best),
+          null,
+        )
+      : null;
+  const oiLabel = oiMode === 'change' ? 'OI chg' : 'OI';
   const zoomPct = xMax - xMin > 0 ? Math.round(((full.max - full.min) / (xMax - xMin)) * 100) : 100;
 
   const zoomBtn = 'rounded border border-[var(--border)] px-1.5 py-0.5 leading-none text-[var(--text-primary)] hover:border-[var(--border-strong)] disabled:opacity-40';
@@ -223,6 +254,12 @@ export function PayoffChart({
         <LegendSwatch color="var(--series-blue)" kind="line">
           On target date
         </LegendSwatch>
+        {oiBars && (
+          <>
+            <LegendSwatch color="var(--critical)">Call {oiLabel}</LegendSwatch>
+            <LegendSwatch color="var(--good)">Put {oiLabel}</LegendSwatch>
+          </>
+        )}
         <label className="flex items-center gap-1.5">
           Target date
           <input
@@ -234,6 +271,22 @@ export function PayoffChart({
             className="rounded border border-[var(--border)] bg-transparent px-1 py-0.5 tabular text-[var(--text-primary)]"
           />
         </label>
+        {hasOi && (
+          <span className="flex items-center gap-1" role="group" aria-label="Open-interest bars">
+            OI bars
+            {OI_MODES.map((m) => (
+              <button
+                key={m.id}
+                type="button"
+                aria-pressed={oiMode === m.id}
+                onClick={() => setOiMode(m.id)}
+                className={`${zoomBtn} ${oiMode === m.id ? 'border-[var(--border-strong)] bg-[var(--surface-sunken)] font-semibold' : ''}`}
+              >
+                {m.label}
+              </button>
+            ))}
+          </span>
+        )}
         <span className="ml-auto flex items-center gap-1">
           <button type="button" onClick={() => applyZoom(1 / 1.4, (xMin + xMax) / 2)} className={zoomBtn} aria-label="Zoom in" title="Zoom in">
             +
@@ -280,10 +333,41 @@ export function PayoffChart({
         <clipPath id="clip-loss">
           <rect x={0} y={zeroY} width={W} height={Math.max(H - zeroY, 0)} />
         </clipPath>
+        <clipPath id="clip-plot">
+          <rect x={LEFT} y={TOP} width={PLOT_W} height={PLOT_H} />
+        </clipPath>
 
         {yTicks.map((v) => (
           <line key={v} x1={LEFT} x2={RIGHT} y1={py(v)} y2={py(v)} stroke="var(--gridline)" strokeWidth={1} />
         ))}
+
+        {/* Open interest sits behind the payoff, on its own scale (right axis). A hollow bar is OI shed. */}
+        {oiBars && (
+          <g clipPath="url(#clip-plot)" pointerEvents="none">
+            {oiBars.bars.map((b) => {
+              const cx = px(b.strike);
+              const bar = (v: number, x: number, color: string) =>
+                v === 0 ? null : (
+                  <rect
+                    x={x}
+                    y={oiY(v)}
+                    width={oiBarW}
+                    height={BOTTOM - oiY(v)}
+                    fill={v > 0 ? color : 'none'}
+                    stroke={v > 0 ? 'none' : color}
+                    strokeWidth={1}
+                    opacity={hoverOi?.strike === b.strike ? 0.6 : 0.3}
+                  />
+                );
+              return (
+                <g key={b.strike}>
+                  {bar(b.call, cx - oiBarW - 0.5, 'var(--critical)')}
+                  {bar(b.put, cx + 0.5, 'var(--good)')}
+                </g>
+              );
+            })}
+          </g>
+        )}
 
         <path d={area} fill="var(--good-fill)" clipPath="url(#clip-profit)" />
         <path d={area} fill="var(--critical-fill)" clipPath="url(#clip-loss)" />
@@ -328,6 +412,12 @@ export function PayoffChart({
           </text>
         ))}
 
+        {oiTicks.map((v) => (
+          <text key={`oi-${v}`} x={RIGHT + 6} y={oiY(v) + 3} textAnchor="start" fontSize={9} fill="var(--text-muted)">
+            {axisIndian(v)}
+          </text>
+        ))}
+
         {hoverPrice !== null && hoverExpiry !== null && (
           <g pointerEvents="none">
             <line x1={px(hoverPrice)} x2={px(hoverPrice)} y1={TOP} y2={BOTTOM} stroke="var(--text-muted)" />
@@ -352,6 +442,13 @@ export function PayoffChart({
             {hoverTarget !== null && (
               <span className="text-[var(--text-muted)]">
                 On target date: <span className="text-[var(--series-blue)]">{signedInr(hoverTarget)}</span>
+              </span>
+            )}
+            {hoverOi && (
+              <span className="text-[var(--text-muted)]">
+                {hoverOi.strike.toLocaleString('en-IN')} {oiLabel}:{' '}
+                <span className="text-[var(--critical)]">C {axisIndian(hoverOi.call)}</span>{' '}
+                <span className="text-[var(--good-text)]">P {axisIndian(hoverOi.put)}</span>
               </span>
             )}
           </>

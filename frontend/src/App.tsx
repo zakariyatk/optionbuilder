@@ -242,7 +242,7 @@ function Workspace({ showLogout, onLogout }: { showLogout: boolean; onLogout: ()
               onDelete={deleteStrategy}
             />
             <ErrorBoundary label="the payoff chart">
-              <PayoffChart legs={legs} spot={spot} metrics={metrics} fallbackIv={fallbackIv} />
+              <PayoffChart legs={legs} spot={spot} metrics={metrics} fallbackIv={fallbackIv} oiRows={chain?.rows ?? null} />
             </ErrorBoundary>
             <MetricsPanel metrics={metrics} greeks={greeks} hasLegs={legs.length > 0} brokerMargin={brokerMargin} marginLoading={marginLoading} />
             <LegsTable
