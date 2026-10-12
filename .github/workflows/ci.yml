@@ -93,28 +93,74 @@ jobs:
           name: release
           path: release
 
+      # SFTP and plain FTP use lftp; FTPS (the default) uses curl, below.
       - name: Install lftp
-        if: steps.check.outputs.ready == 'true'
+        if: steps.check.outputs.ready == 'true' && env.PROTOCOL != 'ftps' && env.PROTOCOL != ''
         run: sudo apt-get update -qq && sudo apt-get install -y -qq lftp
 
       # Upload only — nothing on the server is deleted, so the live config,
       # broker token and cache in api/data/ are never touched. index.html goes
       # last, so visitors only switch to the new build once its assets/ are there.
+      #
+      # FTPS: Hostinger's FTP certificate is issued to *.hstgr.io, a name no
+      # address for this site can match, so the usual hostname check cannot
+      # pass. Instead the server's public key is pinned: curl checks the pin
+      # inside the same encrypted connection that sends the password, so no
+      # other server can stand in for it. If Hostinger ever changes the key,
+      # this step stops and prints the new pin for the DEPLOY_FTPS_PIN variable.
       - name: Upload
         if: steps.check.outputs.ready == 'true'
+        env:
+          FTPS_PIN: ${{ vars.DEPLOY_FTPS_PIN || 'sha256//iD1qTPTlmilSMjmnGtuhIjGlRZY9GF4YIhDr8P0WXNw=' }}
         run: |
-          case "$PROTOCOL" in
-            sftp) URL="sftp://$DEPLOY_HOST"; OPTS="set sftp:auto-confirm yes;" ;;
-            ftp)  URL="ftp://$DEPLOY_HOST";  OPTS="set ftp:ssl-allow no;" ;;
-            *)    URL="ftp://$DEPLOY_HOST";  OPTS="set ftp:ssl-force true; set ftp:ssl-protect-data true;" ;;
-          esac
-          lftp -u "$DEPLOY_USER","$DEPLOY_PASSWORD" "$URL" -e "
-            $OPTS
-            set net:max-retries 2; set net:timeout 30;
-            mkdir -p -f $REMOTE_DIR;
-            mirror --reverse --verbose --parallel=4 --exclude-glob index.html release/ $REMOTE_DIR/;
-            put -O $REMOTE_DIR release/index.html;
-            bye"
+          set -euo pipefail
+          if [ "$PROTOCOL" != "ftps" ] && [ -n "$PROTOCOL" ]; then
+            case "$PROTOCOL" in
+              sftp) URL="sftp://$DEPLOY_HOST"; OPTS="set sftp:auto-confirm yes;" ;;
+              *)    URL="ftp://$DEPLOY_HOST";  OPTS="set ftp:ssl-allow no;" ;;
+            esac
+            lftp -u "$DEPLOY_USER","$DEPLOY_PASSWORD" "$URL" -e "
+              $OPTS
+              set net:max-retries 2; set net:timeout 30;
+              mkdir -p -f $REMOTE_DIR;
+              mirror --reverse --verbose --parallel=4 --exclude-glob index.html release/ $REMOTE_DIR/;
+              put -O $REMOTE_DIR release/index.html;
+              bye"
+            exit 0
+          fi
+
+          # The login goes in a curl config file (not on the command line, where
+          # other processes could read it).
+          cfg="$RUNNER_TEMP/ftp.cfg"
+          umask 077
+          esc() { printf '%s' "$1" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g'; }
+          printf 'user = "%s:%s"\n' "$(esc "$DEPLOY_USER")" "$(esc "$DEPLOY_PASSWORD")" > "$cfg"
+
+          dir="${REMOTE_DIR#./}"; dir="${dir%/}"; [ "$dir" = "." ] && dir=""
+          base="ftp://$DEPLOY_HOST/${dir:+$dir/}"
+
+          put() {
+            local code=0
+            curl --silent --show-error --fail --ssl-reqd --insecure --pinnedpubkey "$FTPS_PIN" \
+              --ftp-create-dirs --retry 2 --connect-timeout 30 -K "$cfg" -T "$1" "$base$1" || code=$?
+            if [ "$code" = 90 ]; then
+              now=$(echo | timeout 20 openssl s_client -starttls ftp -connect "$DEPLOY_HOST:21" 2>/dev/null \
+                | openssl x509 -pubkey -noout | openssl pkey -pubin -outform der | openssl dgst -sha256 -binary | base64)
+              echo "::error::The FTP server's key no longer matches the pinned one, so nothing was sent. If Hostinger renewed its certificate, check the new key is theirs (hPanel / support), then set the repository variable DEPLOY_FTPS_PIN to: sha256//$now"
+            fi
+            return $code
+          }
+
+          cd release
+          n=0
+          while IFS= read -r f; do
+            f="${f#./}"
+            put "$f"
+            n=$((n + 1))
+          done < <(find . -type f ! -path ./index.html | sort)
+          put index.html
+          echo "Uploaded $((n + 1)) files over FTPS (pinned key) to ${dir:-the FTP account home folder}."
+          rm -f "$cfg"
 
       - name: Smoke test
         if: steps.check.outputs.ready == 'true'
