@@ -4,6 +4,18 @@
 Options -Indexes
 DirectoryIndex index.html index.php
 
+# --- one address ----------------------------------------------------------------
+# The app lives at https://www.optionbuilder.adddots.com/. Its folder can also be
+# reached as www.adddots.com/app/Optionbuilder/ (and without www), where the
+# root-relative asset URLs would not load, so send every other host there.
+# api/ has its own rewrite rules, so API calls are not redirected.
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteCond %{HTTP_HOST} !^www\.optionbuilder\.adddots\.com$ [NC,OR]
+    RewriteCond %{HTTPS} off
+    RewriteRule ^(.*)$ https://www.optionbuilder.adddots.com/$1 [R=301,L]
+</IfModule>
+
 # --- security headers ---------------------------------------------------------
 <IfModule mod_headers.c>
     Header always set X-Content-Type-Options "nosniff"

@@ -4,7 +4,7 @@ A workspace for building and analysing NSE options strategies: live option chain
 via Upstox, payoff graphs at expiry and on any target date, position Greeks,
 broker margin, and a daily market report with image and Instagram export.
 
-Live at <https://www.adddots.com/app/Optionbuilder/>.
+Live at <https://www.optionbuilder.adddots.com/>.
 
 ## Features
 
@@ -48,7 +48,7 @@ npm run dev:mock     # full UI on recorded data — no PHP, broker or market hou
 npm run dev          # against a real backend (see below)
 ```
 
-Open <http://localhost:5173/app/Optionbuilder/>. In mock mode any password opens the app.
+Open <http://localhost:5173/>. In mock mode any password opens the app.
 
 To run against the real PHP backend locally:
 
@@ -57,7 +57,7 @@ To run against the real PHP backend locally:
 php -S localhost:8080 -t . api/index.php
 ```
 
-`npm run dev` proxies `/app/Optionbuilder/api` to `VITE_API_PROXY` (default
+`npm run dev` proxies `/api` to `VITE_API_PROXY` (default
 `http://localhost:8080`). With no password configured the backend allows
 requests from localhost only.
 
@@ -90,8 +90,9 @@ npm run release
 ```
 
 This type-checks, lints, tests, builds, and assembles `release/optionbuilder/`.
-Upload its contents to `public_html/app/Optionbuilder/` (pushes to `main` deploy
-there automatically). The release never contains
+Upload its contents to `public_html/app/Optionbuilder/`, the folder of the
+`www.optionbuilder.adddots.com` subdomain (pushes to `main` deploy there
+automatically). The release never contains
 `config.php` or anything from `api/data/`, so the live token and config on the
 server are left alone.
 

@@ -73,10 +73,11 @@ jobs:
       DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
       DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
       DEPLOY_PASSWORD: ${{ secrets.DEPLOY_PASSWORD }}
-      SITE_URL: ${{ vars.DEPLOY_SITE_URL || 'https://www.adddots.com/app/Optionbuilder' }}
+      SITE_URL: ${{ vars.DEPLOY_SITE_URL || 'https://www.optionbuilder.adddots.com' }}
       PROTOCOL: ${{ vars.DEPLOY_PROTOCOL || 'ftps' }}
       # The deploy FTP account's folder is the app folder itself
-      # (public_html/app/Optionbuilder/), so the default uploads to its top.
+      # (public_html/app/Optionbuilder/, the subdomain's folder), so the default
+      # uploads to its top.
       # A path with a leading / starts from the account's top folder; one
       # without starts from the folder the account logs in to.
       REMOTE_DIR: ${{ vars.DEPLOY_DIR || '/' }}
