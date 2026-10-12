@@ -90,7 +90,7 @@ npm run release
 ```
 
 This type-checks, lints, tests, builds, and assembles `release/optionbuilder/`.
-Upload its contents to `public_html/optionbuilder/`, the folder of the
+Upload its contents to `public_html/opbuilder/`, the folder of the
 `optionbuilder.adddots.com` subdomain (pushes to `main` deploy there
 automatically). The release never contains
 `config.php` or anything from `api/data/`, so the live token and config on the

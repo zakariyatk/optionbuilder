@@ -6,9 +6,9 @@ DirectoryIndex index.html index.php
 
 # --- one address ----------------------------------------------------------------
 # The app lives at https://optionbuilder.adddots.com/. Its folder is also
-# public_html/optionbuilder/ of the main site, so old links such as
-# www.adddots.com/optionbuilder/ (where the root-relative asset URLs would not
-# load) and plain http are sent there.
+# public_html/opbuilder/ of the main site, so www.adddots.com/opbuilder/
+# (where the root-relative asset URLs would not load) and plain http are
+# sent there.
 # api/ has its own rewrite rules, so API calls are not redirected.
 <IfModule mod_rewrite.c>
     RewriteEngine On

@@ -7,7 +7,7 @@
  *   api/                            ← the PHP backend, WITHOUT secrets:
  *                                     no config.php, and data/ holds only its README
  *
- * Upload the contents of release/optionbuilder/ to public_html/optionbuilder/,
+ * Upload the contents of release/optionbuilder/ to public_html/opbuilder/,
  * the folder of the optionbuilder.adddots.com subdomain.
  * Your live config file and data/ on the server are never overwritten because
  * they are not in the release.
