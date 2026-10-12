@@ -4,7 +4,7 @@ A workspace for building and analysing NSE options strategies: live option chain
 via Upstox, payoff graphs at expiry and on any target date, position Greeks,
 broker margin, and a daily market report with image and Instagram export.
 
-Live at <https://www.optionbuilder.adddots.com/>.
+Live at <https://optionbuilder.adddots.com/>.
 
 ## Features
 
@@ -90,8 +90,8 @@ npm run release
 ```
 
 This type-checks, lints, tests, builds, and assembles `release/optionbuilder/`.
-Upload its contents to `public_html/app/Optionbuilder/`, the folder of the
-`www.optionbuilder.adddots.com` subdomain (pushes to `main` deploy there
+Upload its contents to `public_html/optionbuilder/`, the folder of the
+`optionbuilder.adddots.com` subdomain (pushes to `main` deploy there
 automatically). The release never contains
 `config.php` or anything from `api/data/`, so the live token and config on the
 server are left alone.

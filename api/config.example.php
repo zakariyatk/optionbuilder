@@ -8,7 +8,7 @@
  * when the site's web root is /home/<user>/public_html (on Hostinger:
  *     /home/<user>/domains/<domain>/optionbuilder-config.php
  * next to the domain's public_html). The app may sit anywhere below it,
- * e.g. public_html/app/Optionbuilder/, including as a subdomain's folder.
+ * e.g. public_html/optionbuilder/, including as a subdomain's folder.
  * Nothing there can ever be served over HTTP, even if .htaccess stops working.
  *
  * Alternatively copy it to api/config.php (blocked by api/.htaccess), or set
@@ -22,7 +22,7 @@ return [
     'upstox_api_key' => '',
     'upstox_api_secret' => '',
     // Must match EXACTLY what is registered on the Upstox app, e.g.
-    // 'https://www.optionbuilder.adddots.com/api/auth/upstox/callback'
+    // 'https://optionbuilder.adddots.com/api/auth/upstox/callback'
     'upstox_redirect_uri' => '',
 
     // Password required to open the app. Store a HASH, not the password:

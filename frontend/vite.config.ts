@@ -6,8 +6,8 @@ import { mockApi } from './mock/mockApi';
 
 /**
  * The app is served at the root of its own subdomain,
- * www.optionbuilder.adddots.com, next to its PHP backend in /api/ (the
- * subdomain's folder is public_html/app/Optionbuilder/ on the server). Every
+ * optionbuilder.adddots.com, next to its PHP backend in /api/ (the
+ * subdomain's folder is public_html/optionbuilder/ on the server). Every
  * URL in the app derives from BASE_URL, so moving the deployment is a
  * one-line change here.
  *
