@@ -73,9 +73,11 @@ jobs:
       DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
       DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
       DEPLOY_PASSWORD: ${{ secrets.DEPLOY_PASSWORD }}
-      SITE_URL: ${{ vars.DEPLOY_SITE_URL || 'https://www.adddots.com/optionbuilder' }}
+      SITE_URL: ${{ vars.DEPLOY_SITE_URL || 'https://www.adddots.com/app/Optionbuilder' }}
       PROTOCOL: ${{ vars.DEPLOY_PROTOCOL || 'ftps' }}
-      REMOTE_DIR: ${{ vars.DEPLOY_DIR || 'public_html/optionbuilder' }}
+      # Relative to where the FTP account logs in (public_html for the site's
+      # main FTP account), so this is public_html/app/Optionbuilder/.
+      REMOTE_DIR: ${{ vars.DEPLOY_DIR || 'app/Optionbuilder' }}
     steps:
       - name: Check deploy settings
         id: check

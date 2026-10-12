@@ -18,7 +18,7 @@ import { APP_BASE } from '../../api/client';
 // ------------------------------------------------------------------ config
 
 // Derive the deploy base from this script's own URL so the export keeps
-// working if the app is ever mounted somewhere other than /optionbuilder/.
+// working wherever the app is mounted (currently /app/Optionbuilder/).
 var BASE = APP_BASE;
 
 var W = 1600;            // design space — every coordinate below is in these units
@@ -42,7 +42,7 @@ var TEAL = '#2dd4bf';
 var M = 96;              // left margin
 var RM = W - M;          // right margin
 var BRAND = 'ZAK TRADE · OPTION BUILDER';
-var SOURCE = 'Source: adddots.com/optionbuilder';
+var SOURCE = 'Source: adddots.com/app/Optionbuilder';
 
 // Ambient colour wash per slide. Kept as data so the deck reads as a set
 // without every slide looking identical.
@@ -867,7 +867,7 @@ function buildCaption(m) {
   lines.push('');
   lines.push('Swipe for the full breakdown — key levels, open interest, global cues, institutional flows and the headlines that matter.');
   lines.push('');
-  lines.push('Full report: adddots.com/optionbuilder');
+  lines.push('Full report: adddots.com/app/Optionbuilder');
   lines.push('');
   lines.push('Educational content only. Not investment advice.');
   lines.push('');

@@ -11,17 +11,23 @@ declare(strict_types=1);
  * Lookup order — the first file that exists wins:
  *   1. the path in the OB_CONFIG_FILE environment variable
  *   2. optionbuilder-config.php in the directory ABOVE the web root
- *      (e.g. /home/user/optionbuilder-config.php when the app lives in
- *      /home/user/public_html/optionbuilder/) — the recommended place, since
- *      nothing there can ever be served
+ *      (e.g. /home/user/domains/example.com/optionbuilder-config.php when the
+ *      site's web root is …/example.com/public_html) — the recommended place,
+ *      since nothing there can ever be served. Found from the web server's
+ *      document root, so it works however deep the app is mounted
+ *      (public_html/optionbuilder/, public_html/app/Optionbuilder/, …)
  *   3. config.php next to index.php (legacy location, protected by .htaccess)
  */
 
 function ob_config_file(): ?string
 {
+    $docRoot = isset($_SERVER['DOCUMENT_ROOT']) ? realpath((string) $_SERVER['DOCUMENT_ROOT']) : false;
     $candidates = [
         getenv('OB_CONFIG_FILE') ?: null,
-        // api/lib → api → optionbuilder → public_html → account home
+        // The directory above the web root.
+        $docRoot ? dirname($docRoot) . '/optionbuilder-config.php' : null,
+        // Fallback when there is no document root (CLI): the old fixed depth,
+        // api/lib → api → optionbuilder → public_html → its parent.
         dirname(__DIR__, 4) . '/optionbuilder-config.php',
         __DIR__ . '/../config.php',
     ];
