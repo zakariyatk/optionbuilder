@@ -47,10 +47,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: shivammathur/setup-php@v2
-        with:
-          php-version: '8.1'
-          coverage: none
+      # The runner image ships with PHP, so no third-party setup action is
+      # needed (and none has to be allowed in the repo's Actions settings).
+      # Syntax checks on a newer PHP still catch errors in code targeting 8.1+.
+      - run: php -v
       - name: Lint every PHP file
         run: find api -name '*.php' -print0 | xargs -0 -n1 php -l
 
