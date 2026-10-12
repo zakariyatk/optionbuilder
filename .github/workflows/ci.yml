@@ -58,7 +58,7 @@ jobs:
   # Configure in GitHub → Settings → Secrets and variables → Actions:
   #   secrets:   DEPLOY_HOST, DEPLOY_USER, DEPLOY_PASSWORD
   #   variables: DEPLOY_PROTOCOL  (ftps | sftp | ftp, default ftps)
-  #              DEPLOY_DIR       (default public_html/optionbuilder)
+  #              DEPLOY_DIR       (default /Optionbuilder)
   # Until DEPLOY_HOST is set this job just reports that it skipped.
   deploy:
     name: Deploy to adddots.com
@@ -75,9 +75,11 @@ jobs:
       DEPLOY_PASSWORD: ${{ secrets.DEPLOY_PASSWORD }}
       SITE_URL: ${{ vars.DEPLOY_SITE_URL || 'https://www.adddots.com/app/Optionbuilder' }}
       PROTOCOL: ${{ vars.DEPLOY_PROTOCOL || 'ftps' }}
-      # Relative to where the FTP account logs in (public_html for the site's
-      # main FTP account), so this is public_html/app/Optionbuilder/.
-      REMOTE_DIR: ${{ vars.DEPLOY_DIR || 'app/Optionbuilder' }}
+      # The deploy FTP account is locked to the site's public_html/app/ folder
+      # and logs in to a subfolder of it, so the target is given from the
+      # account's top folder: /Optionbuilder = public_html/app/Optionbuilder/.
+      # A path without a leading / is relative to the login folder.
+      REMOTE_DIR: ${{ vars.DEPLOY_DIR || '/Optionbuilder' }}
     steps:
       - name: Check deploy settings
         id: check
@@ -139,7 +141,12 @@ jobs:
           printf 'user = "%s:%s"\n' "$(esc "$DEPLOY_USER")" "$(esc "$DEPLOY_PASSWORD")" > "$cfg"
 
           dir="${REMOTE_DIR#./}"; dir="${dir%/}"; [ "$dir" = "." ] && dir=""
-          base="ftp://$DEPLOY_HOST/${dir:+$dir/}"
+          # In an ftp:// URL, %2F marks a path from the account's top folder;
+          # otherwise curl starts from the login folder.
+          case "$dir" in
+            /*) base="ftp://$DEPLOY_HOST/%2F${dir#/}/" ;;
+            *)  base="ftp://$DEPLOY_HOST/${dir:+$dir/}" ;;
+          esac
 
           put() {
             local code=0
