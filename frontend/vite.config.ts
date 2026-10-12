@@ -5,19 +5,20 @@ import tailwindcss from '@tailwindcss/vite';
 import { mockApi } from './mock/mockApi';
 
 /**
- * The app is deployed under /app/Optionbuilder/ next to its PHP backend in
- * /app/Optionbuilder/api/ (public_html/app/Optionbuilder/ on the server). Every URL in the app derives from BASE_URL, so moving
- * the deployment is a one-line change here.
+ * The app is served at the root of its own subdomain,
+ * optionbuilder.adddots.com, next to its PHP backend in /api/ (the
+ * subdomain's folder is public_html/opbuilder/ on the server). Every
+ * URL in the app derives from BASE_URL, so moving the deployment is a
+ * one-line change here.
  *
  * Dev modes:
- *   npm run dev       → proxies /app/Optionbuilder/api to VITE_API_PROXY
+ *   npm run dev       → proxies /api to VITE_API_PROXY
  *                       (default http://localhost:8080, e.g. `php -S` on ../)
  *   npm run dev:mock  → serves recorded market data, no backend or broker needed
  */
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
-  // Case matters: the web server treats Optionbuilder and optionbuilder as different folders.
-  const base = '/app/Optionbuilder/';
+  const base = '/';
   const useMock = mode === 'mock';
 
   return {

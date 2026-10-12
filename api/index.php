@@ -25,7 +25,7 @@ error_reporting(E_ALL);
 /**
  * Route path, independent of where the backend is mounted.
  *
- * The backend normally lives in an `api/` directory (…/app/Optionbuilder/api/), so
+ * The backend normally lives in an `api/` directory (…/Optionbuilder/api/), so
  * stripping the whole script directory would also eat the `/api` that the
  * routes below are written with. Keep that segment: the frontend uses the same
  * `/api/...` paths whether it is talking to this backend under a subfolder or

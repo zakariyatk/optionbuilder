@@ -10,25 +10,34 @@ declare(strict_types=1);
  *
  * Lookup order — the first file that exists wins:
  *   1. the path in the OB_CONFIG_FILE environment variable
- *   2. optionbuilder-config.php in the directory ABOVE the web root
- *      (e.g. /home/user/domains/example.com/optionbuilder-config.php when the
- *      site's web root is …/example.com/public_html) — the recommended place,
- *      since nothing there can ever be served. Found from the web server's
- *      document root, so it works however deep the app is mounted
- *      (public_html/optionbuilder/, public_html/app/Optionbuilder/, …)
- *   3. config.php next to index.php (legacy location, protected by .htaccess)
+ *   2. optionbuilder-config.php in the directory ABOVE public_html
+ *      (e.g. /home/user/domains/example.com/optionbuilder-config.php) — the
+ *      recommended place, since nothing there can ever be served. Found by
+ *      walking up from this file to the nearest public_html, so it works
+ *      however deep the app sits (public_html/app/Optionbuilder/, …) and
+ *      whether it is served from the main domain or from a subdomain whose
+ *      folder is inside public_html.
+ *   3. optionbuilder-config.php in the directory above the web server's
+ *      document root (for hosts without a public_html folder)
+ *   4. config.php next to index.php (legacy location, protected by .htaccess)
  */
 
 function ob_config_file(): ?string
 {
+    // The nearest public_html above this file.
+    $publicHtml = null;
+    for ($dir = __DIR__; dirname($dir) !== $dir; $dir = dirname($dir)) {
+        if (basename($dir) === 'public_html') {
+            $publicHtml = $dir;
+            break;
+        }
+    }
     $docRoot = isset($_SERVER['DOCUMENT_ROOT']) ? realpath((string) $_SERVER['DOCUMENT_ROOT']) : false;
     $candidates = [
         getenv('OB_CONFIG_FILE') ?: null,
+        $publicHtml ? dirname($publicHtml) . '/optionbuilder-config.php' : null,
         // The directory above the web root.
         $docRoot ? dirname($docRoot) . '/optionbuilder-config.php' : null,
-        // Fallback when there is no document root (CLI): the old fixed depth,
-        // api/lib → api → optionbuilder → public_html → its parent.
-        dirname(__DIR__, 4) . '/optionbuilder-config.php',
         __DIR__ . '/../config.php',
     ];
     foreach ($candidates as $file) {
