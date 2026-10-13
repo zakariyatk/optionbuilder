@@ -4,7 +4,8 @@ import type { SpotQuote, SymbolInfo, WatchQuote } from '../../api/types';
 import { Button } from '../../components/ui';
 import { useAsync } from '../../hooks/useAsync';
 import { num } from '../../lib/format';
-import { useWatchlist } from '../../store/watchlist';
+import { activeList, useWatchlist } from '../../store/watchlist';
+import { WatchlistMenu } from './WatchlistMenu';
 
 const WATCH_POLL_MS = 15_000;
 
@@ -35,7 +36,8 @@ export function Watchlist({
   onSelect: (symbol: string) => void;
   onOpenBuilder: (symbol: string) => void;
 }) {
-  const { symbols, add, remove } = useWatchlist();
+  const { lists, activeId, add, remove } = useWatchlist();
+  const symbols = activeList({ lists, activeId }).symbols;
   const [adding, setAdding] = useState(false);
   const [query, setQuery] = useState('');
 
@@ -67,7 +69,7 @@ export function Watchlist({
   return (
     <aside className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--surface-card)]">
       <div className="flex items-center justify-between gap-2 border-b border-[var(--border)] px-3 py-2">
-        <h2 className="text-sm font-semibold">Watchlist</h2>
+        <WatchlistMenu />
         <button
           type="button"
           onClick={() => setAdding((a) => !a)}
