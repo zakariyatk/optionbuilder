@@ -65,6 +65,56 @@ function ob_http_request(string $method, string $url, array $headers = [], ?stri
     return ['status' => $status, 'body' => (string) $response];
 }
 
+/**
+ * Many GETs in parallel (curl_multi), at most `$concurrency` in flight.
+ * Failed transfers come back with status 0.
+ *
+ * @param array<string,string> $urls keyed by the caller's ids
+ * @param array<string,string> $headers
+ * @return array<string, array{status:int, body:string}>
+ */
+function ob_http_multi_get(array $urls, array $headers = [], int $concurrency = 10, int $timeout = 20): array
+{
+    $headerLines = [];
+    foreach ($headers as $k => $v) {
+        $headerLines[] = "$k: $v";
+    }
+    $out = [];
+    foreach (array_chunk($urls, max(1, $concurrency), true) as $batch) {
+        $mh = curl_multi_init();
+        $handles = [];
+        foreach ($batch as $id => $url) {
+            $ch = curl_init($url);
+            curl_setopt_array($ch, [
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_TIMEOUT => $timeout,
+                CURLOPT_CONNECTTIMEOUT => 10,
+                CURLOPT_USERAGENT => OB_UA,
+                CURLOPT_HTTPHEADER => $headerLines,
+                CURLOPT_ENCODING => '',
+            ]);
+            curl_multi_add_handle($mh, $ch);
+            $handles[$id] = $ch;
+        }
+        do {
+            $status = curl_multi_exec($mh, $running);
+            if ($running) {
+                curl_multi_select($mh, 1.0);
+            }
+        } while ($running && $status === CURLM_OK);
+        foreach ($handles as $id => $ch) {
+            $out[$id] = [
+                'status' => (int) curl_getinfo($ch, CURLINFO_RESPONSE_CODE),
+                'body' => (string) curl_multi_getcontent($ch),
+            ];
+            curl_multi_remove_handle($mh, $ch);
+            curl_close($ch);
+        }
+        curl_multi_close($mh);
+    }
+    return $out;
+}
+
 /** GET returning decoded JSON, throwing on transport or HTTP failure. */
 function ob_get_json(string $url, array $headers = [], int $timeout = 20): mixed
 {

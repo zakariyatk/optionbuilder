@@ -212,6 +212,28 @@ export function mockApi(base: string): Plugin {
           return;
         }
         switch (route) {
+          case '/oi-intraday': {
+            const chain = freshChain() as { expiry: string; underlyingValue: number; rows: { strike: number; call: { oi: number; oiChange: number } | null; put: { oi: number; oiChange: number } | null }[] };
+            const min = Number(url.searchParams.get('min'));
+            const max = Number(url.searchParams.get('max'));
+            // Today's session so far (or the whole of it after the close), one point a minute.
+            const ist = (t: number) => new Date((t + 19800) * 1000);
+            const day = ist(Math.floor(now / 1000));
+            const open = Date.UTC(day.getUTCFullYear(), day.getUTCMonth(), day.getUTCDate(), 9, 15) / 1000 - 19800;
+            const end = Math.min(Math.floor(now / 60000) * 60, open + 375 * 60 - 60);
+            const times: number[] = [];
+            for (let t = open; t <= Math.max(end, open + 374 * 60); t += 60) times.push(t);
+            const n = times.length;
+            const wave = (i: number, k: number) => Math.sin(i / 37 + k) * 0.08;
+            const side = (s: { oi: number; oiChange: number } | null, k: number) =>
+              s && { prevOi: s.oi - s.oiChange, oi: times.map((_, i) => Math.round(s.oi - s.oiChange + s.oiChange * (i / (n - 1)) * (1 + wave(i, k)))) };
+            return send({
+              expiry: url.searchParams.get('expiry') ?? chain.expiry,
+              times,
+              spot: times.map((_, i) => Math.round((chain.underlyingValue - 120 + 120 * (i / (n - 1)) + Math.sin(i / 20) * 25) * 100) / 100),
+              rows: chain.rows.filter((r) => r.strike >= min && r.strike <= max).map((r, k) => ({ strike: r.strike, call: side(r.call, k), put: side(r.put, k + 2) })),
+            });
+          }
           case '/candles': {
             const symbol = url.searchParams.get('symbol') ?? 'NIFTY';
             const tf = url.searchParams.get('tf') ?? '15m';
@@ -221,7 +243,7 @@ export function mockApi(base: string): Plugin {
           }
           case '/watch': {
             const spot = fixture('spot') as { price: number; previousClose: number };
-            const bases: Record<string, number> = { NIFTY: spot.price, BANKNIFTY: 51234.5, FINNIFTY: 23410.2, MIDCPNIFTY: 12890.4, RELIANCE: 1172.3, TCS: 3410.8, HDFCBANK: 1650.25, INFY: 1520.6 };
+            const bases: Record<string, number> = { INDIAVIX: 14.1, NIFTY: spot.price, BANKNIFTY: 51234.5, FINNIFTY: 23410.2, MIDCPNIFTY: 12890.4, RELIANCE: 1172.3, TCS: 3410.8, HDFCBANK: 1650.25, INFY: 1520.6 };
             const quotes = (url.searchParams.get('symbols') ?? '')
               .split(',')
               .filter(Boolean)

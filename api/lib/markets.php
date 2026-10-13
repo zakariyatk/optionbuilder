@@ -15,6 +15,7 @@ const OB_YAHOO_TICKER = [
     'BANKNIFTY' => '^NSEBANK',
     'FINNIFTY' => 'NIFTY_FIN_SERVICE.NS',
     'MIDCPNIFTY' => 'NIFTY_MID_SELECT.NS',
+    'INDIAVIX' => '^INDIAVIX',
 ];
 
 function ob_yahoo_meta(string $ticker): array

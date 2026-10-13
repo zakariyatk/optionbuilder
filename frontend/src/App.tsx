@@ -20,6 +20,7 @@ import { buildFromTemplate, type StrategyTemplate } from './domain/templates';
 import type { LegAction } from './domain/types';
 import { DraftMonitor } from './features/drafts/DraftMonitor';
 import { DraftsPage } from './features/drafts/DraftsPage';
+import { OpenInterestPage } from './features/oi/OpenInterestPage';
 import { PositionsPage } from './features/positions/PositionsPage';
 import { DailyReport } from './features/report/DailyReport';
 import { useBrokerMargin, useBrokerStatus, useOptionChain, useSpot, useSymbols } from './hooks/market';
@@ -332,6 +333,12 @@ function Workspace({ showLogout, onLogout }: { showLogout: boolean; onLogout: ()
                 }}
               />
             </Suspense>
+          </ErrorBoundary>
+        )}
+
+        {route.page === 'oi' && (
+          <ErrorBoundary label="open interest">
+            <OpenInterestPage symbol={symbol} spot={spotState.data} brokerConnected={brokerConnected} />
           </ErrorBoundary>
         )}
 

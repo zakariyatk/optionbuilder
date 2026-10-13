@@ -1,3 +1,4 @@
+import type { OiHistory } from '../domain/oi';
 import type {
   AuthStatus,
   BrokerMargin,
@@ -109,6 +110,9 @@ export const api = {
     get<{ symbol: string; tf: string; candles: [number, number, number, number, number, number][] }>(
       `/api/candles?symbol=${encodeURIComponent(symbol)}&tf=${encodeURIComponent(tf)}`,
     ),
+  /** Per-minute OI per strike for one expiry, for the Open Interest page's time window. */
+  oiIntraday: (symbol: string, expiry: string, min: number, max: number) =>
+    get<OiHistory>(`/api/oi-intraday?${new URLSearchParams({ symbol, expiry, min: String(min), max: String(max) })}`),
   watch: (symbols: string[]) => get<{ quotes: WatchQuote[] }>(`/api/watch?symbols=${encodeURIComponent(symbols.join(','))}`),
   spot: (symbol: string) => get<SpotQuote>(`/api/spot?symbol=${encodeURIComponent(symbol)}`),
   optionChain: (symbol: string, expiry?: string) => {

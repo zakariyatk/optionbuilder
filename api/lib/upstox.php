@@ -24,6 +24,7 @@ const OB_INDEX_INSTRUMENT_KEYS = [
     'BANKNIFTY' => 'NSE_INDEX|Nifty Bank',
     'FINNIFTY' => 'NSE_INDEX|Nifty Fin Service',
     'MIDCPNIFTY' => 'NSE_INDEX|NIFTY MID SELECT',
+    'INDIAVIX' => 'NSE_INDEX|India VIX',
 ];
 
 function ob_upstox_configured(): bool

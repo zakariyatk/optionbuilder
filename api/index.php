@@ -19,6 +19,7 @@ require_once __DIR__ . '/lib/news.php';
 require_once __DIR__ . '/lib/report.php';
 require_once __DIR__ . '/lib/drafts.php';
 require_once __DIR__ . '/lib/candles.php';
+require_once __DIR__ . '/lib/oi.php';
 
 // Errors must never leak into a JSON body as HTML.
 ini_set('display_errors', '0');
@@ -224,6 +225,28 @@ try {
             ob_error('NOT_AUTHENTICATED', 401);
         } catch (Throwable $e) {
             ob_error('Failed to fetch candles', 502, $e->getMessage());
+        }
+    }
+
+    if ($path === '/api/oi-intraday') {
+        $symbol = strtoupper(ob_query('symbol') ?? '');
+        $expiry = ob_query('expiry') ?? '';
+        $min = (float) (ob_query('min') ?? 0);
+        $max = (float) (ob_query('max') ?? 0);
+        if (!preg_match('/^[A-Z0-9&_\-]{1,20}$/', $symbol) || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $expiry) || !($max > $min)) {
+            ob_error('symbol, expiry and a min < max strike range are required', 400);
+        }
+        if (!ob_has_valid_token()) {
+            ob_error('NOT_AUTHENTICATED', 401);
+        }
+        try {
+            ob_json(ob_cached("oi:$symbol:$expiry:$min:$max", fn() => ob_oi_intraday($symbol, $expiry, $min, $max), 60));
+        } catch (ObNotAuthenticated) {
+            ob_error('NOT_AUTHENTICATED', 401);
+        } catch (InvalidArgumentException $e) {
+            ob_error($e->getMessage(), 400);
+        } catch (Throwable $e) {
+            ob_error('Failed to build OI history', 502, $e->getMessage());
         }
     }
 
