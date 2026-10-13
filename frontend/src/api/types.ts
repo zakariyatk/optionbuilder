@@ -25,6 +25,9 @@ export interface SpotQuote {
   marketTime: number;
 }
 
+/** A watchlist row: a spot quote, or a marker that the symbol couldn't be quoted. */
+export type WatchQuote = SpotQuote | { symbol: string; error: true };
+
 export interface ChainSide {
   instrumentKey: string | null;
   ltp: number;

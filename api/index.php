@@ -18,6 +18,7 @@ require_once __DIR__ . '/lib/markets.php';
 require_once __DIR__ . '/lib/news.php';
 require_once __DIR__ . '/lib/report.php';
 require_once __DIR__ . '/lib/drafts.php';
+require_once __DIR__ . '/lib/candles.php';
 
 // Errors must never leak into a JSON body as HTML.
 ini_set('display_errors', '0');
@@ -170,6 +171,59 @@ try {
             ob_json(ob_cached("spot:$symbol", fn() => ob_spot_price($symbol), OB_TTL_QUOTE));
         } catch (Throwable $e) {
             ob_error('Failed to fetch spot price', 502, $e->getMessage());
+        }
+    }
+
+    // Watchlist: spot quotes for up to 30 symbols, sharing the per-symbol spot cache.
+    if ($path === '/api/watch') {
+        $symbols = array_values(array_unique(array_filter(
+            array_map(static fn(string $v): string => strtoupper(trim($v)), explode(',', ob_query('symbols') ?? '')),
+            static fn(string $v): bool => (bool) preg_match('/^[A-Z0-9&_\-]{1,20}$/', $v)
+        )));
+        if (!$symbols || count($symbols) > 30) {
+            ob_error('symbols must list 1–30 symbols', 400);
+        }
+        // Upstox when connected (live NSE), else the delayed spot feed per symbol.
+        $live = [];
+        if (ob_has_valid_token()) {
+            try {
+                $live = ob_cached('watch:' . md5(implode(',', $symbols)), fn() => ob_upstox_watch_quotes($symbols), 5);
+            } catch (Throwable) {
+                $live = [];
+            }
+        }
+        $quotes = [];
+        foreach ($symbols as $symbol) {
+            if (isset($live[$symbol])) {
+                $quotes[] = $live[$symbol];
+                continue;
+            }
+            try {
+                $quotes[] = ob_cached("spot:$symbol", fn() => ob_spot_price($symbol), OB_TTL_QUOTE);
+            } catch (Throwable) {
+                // One bad or unlisted symbol shouldn't blank the whole list.
+                $quotes[] = ['symbol' => $symbol, 'error' => true];
+            }
+        }
+        ob_json(['quotes' => $quotes]);
+    }
+
+    if ($path === '/api/candles') {
+        $symbol = strtoupper(ob_query('symbol') ?? '');
+        $tf = ob_query('tf') ?? '15m';
+        if (!preg_match('/^[A-Z0-9&_\-]{1,20}$/', $symbol) || !isset(OB_CANDLE_TIMEFRAMES[$tf])) {
+            ob_error('symbol and a valid tf are required', 400);
+        }
+        if (!ob_has_valid_token()) {
+            ob_error('NOT_AUTHENTICATED', 401);
+        }
+        try {
+            $ttl = OB_CANDLE_TIMEFRAMES[$tf][3];
+            ob_json(['symbol' => $symbol, 'tf' => $tf, 'candles' => ob_cached("candles:$symbol:$tf", fn() => ob_candles($symbol, $tf), $ttl)]);
+        } catch (ObNotAuthenticated) {
+            ob_error('NOT_AUTHENTICATED', 401);
+        } catch (Throwable $e) {
+            ob_error('Failed to fetch candles', 502, $e->getMessage());
         }
     }
 

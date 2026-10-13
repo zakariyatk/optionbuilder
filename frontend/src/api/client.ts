@@ -14,6 +14,7 @@ import type {
   Session,
   SpotQuote,
   SymbolsResponse,
+  WatchQuote,
 } from './types';
 
 /** App root without the trailing slash, e.g. "/optionbuilder". */
@@ -103,6 +104,12 @@ export const api = {
   disconnectBroker: () => post<{ ok: true }>('/api/auth/logout', {}),
 
   symbols: () => get<SymbolsResponse>('/api/symbols'),
+  /** OHLCV candles from Upstox: [unix seconds, open, high, low, close, volume], oldest first. */
+  candles: (symbol: string, tf: string) =>
+    get<{ symbol: string; tf: string; candles: [number, number, number, number, number, number][] }>(
+      `/api/candles?symbol=${encodeURIComponent(symbol)}&tf=${encodeURIComponent(tf)}`,
+    ),
+  watch: (symbols: string[]) => get<{ quotes: WatchQuote[] }>(`/api/watch?symbols=${encodeURIComponent(symbols.join(','))}`),
   spot: (symbol: string) => get<SpotQuote>(`/api/spot?symbol=${encodeURIComponent(symbol)}`),
   optionChain: (symbol: string, expiry?: string) => {
     const q = new URLSearchParams({ symbol });

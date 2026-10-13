@@ -42,7 +42,7 @@ function initialRoute(): Route {
 }
 
 /** Pages that show the symbol / expiry bar and use the live chain. */
-const MARKET_PAGES: PageId[] = ['builder', 'chart', 'chain', 'report'];
+const MARKET_PAGES: PageId[] = ['builder', 'chain', 'report'];
 
 /** Session gate: shows the login form until the backend says we're in. */
 export default function App() {
@@ -261,7 +261,7 @@ function Workspace({ showLogout, onLogout }: { showLogout: boolean; onLogout: ()
     <>
       <AppHeader route={route} onNavigate={navigate} broker={broker} onLogout={onLogout} showLogout={showLogout} />
 
-      <main className="mx-auto max-w-7xl px-4 py-5">
+      <main className="w-full px-4 py-5 lg:px-6">
         {marketPage && (
           <div className="mb-4 flex flex-col gap-2">
             <MarketBar
@@ -274,7 +274,6 @@ function Workspace({ showLogout, onLogout }: { showLogout: boolean; onLogout: ()
               spot={spotState.data}
               spotError={spotState.error}
               updatedAt={chainState.updatedAt ?? spotState.updatedAt}
-              showExpiry={route.page !== 'chart'}
             />
             {brokerConnected && chainState.error && !chain && <Notice tone="critical">Option chain: {chainState.error}</Notice>}
           </div>
@@ -294,7 +293,15 @@ function Workspace({ showLogout, onLogout }: { showLogout: boolean; onLogout: ()
 
         {route.page === 'chart' && (
           <ErrorBoundary label="the chart">
-            <ChartPage symbol={symbol} />
+            <ChartPage
+              symbol={symbol}
+              symbolInfo={symbols}
+              brokerConnected={brokerConnected}
+              onOpenBuilder={(next) => {
+                if (next !== symbol) changeSymbol(next);
+                if (useStrategy.getState().symbol === next) navigate({ page: 'builder' });
+              }}
+            />
           </ErrorBoundary>
         )}
 
@@ -363,7 +370,7 @@ function Workspace({ showLogout, onLogout }: { showLogout: boolean; onLogout: ()
         )}
 
         {route.page === 'builder' && (
-          <section className="grid grid-cols-1 gap-4 lg:grid-cols-[460px_minmax(0,1fr)]">
+          <section className="grid grid-cols-1 gap-4 lg:grid-cols-[460px_minmax(0,1fr)] 2xl:grid-cols-[540px_minmax(0,1fr)]">
             <div className="order-2 lg:order-1 lg:sticky lg:top-[4.5rem] lg:self-start">
               <ErrorBoundary label="the option chain">
                 {chain?.rows?.length ? (

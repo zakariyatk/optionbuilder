@@ -131,7 +131,7 @@ export function AppHeader({
 
   return (
     <header className="sticky top-0 z-30 border-b border-[var(--border)] bg-[var(--surface-raised)]">
-      <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-x-4 px-4 md:h-14 md:flex-nowrap">
+      <div className="flex w-full flex-wrap items-center gap-x-4 px-4 md:h-14 md:flex-nowrap lg:px-6">
         <div className="flex h-14 min-w-0 items-center gap-2.5">
           <a className="ob-logo" href="https://www.adddots.com/" aria-label="ADD DOTS home">
             AD

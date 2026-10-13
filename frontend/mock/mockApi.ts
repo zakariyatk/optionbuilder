@@ -98,6 +98,36 @@ function mockPositions() {
   ];
 }
 
+const TF_SECONDS: Record<string, number> = { '1m': 60, '3m': 180, '5m': 300, '15m': 900, '30m': 1800, '1h': 3600, '4h': 14400, '1D': 86400, '1W': 604800, '1M': 2592000 };
+
+/** A deterministic random walk ending near `last`, in NSE session hours for intraday timeframes. */
+function mockCandles(symbol: string, tf: string, last: number, hasVolume: boolean): number[][] {
+  const step = TF_SECONDS[tf] ?? 900;
+  const intraday = step < 86400;
+  let seed = [...`${symbol}${tf}`].reduce((a, c) => a * 31 + c.charCodeAt(0), 7) >>> 0;
+  const rand = () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 2 ** 32);
+  const times: number[] = [];
+  let t = Math.floor(Date.now() / 1000 / step) * step;
+  while (times.length < 400) {
+    const ist = new Date((t + 19800) * 1000);
+    const mins = ist.getUTCHours() * 60 + ist.getUTCMinutes();
+    const weekday = ist.getUTCDay() >= 1 && ist.getUTCDay() <= 5;
+    if (!intraday ? weekday || step > 86400 : weekday && mins >= 555 && mins < 930) times.unshift(t);
+    t -= step;
+  }
+  const vol = Math.min(0.02, 0.0015 * Math.sqrt(step / 300));
+  const closes: number[] = [last];
+  for (let i = 1; i < times.length; i++) closes.unshift(closes[0] * (1 - (rand() - 0.5) * 2 * vol));
+  return times.map((time, i) => {
+    const close = closes[i];
+    const open = i ? closes[i - 1] : close;
+    const high = Math.max(open, close) * (1 + rand() * vol * 0.6);
+    const low = Math.min(open, close) * (1 - rand() * vol * 0.6);
+    const r2 = (v: number) => Math.round(v * 100) / 100;
+    return [time, r2(open), r2(high), r2(low), r2(close), hasVolume ? Math.round(50_000 + rand() * 400_000) : 0];
+  });
+}
+
 const readBody = (req: NodeJS.ReadableStream): Promise<Record<string, unknown>> =>
   new Promise((resolve) => {
     let raw = '';
@@ -182,6 +212,28 @@ export function mockApi(base: string): Plugin {
           return;
         }
         switch (route) {
+          case '/candles': {
+            const symbol = url.searchParams.get('symbol') ?? 'NIFTY';
+            const tf = url.searchParams.get('tf') ?? '15m';
+            const last: Record<string, number> = { NIFTY: 24175.65, BANKNIFTY: 51234.5, FINNIFTY: 23410.2, MIDCPNIFTY: 12890.4, RELIANCE: 1172.3, TCS: 3410.8, HDFCBANK: 1650.25, INFY: 1520.6 };
+            const isIndex = ['NIFTY', 'BANKNIFTY', 'FINNIFTY', 'MIDCPNIFTY'].includes(symbol);
+            return send({ symbol, tf, candles: mockCandles(symbol, tf, last[symbol] ?? 1000, !isIndex) });
+          }
+          case '/watch': {
+            const spot = fixture('spot') as { price: number; previousClose: number };
+            const bases: Record<string, number> = { NIFTY: spot.price, BANKNIFTY: 51234.5, FINNIFTY: 23410.2, MIDCPNIFTY: 12890.4, RELIANCE: 1172.3, TCS: 3410.8, HDFCBANK: 1650.25, INFY: 1520.6 };
+            const quotes = (url.searchParams.get('symbols') ?? '')
+              .split(',')
+              .filter(Boolean)
+              .map((symbol) => {
+                const base = bases[symbol];
+                if (base === undefined) return { symbol, error: true };
+                const price = Math.round(base * (1 + (Math.random() - 0.5) * 0.004) * 100) / 100;
+                const previousClose = Math.round(base * (1 + (symbol.length % 5 - 2) * 0.004) * 100) / 100;
+                return { symbol, ticker: symbol, price, previousClose, currency: 'INR', marketTime: Math.floor(now / 1000) };
+              });
+            return send({ quotes });
+          }
           case '/drafts':
             return send({ drafts });
           case '/quotes':

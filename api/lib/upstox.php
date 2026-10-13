@@ -16,6 +16,8 @@ require_once __DIR__ . '/cache.php';
  */
 
 const OB_UPSTOX_API = 'https://api.upstox.com/v2';
+/** Candle history lives on v3, which takes any minute / hour / day interval. */
+const OB_UPSTOX_API_V3 = 'https://api.upstox.com/v3';
 
 const OB_INDEX_INSTRUMENT_KEYS = [
     'NIFTY' => 'NSE_INDEX|Nifty 50',
@@ -159,9 +161,9 @@ function ob_upstox_headers(): array
     ];
 }
 
-function ob_upstox_get(string $path, array $params = []): array
+function ob_upstox_get(string $path, array $params = [], string $base = OB_UPSTOX_API): array
 {
-    $url = OB_UPSTOX_API . $path . ($params ? '?' . http_build_query($params) : '');
+    $url = $base . $path . ($params ? '?' . http_build_query($params) : '');
     $res = ob_http_request('GET', $url, ob_upstox_headers(), null, 30);
 
     if ($res['status'] === 401) {
