@@ -11,6 +11,7 @@ import { MetricsPanel } from './components/MetricsPanel';
 import { OptionChainTable } from './components/OptionChainTable';
 import { PayoffChart } from './components/PayoffChart';
 import { StrategyToolbar } from './components/StrategyToolbar';
+import { StrikeChain } from './components/StrikeChain';
 import { Button, Notice } from './components/ui';
 import { atmIv, generateStrikes } from './domain/chain';
 import { strategyGreeks, strategyMetrics } from './domain/payoff';
@@ -77,8 +78,24 @@ export default function App() {
 
 function Workspace({ showLogout, onLogout }: { showLogout: boolean; onLogout: () => void }) {
   const symbols = useSymbols();
-  const { symbol, lotSize, legs, saved, setSymbol, addLeg, replaceLegs, updateLeg, removeLeg, clearLegs, toggleLegAction, saveStrategy, loadStrategy, deleteStrategy } =
-    useStrategy();
+  const {
+    symbol,
+    lotSize,
+    legs,
+    saved,
+    setSymbol,
+    addLeg,
+    tradeLeg,
+    replaceLegs,
+    updateLeg,
+    removeLeg,
+    removeLegs,
+    clearLegs,
+    toggleLegAction,
+    saveStrategy,
+    loadStrategy,
+    deleteStrategy,
+  } = useStrategy();
 
   const [tab, setTab] = useState<TabId>(initialTab);
   const [expiry, setExpiry] = useState<string | undefined>(undefined);
@@ -129,19 +146,19 @@ function Workspace({ showLogout, onLogout }: { showLogout: boolean; onLogout: ()
     setSymbol(next, symbols.find((s) => s.symbol === next)?.lotSize ?? 1);
   };
 
-  const addFromChain = (type: 'CE' | 'PE', action: LegAction, strike: number, premium: number, side: ChainSide | null) => {
-    addLeg({
+  const addFromChain = (type: 'CE' | 'PE', action: LegAction, strike: number, premium: number, side: ChainSide | null, lots = 1) => {
+    tradeLeg({
       action,
       type,
       strike,
       premium,
-      lots: 1,
+      lots,
       lotSize: effectiveLot,
       instrumentKey: side?.instrumentKey ?? null,
       iv: side?.iv ?? null,
       expiry: chain?.expiry ?? null,
     });
-    setNotice(`Added ${action === 'BUY' ? 'Buy' : 'Sell'} ${strike.toLocaleString('en-IN')} ${type}`);
+    setNotice(`${action === 'BUY' ? 'Bought' : 'Sold'} ${lots * effectiveLot} × ${strike.toLocaleString('en-IN')} ${type}`);
   };
 
   const applyTemplate = (t: StrategyTemplate) => {
@@ -154,6 +171,10 @@ function Workspace({ showLogout, onLogout }: { showLogout: boolean; onLogout: ()
     if (legs.length > 0 && !window.confirm(`Replace the ${legs.length} leg(s) in your strategy with a ${t.name}?`)) return;
     replaceLegs(built);
     if (!chain?.rows?.length) setNotice(`${t.name} added — enter premiums manually (no live chain).`);
+  };
+
+  const confirmClear = () => {
+    if (window.confirm('Remove all legs from this strategy?')) clearLegs();
   };
 
   const chainProps = {
@@ -216,10 +237,25 @@ function Workspace({ showLogout, onLogout }: { showLogout: boolean; onLogout: ()
       )}
 
       {tab === 'builder' && (
-        <section id="panel-builder" role="tabpanel" aria-labelledby="tab-builder" className="grid grid-cols-1 gap-4 lg:grid-cols-[420px_minmax(0,1fr)]">
-          <div className="order-2 lg:order-1">
+        <section id="panel-builder" role="tabpanel" aria-labelledby="tab-builder" className="grid grid-cols-1 gap-4 lg:grid-cols-[460px_minmax(0,1fr)]">
+          <div className="order-2 lg:order-1 lg:sticky lg:top-4 lg:self-start">
             <ErrorBoundary label="the option chain">
-              <OptionChainTable {...chainProps} />
+              {chain?.rows?.length ? (
+                <StrikeChain
+                  rows={chain.rows}
+                  spot={spot}
+                  symbol={symbol}
+                  lotSize={effectiveLot}
+                  expiry={chain.expiry ?? null}
+                  legs={legs}
+                  maxHeight={760}
+                  onAddLeg={addFromChain}
+                  onRemoveLegs={removeLegs}
+                  onClear={confirmClear}
+                />
+              ) : (
+                <OptionChainTable {...chainProps} />
+              )}
             </ErrorBoundary>
           </div>
           <div className="order-1 flex min-w-0 flex-col gap-4 lg:order-2">
@@ -242,7 +278,15 @@ function Workspace({ showLogout, onLogout }: { showLogout: boolean; onLogout: ()
               onDelete={deleteStrategy}
             />
             <ErrorBoundary label="the payoff chart">
-              <PayoffChart legs={legs} spot={spot} metrics={metrics} fallbackIv={fallbackIv} oiRows={chain?.rows ?? null} />
+              <PayoffChart
+                legs={legs}
+                spot={spot}
+                symbol={symbol}
+                metrics={metrics}
+                fallbackIv={fallbackIv}
+                oiRows={chain?.rows ?? null}
+                capital={brokerMargin ?? metrics.marginEstimate}
+              />
             </ErrorBoundary>
             <MetricsPanel metrics={metrics} greeks={greeks} hasLegs={legs.length > 0} brokerMargin={brokerMargin} marginLoading={marginLoading} />
             <LegsTable
@@ -250,9 +294,7 @@ function Workspace({ showLogout, onLogout }: { showLogout: boolean; onLogout: ()
               onUpdate={updateLeg}
               onRemove={removeLeg}
               onToggleAction={toggleLegAction}
-              onClear={() => {
-                if (window.confirm('Remove all legs from this strategy?')) clearLegs();
-              }}
+              onClear={confirmClear}
               onAddBlank={() =>
                 addLeg({ action: 'BUY', type: 'CE', strike: Math.round(spot ?? 100), premium: 0, lots: 1, lotSize: effectiveLot, expiry: chain?.expiry ?? null })
               }

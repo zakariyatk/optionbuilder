@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
+import { netTrade } from '../domain/positions';
 import type { Leg, NewLeg } from '../domain/types';
 
 export interface SavedStrategy {
@@ -19,6 +20,9 @@ interface StrategyState {
   setSymbol: (symbol: string, lotSize: number) => void;
   addLeg: (leg: NewLeg) => void;
   addLegs: (legs: NewLeg[]) => void;
+  /** Adds a trade, netting it against any held leg in the same contract. */
+  tradeLeg: (leg: NewLeg) => void;
+  removeLegs: (ids: string[]) => void;
   replaceLegs: (legs: NewLeg[]) => void;
   updateLeg: (id: string, patch: Partial<Leg>) => void;
   removeLeg: (id: string) => void;
@@ -51,6 +55,8 @@ export const useStrategy = create<StrategyState>()(
         set((s) => (s.symbol === symbol ? { lotSize } : { symbol, lotSize, legs: [] })),
       addLeg: (leg) => set((s) => ({ legs: [...s.legs, { ...leg, id: newId() }] })),
       addLegs: (legs) => set((s) => ({ legs: [...s.legs, ...withIds(legs)] })),
+      tradeLeg: (leg) => set((s) => ({ legs: netTrade(s.legs, leg, newId) })),
+      removeLegs: (ids) => set((s) => ({ legs: s.legs.filter((l) => !ids.includes(l.id)) })),
       replaceLegs: (legs) => set({ legs: withIds(legs) }),
       updateLeg: (id, patch) => set((s) => ({ legs: s.legs.map((l) => (l.id === id ? { ...l, ...patch } : l)) })),
       removeLeg: (id) => set((s) => ({ legs: s.legs.filter((l) => l.id !== id) })),

@@ -11,6 +11,8 @@ export type AddLegFn = (
   strike: number,
   premium: number,
   side: ChainSide | null,
+  /** Number of lots; 1 when omitted. */
+  lots?: number,
 ) => void;
 
 const changeColor = (v: number | undefined) => ((v ?? 0) >= 0 ? 'var(--good-text)' : 'var(--critical)');
