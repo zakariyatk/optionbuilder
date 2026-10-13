@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { api, onLoginRequired } from './api/client';
-import type { ChainSide, Session } from './api/types';
+import { api, errorMessage, onLoginRequired } from './api/client';
+import type { ChainSide, Draft, Session } from './api/types';
 import { AppHeader } from './components/AppHeader';
-import { TABS, type TabId } from './components/tabs';
+import { parseRoute, routeHash, type PageId, type Route } from './components/tabs';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { LegsTable } from './components/LegsTable';
 import { LoginGate } from './components/LoginGate';
@@ -12,28 +12,36 @@ import { OptionChainTable } from './components/OptionChainTable';
 import { PayoffChart } from './components/PayoffChart';
 import { StrategyToolbar } from './components/StrategyToolbar';
 import { StrikeChain } from './components/StrikeChain';
-import { Button, Notice } from './components/ui';
+import { Button, Card, Notice } from './components/ui';
 import { atmIv, generateStrikes } from './domain/chain';
+import { legToDraftLeg } from './domain/drafts';
 import { strategyGreeks, strategyMetrics } from './domain/payoff';
 import { buildFromTemplate, type StrategyTemplate } from './domain/templates';
 import type { LegAction } from './domain/types';
+import { DraftMonitor } from './features/drafts/DraftMonitor';
+import { DraftsPage } from './features/drafts/DraftsPage';
+import { PositionsPage } from './features/positions/PositionsPage';
 import { DailyReport } from './features/report/DailyReport';
 import { useBrokerMargin, useBrokerStatus, useOptionChain, useSpot, useSymbols } from './hooks/market';
+import { useAsync } from './hooks/useAsync';
 import { useStrategy } from './store/strategy';
 
-const TAB_KEY = 'option-builder-tab';
+const PAGE_KEY = 'option-builder-tab';
 
-function initialTab(): TabId {
-  const fromHash = window.location.hash.slice(1);
-  if (TABS.some((t) => t.id === fromHash)) return fromHash as TabId;
+function initialRoute(): Route {
+  const fromHash = parseRoute(window.location.hash);
+  if (fromHash) return fromHash;
   try {
-    const stored = localStorage.getItem(TAB_KEY);
-    if (TABS.some((t) => t.id === stored)) return stored as TabId;
+    const stored = parseRoute(`#${localStorage.getItem(PAGE_KEY) ?? ''}`);
+    if (stored) return { page: stored.page };
   } catch {
     /* ignore */
   }
-  return 'builder';
+  return { page: 'builder' };
 }
+
+/** Pages that show the symbol / expiry bar and use the live chain. */
+const MARKET_PAGES: PageId[] = ['builder', 'chain', 'report'];
 
 /** Session gate: shows the login form until the backend says we're in. */
 export default function App() {
@@ -92,30 +100,46 @@ function Workspace({ showLogout, onLogout }: { showLogout: boolean; onLogout: ()
     removeLegs,
     clearLegs,
     toggleLegAction,
-    saveStrategy,
-    loadStrategy,
     deleteStrategy,
   } = useStrategy();
 
-  const [tab, setTab] = useState<TabId>(initialTab);
+  const [route, setRoute] = useState<Route>(initialRoute);
   const [expiry, setExpiry] = useState<string | undefined>(undefined);
   const [notice, setNotice] = useState<string | null>(null);
 
   const { status: broker } = useBrokerStatus();
   const brokerConnected = !!broker?.authenticated;
+  const marketPage = MARKET_PAGES.includes(route.page);
   const spotState = useSpot(symbol);
-  const chainState = useOptionChain(symbol, expiry, brokerConnected);
+  const chainState = useOptionChain(symbol, expiry, brokerConnected && (route.page === 'builder' || route.page === 'chain'));
   const chain = chainState.data;
   const { margin: brokerMargin, loading: marginLoading } = useBrokerMargin(legs, brokerConnected);
+  const draftsState = useAsync(() => api.drafts(), []);
+  const drafts = draftsState.data?.drafts ?? null;
+
+  const navigate = useCallback((next: Route) => {
+    setRoute(next);
+    const hash = routeHash(next);
+    if (window.location.hash !== hash) history.pushState(null, '', hash);
+    window.scrollTo({ top: 0 });
+  }, []);
+
+  // Browser back / forward between pages.
+  useEffect(() => {
+    const onPop = () => setRoute(parseRoute(window.location.hash) ?? { page: 'builder' });
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, []);
 
   useEffect(() => {
     try {
-      localStorage.setItem(TAB_KEY, tab);
+      localStorage.setItem(PAGE_KEY, route.page);
     } catch {
       /* ignore */
     }
-    if (window.location.hash !== `#${tab}`) history.replaceState(null, '', `#${tab}`);
-  }, [tab]);
+    const hash = routeHash(route);
+    if (window.location.hash !== hash) history.replaceState(null, '', hash);
+  }, [route]);
 
   // A new underlying has its own expiry list; let the backend pick the nearest.
   useEffect(() => setExpiry(undefined), [symbol]);
@@ -177,6 +201,39 @@ function Workspace({ showLogout, onLogout }: { showLogout: boolean; onLogout: ()
     if (window.confirm('Remove all legs from this strategy?')) clearLegs();
   };
 
+  /** Records the working strategy, at its current premiums, as a draft portfolio. */
+  const saveDraft = async (name: string): Promise<boolean> => {
+    try {
+      await api.createDraft({ name, symbol, legs: legs.map(legToDraftLeg), entrySpot: spot });
+      draftsState.reload();
+      setNotice(`Saved “${name}” to Draft Portfolios`);
+      return true;
+    } catch (e) {
+      setNotice(`Could not save draft: ${errorMessage(e)}`);
+      return false;
+    }
+  };
+
+  const openDraftInBuilder = (d: Draft) => {
+    if (legs.length > 0 && !window.confirm('Replace your current strategy with this draft?')) return;
+    setSymbol(d.symbol, symbols.find((s) => s.symbol === d.symbol)?.lotSize ?? d.legs[0]?.lotSize ?? lotSize);
+    replaceLegs(d.legs);
+    navigate({ page: 'builder' });
+  };
+
+  const importLocalSaved = async () => {
+    try {
+      for (const s of saved) {
+        await api.createDraft({ name: s.name, symbol: s.symbol, legs: s.legs.map(legToDraftLeg), entrySpot: null });
+        deleteStrategy(s.id);
+      }
+      setNotice('Imported into Draft Portfolios');
+    } catch (e) {
+      setNotice(`Import stopped: ${errorMessage(e)}`);
+    }
+    draftsState.reload();
+  };
+
   const chainProps = {
     rows: chain?.rows ?? null,
     loading: chainState.loading,
@@ -187,128 +244,171 @@ function Workspace({ showLogout, onLogout }: { showLogout: boolean; onLogout: ()
     onAddLeg: addFromChain,
   };
 
+  const monitored = route.page === 'drafts' && route.draftId ? (drafts?.find((d) => d.id === route.draftId) ?? null) : null;
+
   return (
-    <div className="mx-auto max-w-7xl px-4 py-6">
-      <AppHeader tab={tab} onTab={setTab} broker={broker} onLogout={onLogout} showLogout={showLogout} />
+    <>
+      <AppHeader route={route} onNavigate={navigate} broker={broker} onLogout={onLogout} showLogout={showLogout} />
 
-      <div className="mb-4 flex flex-col gap-2">
-        <MarketBar
-          symbols={symbols}
-          symbol={symbol}
-          onSymbolChange={changeSymbol}
-          expiryDates={chain?.expiryDates ?? []}
-          expiry={activeExpiry}
-          onExpiryChange={setExpiry}
-          spot={spotState.data}
-          spotError={spotState.error}
-          updatedAt={chainState.updatedAt ?? spotState.updatedAt}
-        />
-        {brokerConnected && chainState.error && !chain && <Notice tone="critical">Option chain: {chainState.error}</Notice>}
-      </div>
+      <main className="mx-auto max-w-7xl px-4 py-5">
+        {marketPage && (
+          <div className="mb-4 flex flex-col gap-2">
+            <MarketBar
+              symbols={symbols}
+              symbol={symbol}
+              onSymbolChange={changeSymbol}
+              expiryDates={chain?.expiryDates ?? []}
+              expiry={activeExpiry}
+              onExpiryChange={setExpiry}
+              spot={spotState.data}
+              spotError={spotState.error}
+              updatedAt={chainState.updatedAt ?? spotState.updatedAt}
+            />
+            {brokerConnected && chainState.error && !chain && <Notice tone="critical">Option chain: {chainState.error}</Notice>}
+          </div>
+        )}
 
-      {notice && (
-        <div className="fixed bottom-4 left-1/2 z-40 -translate-x-1/2 rounded-md bg-[var(--accent)] px-3 py-2 text-xs text-[var(--accent-text)] shadow-lg" role="status">
-          {notice}
-        </div>
-      )}
+        {notice && (
+          <div className="fixed bottom-4 left-1/2 z-40 -translate-x-1/2 rounded-md bg-[var(--accent)] px-3 py-2 text-xs text-[var(--accent-text)] shadow-lg" role="status">
+            {notice}
+          </div>
+        )}
 
-      {tab === 'report' && (
-        <section id="panel-report" role="tabpanel" aria-labelledby="tab-report">
+        {route.page === 'report' && (
           <ErrorBoundary label="the daily report">
             <DailyReport symbol={symbol} brokerConnected={brokerConnected} />
           </ErrorBoundary>
-        </section>
-      )}
+        )}
 
-      {tab === 'chain' && (
-        <section id="panel-chain" role="tabpanel" aria-labelledby="tab-chain" className="flex flex-col gap-2">
-          <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-[var(--text-muted)]">
-            <span>Click B / S on any strike to add it to your strategy.</span>
-            {legs.length > 0 && (
-              <Button onClick={() => setTab('builder')}>
-                {legs.length} leg{legs.length > 1 ? 's' : ''} in strategy — open builder →
-              </Button>
-            )}
-          </div>
-          <ErrorBoundary label="the option chain">
-            <OptionChainTable {...chainProps} maxHeight={720} detailed />
+        {route.page === 'positions' && (
+          <ErrorBoundary label="positions">
+            <PositionsPage brokerConnected={brokerConnected} brokerConfigured={!!broker?.configured} />
           </ErrorBoundary>
-        </section>
-      )}
+        )}
 
-      {tab === 'builder' && (
-        <section id="panel-builder" role="tabpanel" aria-labelledby="tab-builder" className="grid grid-cols-1 gap-4 lg:grid-cols-[460px_minmax(0,1fr)]">
-          <div className="order-2 lg:order-1 lg:sticky lg:top-4 lg:self-start">
-            <ErrorBoundary label="the option chain">
-              {chain?.rows?.length ? (
-                <StrikeChain
-                  rows={chain.rows}
-                  spot={spot}
-                  symbol={symbol}
-                  lotSize={effectiveLot}
-                  expiry={chain.expiry ?? null}
-                  legs={legs}
-                  maxHeight={760}
-                  onAddLeg={addFromChain}
-                  onRemoveLegs={removeLegs}
-                  onClear={confirmClear}
+        {route.page === 'drafts' &&
+          (route.draftId ? (
+            <ErrorBoundary label="the draft">
+              {monitored ? (
+                <DraftMonitor
+                  key={monitored.id}
+                  draft={monitored}
+                  brokerConnected={brokerConnected}
+                  onBack={() => navigate({ page: 'drafts' })}
+                  onChanged={() => draftsState.reload()}
+                  onDeleted={() => {
+                    draftsState.reload();
+                    navigate({ page: 'drafts' });
+                  }}
+                  onOpenInBuilder={openDraftInBuilder}
                 />
+              ) : drafts ? (
+                <Card className="px-4 py-10 text-center text-sm text-[var(--text-muted)]">
+                  This draft no longer exists.{' '}
+                  <button type="button" className="text-[var(--series-blue)] hover:underline" onClick={() => navigate({ page: 'drafts' })}>
+                    Back to drafts
+                  </button>
+                </Card>
               ) : (
-                <OptionChainTable {...chainProps} />
+                <Card className="px-4 py-10 text-center text-sm text-[var(--text-muted)]">Loading draft…</Card>
               )}
             </ErrorBoundary>
-          </div>
-          <div className="order-1 flex min-w-0 flex-col gap-4 lg:order-2">
-            <StrategyToolbar
-              canBuild={spot !== null}
-              hasLegs={legs.length > 0}
-              symbol={symbol}
-              saved={saved}
-              onTemplate={applyTemplate}
-              onSave={(name) => {
-                saveStrategy(name);
-                setNotice(`Saved “${name}”`);
-              }}
-              onLoad={(id) => {
-                const entry = saved.find((s) => s.id === id);
-                if (legs.length > 0 && !window.confirm('Replace your current strategy with the saved one?')) return;
-                loadStrategy(id);
-                if (entry && entry.symbol !== symbol) setNotice(`Switched to ${entry.symbol} to load “${entry.name}”`);
-              }}
-              onDelete={deleteStrategy}
-            />
-            <ErrorBoundary label="the payoff chart">
-              <PayoffChart
-                legs={legs}
-                spot={spot}
-                symbol={symbol}
-                metrics={metrics}
-                fallbackIv={fallbackIv}
-                oiRows={chain?.rows ?? null}
-                capital={brokerMargin ?? metrics.marginEstimate}
+          ) : (
+            <ErrorBoundary label="draft portfolios">
+              <DraftsPage
+                drafts={drafts}
+                loading={draftsState.loading}
+                error={draftsState.error}
+                brokerConnected={brokerConnected}
+                localSavedCount={saved.length}
+                onImportLocal={() => void importLocalSaved()}
+                onOpen={(id) => navigate({ page: 'drafts', draftId: id })}
+                onNew={() => navigate({ page: 'builder' })}
               />
             </ErrorBoundary>
-            <MetricsPanel metrics={metrics} greeks={greeks} hasLegs={legs.length > 0} brokerMargin={brokerMargin} marginLoading={marginLoading} />
-            <LegsTable
-              legs={legs}
-              onUpdate={updateLeg}
-              onRemove={removeLeg}
-              onToggleAction={toggleLegAction}
-              onClear={confirmClear}
-              onAddBlank={() =>
-                addLeg({ action: 'BUY', type: 'CE', strike: Math.round(spot ?? 100), premium: 0, lots: 1, lotSize: effectiveLot, expiry: chain?.expiry ?? null })
-              }
-              onAddEquity={() =>
-                addLeg({ action: 'BUY', type: 'EQ', strike: 0, premium: Number((spot ?? 0).toFixed(2)), lots: 1, lotSize: effectiveLot })
-              }
-            />
-          </div>
-        </section>
-      )}
+          ))}
 
-      <footer className="mt-8 border-t border-[var(--border)] pt-3 text-[10px] leading-relaxed text-[var(--text-muted)]">
-        Option Builder is an analysis tool, not investment advice. Prices, margins and Greeks are estimates — verify with your broker before trading.
-      </footer>
-    </div>
+        {route.page === 'chain' && (
+          <section className="flex flex-col gap-2">
+            <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-[var(--text-muted)]">
+              <span>Click B / S on any strike to add it to your strategy.</span>
+              {legs.length > 0 && (
+                <Button onClick={() => navigate({ page: 'builder' })}>
+                  {legs.length} leg{legs.length > 1 ? 's' : ''} in strategy — open builder →
+                </Button>
+              )}
+            </div>
+            <ErrorBoundary label="the option chain">
+              <OptionChainTable {...chainProps} maxHeight={720} detailed />
+            </ErrorBoundary>
+          </section>
+        )}
+
+        {route.page === 'builder' && (
+          <section className="grid grid-cols-1 gap-4 lg:grid-cols-[460px_minmax(0,1fr)]">
+            <div className="order-2 lg:order-1 lg:sticky lg:top-[4.5rem] lg:self-start">
+              <ErrorBoundary label="the option chain">
+                {chain?.rows?.length ? (
+                  <StrikeChain
+                    rows={chain.rows}
+                    spot={spot}
+                    symbol={symbol}
+                    lotSize={effectiveLot}
+                    expiry={chain.expiry ?? null}
+                    legs={legs}
+                    maxHeight={720}
+                    onAddLeg={addFromChain}
+                    onRemoveLegs={removeLegs}
+                    onClear={confirmClear}
+                  />
+                ) : (
+                  <OptionChainTable {...chainProps} />
+                )}
+              </ErrorBoundary>
+            </div>
+            <div className="order-1 flex min-w-0 flex-col gap-4 lg:order-2">
+              <StrategyToolbar
+                canBuild={spot !== null}
+                hasLegs={legs.length > 0}
+                symbol={symbol}
+                draftCount={drafts?.filter((d) => d.closedAt === null).length ?? 0}
+                onTemplate={applyTemplate}
+                onSaveDraft={saveDraft}
+                onViewDrafts={() => navigate({ page: 'drafts' })}
+              />
+              <ErrorBoundary label="the payoff chart">
+                <PayoffChart
+                  legs={legs}
+                  spot={spot}
+                  symbol={symbol}
+                  metrics={metrics}
+                  fallbackIv={fallbackIv}
+                  oiRows={chain?.rows ?? null}
+                  capital={brokerMargin ?? metrics.marginEstimate}
+                />
+              </ErrorBoundary>
+              <MetricsPanel metrics={metrics} greeks={greeks} hasLegs={legs.length > 0} brokerMargin={brokerMargin} marginLoading={marginLoading} />
+              <LegsTable
+                legs={legs}
+                onUpdate={updateLeg}
+                onRemove={removeLeg}
+                onToggleAction={toggleLegAction}
+                onClear={confirmClear}
+                onAddBlank={() =>
+                  addLeg({ action: 'BUY', type: 'CE', strike: Math.round(spot ?? 100), premium: 0, lots: 1, lotSize: effectiveLot, expiry: chain?.expiry ?? null })
+                }
+                onAddEquity={() =>
+                  addLeg({ action: 'BUY', type: 'EQ', strike: 0, premium: Number((spot ?? 0).toFixed(2)), lots: 1, lotSize: effectiveLot })
+                }
+              />
+            </div>
+          </section>
+        )}
+
+        <footer className="mt-8 border-t border-[var(--border)] pt-3 text-[10px] leading-relaxed text-[var(--text-muted)]">
+          Option Builder is an analysis tool, not investment advice. Prices, margins and Greeks are estimates — verify with your broker before trading.
+        </footer>
+      </main>
+    </>
   );
 }

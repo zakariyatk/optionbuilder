@@ -72,6 +72,24 @@ function timeLeft(ms: number): string {
   return h >= 1 ? `${h}h ${Math.floor((ms % HOUR) / MINUTE)}m` : `${Math.floor(ms / MINUTE)}m`;
 }
 
+const istWeekday = (ms: number) =>
+  new Date(ms).toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'Asia/Kolkata' });
+
+/** Signed whole number with Indian grouping: +1,778 / −442. */
+const signedNum = (v: number) => `${v >= 0 ? '+' : '-'}${Math.abs(Math.round(v)).toLocaleString('en-IN')}`;
+
+/** Percent with enough decimals to show small moves: +0.0031%, -1.9%, +12%. */
+function pctText(v: number): string {
+  const a = Math.abs(v);
+  const digits = a === 0 ? 1 : a < 0.01 ? 4 : a < 1 ? 2 : a < 10 ? 1 : 0;
+  return `${v >= 0 ? '+' : ''}${v.toFixed(digits)}%`;
+}
+
+const priceText = (v: number) => (v >= 1000 ? Math.round(v).toLocaleString('en-IN') : v.toFixed(2));
+
+/** Bright green / salmon that read on the dark tooltip in either theme. */
+const tipColor = (v: number) => (v >= 0 ? '#4ade80' : '#f8977a');
+
 const OI_MODES: { id: OiMode | 'off'; label: string }[] = [
   { id: 'oi', label: 'OI' },
   { id: 'change', label: 'OI chg' },
@@ -402,6 +420,21 @@ export function PayoffChart({
           null,
         )
       : null;
+  const tip =
+    hoverPrice !== null && hoverExpiry !== null && !gestureKind
+      ? (() => {
+          const y = clamp(py(hoverTarget ?? hoverExpiry), TOP, BOTTOM);
+          return {
+            price: hoverPrice,
+            atExpiry: hoverExpiry,
+            onDate: hoverTarget,
+            f: clamp((px(hoverPrice) - LEFT) / PLOT_W, 0, 1),
+            top: (y / H) * 100,
+            below: y < TOP + PLOT_H * 0.45,
+          };
+        })()
+      : null;
+  const capitalPct = (v: number) => (capital && capital > 0 ? ` (${pctText((v / capital) * 100)})` : '');
   const oiLabel = oiMode === 'change' ? 'OI chg' : 'OI';
   const zoomPct = xMax - xMin > 0 ? Math.round((fullSpan / (xMax - xMin)) * 100) : 100;
   const zoomedAny = xZoom !== null || yZoom !== null;
@@ -507,6 +540,7 @@ export function PayoffChart({
         </div>
       )}
 
+      <div className="relative">
       <svg
         ref={svgRef}
         viewBox={`0 0 ${W} ${H}`}
@@ -653,40 +687,76 @@ export function PayoffChart({
 
         {hoverPrice !== null && hoverExpiry !== null && !gestureKind && (
           <g pointerEvents="none" clipPath="url(#clip-plot)">
-            <line x1={px(hoverPrice)} x2={px(hoverPrice)} y1={TOP} y2={BOTTOM} stroke="var(--text-muted)" />
-            <circle cx={px(hoverPrice)} cy={py(hoverExpiry)} r={4} fill={hoverExpiry >= 0 ? 'var(--good)' : 'var(--critical)'} />
+            <line x1={px(hoverPrice)} x2={px(hoverPrice)} y1={TOP} y2={BOTTOM} stroke="var(--text-secondary)" strokeDasharray="4 3" />
+            <circle cx={px(hoverPrice)} cy={py(hoverExpiry)} r={3.5} fill={hoverExpiry >= 0 ? 'var(--good)' : 'var(--critical)'} />
             {hoverTarget !== null && (
-              <circle cx={px(hoverPrice)} cy={py(hoverTarget)} r={4} fill="var(--series-blue)" stroke="var(--surface-card)" strokeWidth={1.5} />
+              <circle
+                cx={px(hoverPrice)}
+                cy={py(hoverTarget)}
+                r={6}
+                fill={hoverTarget >= 0 ? 'var(--good)' : 'var(--critical)'}
+                stroke="#fff"
+                strokeWidth={2.5}
+              />
             )}
           </g>
         )}
       </svg>
 
-      <div className="flex min-h-7 flex-wrap justify-center gap-x-4 gap-y-1 border-t border-[var(--border)] pt-2 text-xs tabular" aria-live="polite">
-        {hoverPrice !== null && hoverExpiry !== null ? (
-          <>
-            <span className="text-[var(--text-muted)]">
-              Underlying: <span className="text-[var(--text-primary)]">{hoverPrice.toFixed(1)}</span>
-            </span>
-            <span className="text-[var(--text-muted)]">
-              At expiry:{' '}
-              <span style={{ color: hoverExpiry >= 0 ? 'var(--good-text)' : 'var(--critical)' }}>{signedInr(hoverExpiry)}</span>
-            </span>
-            {hoverTarget !== null && (
-              <span className="text-[var(--text-muted)]">
-                On target date: <span className="text-[var(--series-blue)]">{signedInr(hoverTarget)}</span>
-              </span>
+        {tip && (
+          <div
+            className="pointer-events-none absolute z-10 w-max min-w-[13rem] max-w-[19rem] rounded-xl px-4 py-3 text-sm tabular shadow-xl"
+            style={{
+              left: `${tip.f * 100}%`,
+              top: `${tip.top}%`,
+              transform: `translate(${-tip.f * 100}%, ${tip.below ? '16px' : 'calc(-100% - 16px)'})`,
+              background: 'rgba(40, 40, 42, 0.95)',
+              color: '#fff',
+            }}
+          >
+            <span
+              aria-hidden="true"
+              className={`absolute h-3 w-3 rotate-45 ${tip.below ? '-top-1.5' : '-bottom-1.5'}`}
+              style={{ left: `clamp(12px, ${tip.f * 100}%, calc(100% - 12px))`, marginLeft: -6, background: 'rgba(40, 40, 42, 0.95)' }}
+            />
+            <div className="text-center text-[13px] text-[#a1a1aa]">When price is at</div>
+            <div className="text-center">
+              <span className="text-lg font-bold">{priceText(tip.price)}</span>
+              {spot !== null && (
+                <span className="ml-1.5" style={{ color: tipColor(tip.price - spot) }}>
+                  {pctText(((tip.price - spot) / spot) * 100)} ({signedNum(tip.price - spot)})
+                </span>
+              )}
+            </div>
+            <div className="my-2 border-t border-white/20" />
+            <div className="text-[13px] text-[#a1a1aa]">Expected P&amp;L on</div>
+            {tip.onDate !== null && (
+              <div className="mt-1 flex items-baseline justify-between gap-4">
+                <span>{istWeekday(targetTime)}</span>
+                <span style={{ color: tipColor(tip.onDate) }}>
+                  {signedNum(tip.onDate)}
+                  {capitalPct(tip.onDate)}
+                </span>
+              </div>
             )}
+            <div className="mt-1 flex items-baseline justify-between gap-4">
+              <span>Expiry date</span>
+              <span style={{ color: tipColor(tip.atExpiry) }}>
+                {signedNum(tip.atExpiry)}
+                {capitalPct(tip.atExpiry)}
+              </span>
+            </div>
             {hoverOi && (
-              <span className="text-[var(--text-muted)]">
-                {hoverOi.strike.toLocaleString('en-IN')} {oiLabel}:{' '}
-                <span className="text-[var(--critical)]">C {axisIndian(hoverOi.call)}</span>{' '}
-                <span className="text-[var(--good-text)]">P {axisIndian(hoverOi.put)}</span>
-              </span>
+              <div className="mt-2 flex items-baseline justify-between gap-4 border-t border-white/20 pt-2 text-xs text-[#a1a1aa]">
+                <span>
+                  {hoverOi.strike.toLocaleString('en-IN')} {oiLabel}
+                </span>
+                <span>
+                  <span className="text-[#f8977a]">C {axisIndian(hoverOi.call)}</span> · <span className="text-[#4ade80]">P {axisIndian(hoverOi.put)}</span>
+                </span>
+              </div>
             )}
-          </>
-        ) : (
-          <span className="text-[var(--text-muted)]">Hover the chart to read P&amp;L at any price</span>
+          </div>
         )}
       </div>
 

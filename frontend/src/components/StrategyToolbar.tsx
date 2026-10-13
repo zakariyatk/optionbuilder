@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { TEMPLATES, type StrategyTemplate } from '../domain/templates';
-import type { SavedStrategy } from '../store/strategy';
 import { Button, Card } from './ui';
 
 /** A small popover that closes on outside click or Escape. */
@@ -48,23 +47,26 @@ export function StrategyToolbar({
   canBuild,
   hasLegs,
   symbol,
-  saved,
+  draftCount,
   onTemplate,
-  onSave,
-  onLoad,
-  onDelete,
+  onSaveDraft,
+  onViewDrafts,
 }: {
   /** Templates need a strike ladder (live chain or spot). */
   canBuild: boolean;
   hasLegs: boolean;
   symbol: string;
-  saved: SavedStrategy[];
+  /** Open drafts, shown on the Drafts button. */
+  draftCount: number;
   onTemplate: (t: StrategyTemplate) => void;
-  onSave: (name: string) => void;
-  onLoad: (id: string) => void;
-  onDelete: (id: string) => void;
+  /** Resolves true once saved. */
+  onSaveDraft: (name: string) => Promise<boolean>;
+  onViewDrafts: () => void;
 }) {
   const [name, setName] = useState('');
+  const [saving, setSaving] = useState(false);
+  const defaultName = () =>
+    `${symbol} ${new Date().toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}`;
 
   return (
     <Card className="flex flex-wrap items-center gap-2 px-3 py-2">
@@ -97,66 +99,46 @@ export function StrategyToolbar({
         )}
       </Popover>
 
-      <Popover label={`Saved${saved.length ? ` (${saved.length})` : ''}`}>
+      <Popover label="Save to drafts" disabled={!hasLegs}>
         {(close) => (
-          <div>
-            <form
-              className="flex gap-1 border-b border-[var(--border)] p-1 pb-2"
-              onSubmit={(e) => {
-                e.preventDefault();
-                onSave(name || `${symbol} ${new Date().toLocaleDateString('en-IN')}`);
+          <form
+            className="flex flex-col gap-2 p-2"
+            onSubmit={async (e) => {
+              e.preventDefault();
+              if (saving) return;
+              setSaving(true);
+              const ok = await onSaveDraft(name.trim() || defaultName());
+              setSaving(false);
+              if (ok) {
                 setName('');
-              }}
-            >
+                close();
+              }
+            }}
+          >
+            <div className="text-xs text-[var(--text-muted)]">
+              Records the legs at their current premiums so you can track live P&amp;L under Trade → Draft Portfolios.
+            </div>
+            <div className="flex gap-1">
               <input
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder={hasLegs ? 'Name this strategy' : 'Add legs to save'}
-                disabled={!hasLegs}
-                aria-label="Strategy name"
-                maxLength={60}
+                placeholder={defaultName()}
+                aria-label="Draft name"
+                maxLength={80}
+                autoFocus
                 className="min-w-0 flex-1 rounded border border-[var(--border)] bg-transparent px-2 py-1 text-xs"
               />
-              <Button type="submit" variant="primary" disabled={!hasLegs}>
-                Save
+              <Button type="submit" variant="primary" disabled={saving}>
+                {saving ? 'Saving…' : 'Save'}
               </Button>
-            </form>
-            {saved.length === 0 ? (
-              <div className="px-2 py-3 text-center text-[11px] text-[var(--text-muted)]">No saved strategies yet.</div>
-            ) : (
-              <ul className="max-h-72 overflow-auto pt-1">
-                {saved.map((s) => (
-                  <li key={s.id} className="flex items-center gap-1 rounded hover:bg-[var(--surface-sunken)]">
-                    <button
-                      type="button"
-                      className="min-w-0 flex-1 px-2 py-1.5 text-left"
-                      onClick={() => {
-                        onLoad(s.id);
-                        close();
-                      }}
-                    >
-                      <div className="truncate text-xs font-medium">{s.name}</div>
-                      <div className="text-[10px] text-[var(--text-muted)]">
-                        {s.symbol} · {s.legs.length} leg{s.legs.length === 1 ? '' : 's'} ·{' '}
-                        {new Date(s.savedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
-                      </div>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => onDelete(s.id)}
-                      className="mr-1 rounded px-1.5 text-[var(--text-muted)] hover:text-[var(--critical)]"
-                      aria-label={`Delete ${s.name}`}
-                      title="Delete"
-                    >
-                      ✕
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
+            </div>
+          </form>
         )}
       </Popover>
+
+      <Button onClick={onViewDrafts} title="Trade → Draft Portfolios">
+        Drafts{draftCount ? ` (${draftCount})` : ''} →
+      </Button>
 
       <span className="ml-auto hidden text-[11px] text-[var(--text-muted)] md:inline">
         Your working strategy is kept across reloads.

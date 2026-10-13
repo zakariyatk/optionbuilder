@@ -17,6 +17,7 @@ require_once __DIR__ . '/lib/chain.php';
 require_once __DIR__ . '/lib/markets.php';
 require_once __DIR__ . '/lib/news.php';
 require_once __DIR__ . '/lib/report.php';
+require_once __DIR__ . '/lib/drafts.php';
 
 // Errors must never leak into a JSON body as HTML.
 ini_set('display_errors', '0');
@@ -233,6 +234,90 @@ try {
         } catch (Throwable $e) {
             ob_error('Failed to fetch margin', 502, $e->getMessage());
         }
+    }
+
+    if ($path === '/api/quotes') {
+        $keys = array_values(array_unique(array_filter(
+            array_map('trim', explode(',', ob_query('keys') ?? '')),
+            static fn(string $k): bool => (bool) preg_match('/^[A-Za-z_]+\|[\w\- ]{1,48}$/', $k)
+        )));
+        if (!$keys || count($keys) > 200) {
+            ob_error('keys must list 1–200 instrument keys', 400);
+        }
+        if (!ob_has_valid_token()) {
+            ob_error('NOT_AUTHENTICATED', 401);
+        }
+        sort($keys);
+        try {
+            $quotes = ob_cached('ltp:' . md5(implode(',', $keys)), fn() => ob_upstox_ltp($keys), 5);
+            ob_json(['quotes' => (object) $quotes, 'at' => (int) round(microtime(true) * 1000)]);
+        } catch (ObNotAuthenticated) {
+            ob_error('NOT_AUTHENTICATED', 401);
+        } catch (Throwable $e) {
+            ob_error('Failed to fetch quotes', 502, $e->getMessage());
+        }
+    }
+
+    if ($path === '/api/positions') {
+        if (!ob_has_valid_token()) {
+            ob_error('NOT_AUTHENTICATED', 401);
+        }
+        try {
+            ob_json(['positions' => ob_upstox_positions(), 'at' => (int) round(microtime(true) * 1000)]);
+        } catch (ObNotAuthenticated) {
+            ob_error('NOT_AUTHENTICATED', 401);
+        } catch (Throwable $e) {
+            ob_error('Failed to fetch positions', 502, $e->getMessage());
+        }
+    }
+
+    // ---------------------------------------------------- draft portfolios
+    if ($path === '/api/drafts' && $method === 'GET') {
+        ob_json(['drafts' => ob_drafts_read()]);
+    }
+
+    if ($path === '/api/drafts' && $method === 'POST') {
+        try {
+            $draft = ob_draft_create(ob_body());
+        } catch (InvalidArgumentException $e) {
+            ob_error($e->getMessage(), 400);
+        }
+        $drafts = ob_drafts_read();
+        if (count($drafts) >= OB_MAX_DRAFTS) {
+            ob_error('Draft limit reached (' . OB_MAX_DRAFTS . '). Delete some old drafts first.', 409);
+        }
+        array_unshift($drafts, $draft);
+        ob_drafts_write($drafts);
+        ob_json(['draft' => $draft], 201);
+    }
+
+    if ($path === '/api/drafts/update' && $method === 'POST') {
+        $body = ob_body();
+        $id = (string) ($body['id'] ?? '');
+        $drafts = ob_drafts_read();
+        foreach ($drafts as $i => $d) {
+            if (($d['id'] ?? '') === $id) {
+                try {
+                    $drafts[$i] = ob_draft_patch($d, $body);
+                } catch (InvalidArgumentException $e) {
+                    ob_error($e->getMessage(), 400);
+                }
+                ob_drafts_write($drafts);
+                ob_json(['draft' => $drafts[$i]]);
+            }
+        }
+        ob_error('Draft not found', 404);
+    }
+
+    if ($path === '/api/drafts/delete' && $method === 'POST') {
+        $id = (string) (ob_body()['id'] ?? '');
+        $drafts = ob_drafts_read();
+        $left = array_values(array_filter($drafts, static fn(array $d): bool => ($d['id'] ?? '') !== $id));
+        if (count($left) === count($drafts)) {
+            ob_error('Draft not found', 404);
+        }
+        ob_drafts_write($left);
+        ob_json(['ok' => true]);
     }
 
     // ------------------------------------------------------- daily report

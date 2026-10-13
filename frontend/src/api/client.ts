@@ -1,11 +1,15 @@
 import type {
   AuthStatus,
   BrokerMargin,
+  BrokerPosition,
+  Draft,
   FiiDiiRow,
   GlobalMarkets,
   MaxOiReport,
+  NewDraft,
   NewsItem,
   OptionChain,
+  Quotes,
   Session,
   SpotQuote,
   SymbolsResponse,
@@ -106,6 +110,17 @@ export const api = {
   },
   margin: (legs: { instrumentKey: string; quantity: number; action: 'BUY' | 'SELL' }[]) =>
     post<BrokerMargin>('/api/margin', { legs }),
+
+  quotes: (keys: string[]) => get<Quotes>(`/api/quotes?keys=${encodeURIComponent(keys.join(','))}`),
+  positions: () => get<{ positions: BrokerPosition[]; at: number }>('/api/positions'),
+
+  drafts: () => get<{ drafts: Draft[] }>('/api/drafts'),
+  createDraft: (draft: NewDraft) => post<{ draft: Draft }>('/api/drafts', draft),
+  renameDraft: (id: string, name: string) => post<{ draft: Draft }>('/api/drafts/update', { id, name }),
+  closeDraft: (id: string, exitPremiums: number[], exitSpot: number | null) =>
+    post<{ draft: Draft }>('/api/drafts/update', { id, close: { exitPremiums, exitSpot } }),
+  reopenDraft: (id: string) => post<{ draft: Draft }>('/api/drafts/update', { id, reopen: true }),
+  deleteDraft: (id: string) => post<{ ok: true }>('/api/drafts/delete', { id }),
 
   maxOi: (symbol: string) => get<MaxOiReport>(`/api/report/max-oi?symbol=${encodeURIComponent(symbol)}`),
   fiiDii: () => get<{ data: FiiDiiRow[] }>('/api/report/fii-dii'),
