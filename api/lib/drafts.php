@@ -101,16 +101,36 @@ function ob_draft_create(array $in): array
     if (!preg_match('/^[A-Z0-9&_\-]{1,30}$/', $symbol)) {
         throw new InvalidArgumentException('Symbol is invalid');
     }
+    $now = (int) round(microtime(true) * 1000);
+    $legs = array_map('ob_draft_leg', array_values($legs));
     return [
         'id' => bin2hex(random_bytes(8)),
         'name' => ob_draft_name($in['name'] ?? ''),
         'symbol' => $symbol,
-        'legs' => array_map('ob_draft_leg', array_values($legs)),
+        'legs' => $legs,
         'entrySpot' => ob_num($in['entrySpot'] ?? null, 0, 1e8),
-        'createdAt' => (int) round(microtime(true) * 1000),
+        'createdAt' => $now,
         'closedAt' => null,
         'exitPremiums' => null,
         'exitSpot' => null,
+        'realized' => 0.0,
+        // The opening legs are the first fills in the draft's record.
+        'trades' => array_map(static fn(array $l): array => ob_trade_from_leg($l, $now, 0.0), $legs),
+    ];
+}
+
+function ob_trade_from_leg(array $leg, int $at, float $realized): array
+{
+    return [
+        'at' => $at,
+        'action' => $leg['action'],
+        'type' => $leg['type'],
+        'strike' => $leg['strike'],
+        'expiry' => $leg['expiry'],
+        'lots' => $leg['lots'],
+        'lotSize' => $leg['lotSize'],
+        'price' => $leg['premium'],
+        'realized' => $realized,
     ];
 }
 
@@ -136,6 +156,30 @@ function ob_draft_patch(array $draft, array $in): array
         $draft['exitPremiums'] = $prices;
         $draft['exitSpot'] = ob_num($in['close']['exitSpot'] ?? null, 0, 1e8);
         $draft['closedAt'] = (int) round(microtime(true) * 1000);
+    }
+    // An add or exit: the client sends the netted legs and the fill it applied.
+    if (isset($in['adjust']) && is_array($in['adjust']) && $draft['closedAt'] === null) {
+        $adj = $in['adjust'];
+        $legs = $adj['legs'] ?? null;
+        if (!is_array($legs) || count($legs) > OB_MAX_DRAFT_LEGS) {
+            throw new InvalidArgumentException('Adjusted legs are invalid');
+        }
+        $fill = ob_draft_leg($adj['trade'] ?? null);
+        $realized = ob_num($adj['trade']['realized'] ?? 0, -1e10, 1e10);
+        if ($realized === null) {
+            throw new InvalidArgumentException('Realized P&L is invalid');
+        }
+        $draft['legs'] = array_map('ob_draft_leg', array_values($legs));
+        $draft['realized'] = round((float) ($draft['realized'] ?? 0) + $realized, 2);
+        $trades = is_array($draft['trades'] ?? null) ? $draft['trades'] : [];
+        $trades[] = ob_trade_from_leg($fill, (int) round(microtime(true) * 1000), $realized);
+        $draft['trades'] = array_slice($trades, -500);
+        // Exiting the last leg closes the draft; everything is already booked.
+        if (!$draft['legs']) {
+            $draft['closedAt'] = (int) round(microtime(true) * 1000);
+            $draft['exitPremiums'] = [];
+            $draft['exitSpot'] = ob_num($adj['spot'] ?? null, 0, 1e8);
+        }
     }
     if (!empty($in['reopen'])) {
         $draft['closedAt'] = null;

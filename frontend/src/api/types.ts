@@ -174,6 +174,20 @@ export interface DraftLeg {
   expiry: string | null;
 }
 
+/** One fill recorded against a draft: the opening legs, and every later add or exit. */
+export interface DraftTrade {
+  at: number;
+  action: 'BUY' | 'SELL';
+  type: DraftLeg['type'];
+  strike: number;
+  expiry: string | null;
+  lots: number;
+  lotSize: number;
+  price: number;
+  /** P&L booked by this trade (when it reduced or closed a leg). */
+  realized: number;
+}
+
 export interface Draft {
   id: string;
   name: string;
@@ -185,6 +199,9 @@ export interface Draft {
   /** One exit price per leg, recorded when the draft is closed. */
   exitPremiums: number[] | null;
   exitSpot: number | null;
+  /** P&L already booked by exits and reductions. Absent on drafts saved before adjustments existed. */
+  realized?: number;
+  trades?: DraftTrade[];
 }
 
 export type NewDraft = Pick<Draft, 'name' | 'symbol' | 'legs' | 'entrySpot'>;

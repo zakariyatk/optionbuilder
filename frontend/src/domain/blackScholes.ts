@@ -87,3 +87,30 @@ export function bsGreeks(
 
   return { delta, gamma, theta: thetaYear / 365, vega };
 }
+
+/**
+ * The volatility (decimal) at which Black-Scholes reproduces `price`, by
+ * bisection. Null when no volatility can — the price is below intrinsic
+ * value, above the spot / strike bound, or there's no time left.
+ */
+export function impliedVol(
+  type: 'CE' | 'PE',
+  spot: number,
+  strike: number,
+  years: number,
+  price: number,
+  rate = RISK_FREE_RATE,
+): number | null {
+  if (!(spot > 0) || !(strike > 0) || !(years > 0) || !(price > 0)) return null;
+  let lo = 1e-4;
+  let hi = 5;
+  const f = (v: number) => bsPrice(type, spot, strike, years, v, rate) - price;
+  if (f(lo) > 0 || f(hi) < 0) return null;
+  for (let i = 0; i < 100; i++) {
+    const mid = (lo + hi) / 2;
+    if (f(mid) > 0) hi = mid;
+    else lo = mid;
+    if (hi - lo < 1e-10) break;
+  }
+  return (lo + hi) / 2;
+}

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Draft, DraftLeg } from '../api/types';
-import { draftKeys, draftPnl, draftPrices } from './drafts';
+import { applyDraftTrade, draftKeys, draftPnl, draftPrices, exitLegTrade } from './drafts';
 
 const leg = (p: Partial<DraftLeg>): DraftLeg => ({
   action: 'SELL',
@@ -61,5 +61,38 @@ describe('draftKeys', () => {
     const open = draft({});
     const closed = draft({ id: 'd2', closedAt: 1, legs: [leg({ instrumentKey: 'NSE_FO|9' })] });
     expect(draftKeys([open, open, closed])).toEqual(['NSE_FO|1', 'NSE_FO|2']);
+  });
+});
+
+describe('applyDraftTrade', () => {
+  it('adds a new contract as a new leg', () => {
+    const { legs, trade } = applyDraftTrade([leg({})], leg({ action: 'BUY', strike: 24500, premium: 30 }));
+    expect(legs).toHaveLength(2);
+    expect(trade).toMatchObject({ action: 'BUY', strike: 24500, price: 30, realized: 0 });
+  });
+
+  it('books P&L when an opposite fill reduces a leg', () => {
+    // Short 2 lots at 100, buy back 1 at 70: +30 × 65 booked, 1 lot left.
+    const { legs, trade } = applyDraftTrade([leg({ lots: 2 })], leg({ action: 'BUY', premium: 70 }));
+    expect(legs).toEqual([leg({ lots: 1 })]);
+    expect(trade.realized).toBe(1950);
+  });
+
+  it('exits a long leg at a loss and leaves nothing open', () => {
+    const long = leg({ action: 'BUY', premium: 50 });
+    const { legs, trade } = applyDraftTrade([long], exitLegTrade(long, 35));
+    expect(legs).toEqual([]);
+    expect(trade).toMatchObject({ action: 'SELL', realized: -975 });
+  });
+
+  it('averages into a held leg', () => {
+    const { legs } = applyDraftTrade([leg({ premium: 100 })], leg({ premium: 120 }));
+    expect(legs).toEqual([leg({ lots: 2, premium: 110 })]);
+  });
+});
+
+describe('draftPnl with realized', () => {
+  it('adds booked P&L to the open legs', () => {
+    expect(draftPnl([leg({})], [90], 500).total).toBe(500 + 650);
   });
 });

@@ -31,7 +31,7 @@ export function DraftsPage({
   const list = useMemo(() => drafts ?? [], [drafts]);
   const quotes = useDraftQuotes(list, brokerConnected);
 
-  const rows = list.map((d) => ({ draft: d, pnl: draftPnl(d.legs, draftPrices(d, quotes.data?.quotes)) }));
+  const rows = list.map((d) => ({ draft: d, pnl: draftPnl(d.legs, draftPrices(d, quotes.data?.quotes), d.realized ?? 0) }));
   const open = rows.filter((r) => r.draft.closedAt === null);
   const openTotal = open.reduce((s, r) => s + r.pnl.total, 0);
   const closedTotal = rows.filter((r) => r.draft.closedAt !== null).reduce((s, r) => s + r.pnl.total, 0);

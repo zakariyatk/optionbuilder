@@ -147,7 +147,10 @@ export function mockApi(base: string): Plugin {
         if (route.startsWith('/drafts') && req.method === 'POST') {
           void readBody(req).then((body) => {
             if (route === '/drafts') {
-              const draft = { ...body, id: Math.random().toString(16).slice(2, 18), createdAt: Date.now(), closedAt: null, exitPremiums: null, exitSpot: null };
+              const at = Date.now();
+              const legs = (body.legs as Record<string, unknown>[]) ?? [];
+              const trades = legs.map((l) => ({ at, action: l.action, type: l.type, strike: l.strike, expiry: l.expiry, lots: l.lots, lotSize: l.lotSize, price: l.premium, realized: 0 }));
+              const draft = { ...body, id: Math.random().toString(16).slice(2, 18), createdAt: at, closedAt: null, exitPremiums: null, exitSpot: null, realized: 0, trades };
               drafts = [draft, ...drafts];
               return send({ draft }, 201);
             }
@@ -162,6 +165,17 @@ export function mockApi(base: string): Plugin {
             const close = body.close as { exitPremiums?: number[]; exitSpot?: number | null } | undefined;
             if (close && d.closedAt === null) Object.assign(d, { exitPremiums: close.exitPremiums, exitSpot: close.exitSpot ?? null, closedAt: Date.now() });
             if (body.reopen) Object.assign(d, { exitPremiums: null, exitSpot: null, closedAt: null });
+            const adjust = body.adjust as { legs: unknown[]; trade: Record<string, number | string | null>; spot: number | null } | undefined;
+            if (adjust && d.closedAt === null) {
+              const t = adjust.trade;
+              const fill = { at: Date.now(), action: t.action, type: t.type, strike: t.strike, expiry: t.expiry, lots: t.lots, lotSize: t.lotSize, price: t.premium, realized: t.realized };
+              Object.assign(d, {
+                legs: adjust.legs,
+                realized: Math.round((((d.realized as number) ?? 0) + Number(t.realized)) * 100) / 100,
+                trades: [...((d.trades as unknown[]) ?? []), fill],
+              });
+              if (adjust.legs.length === 0) Object.assign(d, { closedAt: Date.now(), exitPremiums: [], exitSpot: adjust.spot });
+            }
             drafts[i] = d;
             return send({ draft: d });
           });

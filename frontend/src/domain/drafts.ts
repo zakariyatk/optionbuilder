@@ -1,4 +1,4 @@
-import type { Draft, DraftLeg } from '../api/types';
+import type { Draft, DraftLeg, DraftTrade } from '../api/types';
 import type { Leg } from './types';
 
 export const draftLegToLeg = (l: DraftLeg, i: number): Leg => ({ ...l, id: String(i) });
@@ -18,7 +18,7 @@ export const legToDraftLeg = (l: Leg): DraftLeg => ({
 export interface DraftPnl {
   /** P&L per leg; null where no current price is known. */
   perLeg: (number | null)[];
-  /** Sum over the legs that have a price. */
+  /** Realized P&L plus the open legs that have a price. */
   total: number;
   /** Every leg had a price, so `total` is the whole position. */
   complete: boolean;
@@ -26,8 +26,8 @@ export interface DraftPnl {
   entryNet: number;
 }
 
-/** Mark-to-market P&L of a draft at `prices` (one per leg, null = unknown). */
-export function draftPnl(legs: DraftLeg[], prices: (number | null | undefined)[]): DraftPnl {
+/** P&L of a draft at `prices` (one per open leg, null = unknown): booked `realized` plus the open legs marked to market. */
+export function draftPnl(legs: DraftLeg[], prices: (number | null | undefined)[], realized = 0): DraftPnl {
   const perLeg = legs.map((l, i) => {
     const p = prices[i];
     if (p == null || !Number.isFinite(p)) return null;
@@ -38,7 +38,7 @@ export function draftPnl(legs: DraftLeg[], prices: (number | null | undefined)[]
     .reduce((s, l) => s + (l.action === 'SELL' ? 1 : -1) * l.premium * l.lots * l.lotSize, 0);
   return {
     perLeg,
-    total: perLeg.reduce<number>((s, v) => s + (v ?? 0), 0),
+    total: realized + perLeg.reduce<number>((s, v) => s + (v ?? 0), 0),
     complete: perLeg.every((v) => v !== null),
     entryNet,
   };
@@ -56,3 +56,49 @@ export function draftKeys(drafts: Draft[]): string[] {
   for (const d of drafts) if (d.closedAt === null) for (const l of d.legs) if (l.instrumentKey) keys.add(l.instrumentKey);
   return [...keys].sort();
 }
+
+const sameContract = (a: DraftLeg, b: DraftLeg) =>
+  a.type === b.type && a.strike === b.strike && (a.expiry ?? null) === (b.expiry ?? null) && a.lotSize === b.lotSize;
+
+/**
+ * Applies a fill (`trade.premium` is the fill price) to a draft's open legs,
+ * netting like a broker: an opposite fill reduces or closes held lots and books
+ * their P&L, any remainder opens or adds to a leg at the average price.
+ */
+export function applyDraftTrade(legs: DraftLeg[], trade: DraftLeg): { legs: DraftLeg[]; trade: Omit<DraftTrade, 'at'> } {
+  let remaining = trade.lots;
+  let realized = 0;
+  const out: DraftLeg[] = [];
+  for (const leg of legs) {
+    if (remaining > 0 && sameContract(leg, trade) && leg.action !== trade.action) {
+      const closed = Math.min(leg.lots, remaining);
+      remaining -= closed;
+      realized += (leg.action === 'BUY' ? 1 : -1) * closed * leg.lotSize * (trade.premium - leg.premium);
+      if (leg.lots > closed) out.push({ ...leg, lots: leg.lots - closed });
+      continue;
+    }
+    out.push(leg);
+  }
+  if (remaining > 0) {
+    const i = out.findIndex((l) => sameContract(l, trade) && l.action === trade.action);
+    if (i >= 0) {
+      const held = out[i];
+      const lots = held.lots + remaining;
+      out[i] = { ...held, lots, premium: Math.round(((held.premium * held.lots + trade.premium * remaining) / lots) * 100) / 100 };
+    } else {
+      out.push({ ...trade, lots: remaining });
+    }
+  }
+  const { action, type, strike, expiry, lots, lotSize, premium } = trade;
+  return {
+    legs: out,
+    trade: { action, type, strike, expiry, lots, lotSize, price: premium, realized: Math.round(realized * 100) / 100 },
+  };
+}
+
+/** Exits one open leg completely at `price`. */
+export const exitLegTrade = (leg: DraftLeg, price: number): DraftLeg => ({
+  ...leg,
+  action: leg.action === 'BUY' ? 'SELL' : 'BUY',
+  premium: price,
+});

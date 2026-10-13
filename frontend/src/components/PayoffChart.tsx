@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type PointerE
 import type { ChainRow } from '../api/types';
 import { strikeOi, type OiMode } from '../domain/chain';
 import { parseExpiry } from '../domain/dates';
-import { expiryCurve, pnlAtExpiry, pnlOnDate, targetDateCurve, type PayoffPoint } from '../domain/payoff';
+import { calibrateLegs, expiryCurve, pnlAtExpiry, pnlOnDate, targetDateCurve, type PayoffPoint } from '../domain/payoff';
 import { isLinear, type Leg, type StrategyMetrics } from '../domain/types';
 import { niceStep, panRange, rangeBetween, zoomRange, type Range } from '../domain/viewport';
 import { axisIndian, signedInr, signedPct } from '../lib/format';
@@ -112,6 +112,7 @@ export function PayoffChart({
   oiRows,
   capital,
   symbol,
+  marks,
 }: {
   legs: Leg[];
   spot: number | null;
@@ -121,6 +122,11 @@ export function PayoffChart({
   oiRows?: ChainRow[] | null;
   /** Capital the projected P&L is quoted against (margin), if known. */
   capital?: number | null;
+  /**
+   * Current market price per leg (LTP), for calibrating the target-date curve
+   * to the market. Missing entries fall back to the leg's own premium.
+   */
+  marks?: (number | null)[] | null;
   symbol?: string;
 }) {
   const svgRef = useRef<SVGSVGElement>(null);
@@ -153,6 +159,8 @@ export function PayoffChart({
   const dateOpen = expiryMs !== null && expiryMs > now;
   const targetTime = expiryMs === null ? now : dateOpen ? clamp(targetMs ?? now, now, expiryMs) : expiryMs;
   const target = useMemo(() => new Date(targetTime), [targetTime]);
+  // Option legs re-priced off the market, so "now at spot" reads the real mark-to-market P&L.
+  const priced = useMemo(() => calibrateLegs(legs, spot, new Date(now), marks ?? undefined), [legs, spot, now, marks]);
 
   // Default x-range: every strike and spot, padded generously on both sides.
   const full = useMemo(() => {
@@ -186,7 +194,7 @@ export function PayoffChart({
 
   const { expirySeries, targetSeries, autoY } = useMemo(() => {
     const exp: PayoffPoint[] = legs.length ? expiryCurve(legs, xMin, xMax, 200) : [];
-    const tgt = targetDateCurve(legs, exp.map((p) => p.price), target, fallbackIv);
+    const tgt = targetDateCurve(priced, exp.map((p) => p.price), target, fallbackIv);
     const ys = [...exp.map((p) => p.pnl), ...(tgt?.map((p) => p.pnl) ?? [])];
     const range = ys.length ? Math.max(...ys) - Math.min(...ys) : 1;
     const pad = range === 0 ? 1 : range * 0.1;
@@ -195,7 +203,7 @@ export function PayoffChart({
       targetSeries: tgt,
       autoY: ys.length ? { min: Math.min(...ys, 0) - pad, max: Math.max(...ys, 0) + pad } : { min: -1, max: 1 },
     };
-  }, [legs, xMin, xMax, target, fallbackIv]);
+  }, [legs, priced, xMin, xMax, target, fallbackIv]);
 
   const autoSpan = autoY.max - autoY.min || 1;
   const yBounds = { min: autoY.min - autoSpan * 10, max: autoY.max + autoSpan * 10 };
@@ -408,7 +416,7 @@ export function PayoffChart({
   const yTicks = ticks(yMin, yMax, 5);
   const hoverPrice = hoverX === null ? null : toPrice(hoverX);
   const hoverExpiry = hoverPrice !== null ? pnlAtExpiry(legs, hoverPrice) : null;
-  const hoverTarget = hoverPrice !== null && targetSeries ? pnlOnDate(legs, hoverPrice, target, fallbackIv) : null;
+  const hoverTarget = hoverPrice !== null && targetSeries ? pnlOnDate(priced, hoverPrice, target, fallbackIv) : null;
   const oiBars = oi && oi.peak > 0 ? oi : null;
   const oiY = (v: number) => BOTTOM - (Math.abs(v) / (oiBars?.peak || 1)) * PLOT_H;
   const oiTicks = oiBars ? ticks(0, oiBars.peak, 4).filter((v) => v > 0) : [];
@@ -440,8 +448,10 @@ export function PayoffChart({
   const zoomedAny = xZoom !== null || yZoom !== null;
 
   // Projected P&L at the target price and date; falls back to the expiry payoff when IV is missing.
-  const projectedOnDate = pnlOnDate(legs, tp, target, fallbackIv);
-  const projected = projectedOnDate ?? pnlAtExpiry(legs, tp);
+  const projectedOnDate = pnlOnDate(priced, tp, target, fallbackIv);
+  const projectedRaw = projectedOnDate ?? pnlAtExpiry(legs, tp);
+  // Sub-rupee model noise would otherwise read as "−₹0".
+  const projected = Math.abs(projectedRaw) < 0.5 ? 0 : projectedRaw;
   const projectedColor = projected >= 0 ? 'var(--good)' : 'var(--critical)';
   const projectedPct = capital && capital > 0 ? ` (${signedPct((projected / capital) * 100)})` : '';
   const offSide = tp < xMin ? '◀ ' : tp > xMax ? ' ▶' : '';
@@ -760,9 +770,9 @@ export function PayoffChart({
         )}
       </div>
 
-      <div className="mt-3 grid grid-cols-1 gap-x-8 gap-y-5 border-t border-[var(--border)] px-1 pt-3 pb-1 md:grid-cols-2">
-        {/* Target price */}
-        <div>
+      <div className="mt-3 grid grid-cols-1 gap-x-8 gap-y-6 border-t border-[var(--border)] px-1 pt-3 pb-1 md:grid-cols-2">
+        {/* Target price — header, slider and scale share rows with the date block, so both bars line up. */}
+        <div className="row-span-3 grid grid-rows-subgrid gap-y-2">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
               <div className="text-sm text-[var(--text-primary)]">{underlying} Target</div>
@@ -809,7 +819,7 @@ export function PayoffChart({
           </div>
           <input
             type="range"
-            className="ob-range mt-3 w-full"
+            className="ob-range w-full self-center"
             min={sliderMin}
             max={sliderMax}
             step={priceTick}
@@ -817,7 +827,7 @@ export function PayoffChart({
             aria-label={`${underlying} target price`}
             onChange={(e) => setTarget(Number(e.target.value))}
           />
-          <div className="mt-1 flex justify-between text-xs text-[var(--text-muted)] tabular">
+          <div className="flex justify-between text-xs text-[var(--text-muted)] tabular">
             <span>{Math.round(sliderMin).toLocaleString('en-IN')}</span>
             {spot !== null && <span>Spot {spot.toLocaleString('en-IN')}</span>}
             <span>{Math.round(sliderMax).toLocaleString('en-IN')}</span>
@@ -825,7 +835,7 @@ export function PayoffChart({
         </div>
 
         {/* Target date */}
-        <div>
+        <div className="row-span-3 grid grid-rows-subgrid gap-y-2">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
               <div className="text-sm text-[var(--text-primary)]" title="The blue curve and projected P&L are valued at this date and time">
@@ -859,7 +869,7 @@ export function PayoffChart({
           </div>
           <input
             type="range"
-            className="ob-range mt-3 w-full"
+            className="ob-range w-full self-center"
             min={now}
             max={expiryMs ?? now}
             step={DATE_STEP}
@@ -869,7 +879,7 @@ export function PayoffChart({
             aria-valuetext={istDateTime(targetTime)}
             onChange={(e) => setTargetMs(Number(e.target.value))}
           />
-          <div className="mt-1 flex justify-between text-xs text-[var(--text-muted)] tabular">
+          <div className="flex justify-between text-xs text-[var(--text-muted)] tabular">
             <span>{istDay(now)}</span>
             <span>{expiryMs !== null ? istDay(expiryMs) : '—'}</span>
           </div>

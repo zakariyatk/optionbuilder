@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { bsGreeks, bsPrice, normCdf } from './blackScholes';
-import { breakevens, pnlAtExpiry, pnlOnDate, strategyGreeks, strategyMetrics } from './payoff';
+import { bsGreeks, bsPrice, impliedVol, normCdf } from './blackScholes';
+import { breakevens, calibrateLegs, pnlAtExpiry, pnlOnDate, strategyGreeks, strategyMetrics } from './payoff';
 import type { Leg } from './types';
 
 let n = 0;
@@ -138,5 +138,36 @@ describe('strategyGreeks', () => {
   it('stock legs contribute delta of one per share', () => {
     const g = strategyGreeks([leg({ type: 'EQ', lotSize: 100 })], 100, null)!;
     expect(g.delta).toBe(100);
+  });
+});
+
+describe('impliedVol', () => {
+  it('recovers the volatility a price was made with', () => {
+    const price = bsPrice('CE', 24200, 24300, 20 / 365, 0.13);
+    expect(impliedVol('CE', 24200, 24300, 20 / 365, price)).toBeCloseTo(0.13, 5);
+  });
+
+  it('gives up on prices no volatility can produce', () => {
+    expect(impliedVol('CE', 110, 100, 0.1, 5)).toBeNull(); // below intrinsic 10
+    expect(impliedVol('PE', 100, 100, 0, 3)).toBeNull(); // expired
+  });
+});
+
+describe('calibrateLegs', () => {
+  const now = new Date('2026-10-13T06:00:00Z');
+  const option = (p: Partial<Leg>) => leg({ strike: 24300, lotSize: 65, expiry: '2026-10-27', iv: 25, ...p });
+
+  it('projects zero P&L now when the market price equals the entry price', () => {
+    // A stale 25% IV would price this leg well above its 80 premium and show a fake loss on the short.
+    const legs = [option({ action: 'SELL', premium: 80 })];
+    expect(Math.abs(pnlOnDate(legs, 24200, now, null)!)).toBeGreaterThan(100);
+    const calibrated = calibrateLegs(legs, 24200, now);
+    expect(pnlOnDate(calibrated, 24200, now, null)!).toBeCloseTo(0, 2);
+  });
+
+  it('projects the mark-to-market P&L now when the market has moved', () => {
+    const legs = [option({ action: 'BUY', premium: 80 })];
+    const calibrated = calibrateLegs(legs, 24200, now, [95]);
+    expect(pnlOnDate(calibrated, 24200, now, null)!).toBeCloseTo((95 - 80) * 65, 2);
   });
 });

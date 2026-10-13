@@ -163,6 +163,16 @@ function Workspace({ showLogout, onLogout }: { showLogout: boolean; onLogout: ()
   const metrics = useMemo(() => strategyMetrics(legs, spot ?? 0, symbol), [legs, spot, symbol]);
   const fallbackIv = useMemo(() => atmIv(chain?.rows ?? [], spot), [chain, spot]);
   const greeks = useMemo(() => strategyGreeks(legs, spot ?? 0, fallbackIv), [legs, spot, fallbackIv]);
+  // Live LTP of each leg from the chain (same expiry only), so the payoff projection starts from the market.
+  const marks = useMemo(
+    () =>
+      legs.map((l) => {
+        if ((l.type !== 'CE' && l.type !== 'PE') || !chain || (l.expiry && l.expiry !== chain.expiry)) return null;
+        const row = chain.rows.find((r) => r.strike === l.strike);
+        return (l.type === 'CE' ? row?.call : row?.put)?.ltp ?? null;
+      }),
+    [legs, chain],
+  );
 
   const changeSymbol = (next: string) => {
     if (next === symbol) return;
@@ -385,6 +395,7 @@ function Workspace({ showLogout, onLogout }: { showLogout: boolean; onLogout: ()
                   fallbackIv={fallbackIv}
                   oiRows={chain?.rows ?? null}
                   capital={brokerMargin ?? metrics.marginEstimate}
+                  marks={marks}
                 />
               </ErrorBoundary>
               <MetricsPanel metrics={metrics} greeks={greeks} hasLegs={legs.length > 0} brokerMargin={brokerMargin} marginLoading={marginLoading} />

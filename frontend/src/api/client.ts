@@ -3,6 +3,7 @@ import type {
   BrokerMargin,
   BrokerPosition,
   Draft,
+  DraftLeg,
   FiiDiiRow,
   GlobalMarkets,
   MaxOiReport,
@@ -119,6 +120,9 @@ export const api = {
   renameDraft: (id: string, name: string) => post<{ draft: Draft }>('/api/drafts/update', { id, name }),
   closeDraft: (id: string, exitPremiums: number[], exitSpot: number | null) =>
     post<{ draft: Draft }>('/api/drafts/update', { id, close: { exitPremiums, exitSpot } }),
+  /** Saves the netted legs after a fill, with the fill itself for the trade record. */
+  adjustDraft: (id: string, legs: DraftLeg[], trade: DraftLeg & { realized: number }, spot: number | null) =>
+    post<{ draft: Draft }>('/api/drafts/update', { id, adjust: { legs, trade, spot } }),
   reopenDraft: (id: string) => post<{ draft: Draft }>('/api/drafts/update', { id, reopen: true }),
   deleteDraft: (id: string) => post<{ ok: true }>('/api/drafts/delete', { id }),
 

@@ -1,4 +1,4 @@
-import { bsGreeks, bsPrice } from './blackScholes';
+import { bsGreeks, bsPrice, impliedVol } from './blackScholes';
 import { yearsToExpiry } from './dates';
 import { isLinear, type Greeks, type Leg, type StrategyMetrics } from './types';
 
@@ -38,6 +38,23 @@ export function pnlOnDate(legs: Leg[], price: number, date: Date, fallbackIv: nu
     return sum + direction(leg) * quantity(leg) * (value - leg.premium);
   }, 0);
   return pricedAny ? total : null;
+}
+
+/**
+ * Re-prices option legs off the market: each leg's IV becomes the volatility
+ * implied by its current market price (`marks[i]`, else its own premium) at
+ * `spot` and `now`. Projections then start from the real market — at today's
+ * spot and time, P&L is exactly (market − entry) × quantity, as a broker shows
+ * it, instead of a model-vs-market gap. Legs that can't be solved keep their IV.
+ */
+export function calibrateLegs(legs: Leg[], spot: number | null, now: Date, marks?: (number | null | undefined)[]): Leg[] {
+  if (!spot || spot <= 0) return legs;
+  return legs.map((leg, i) => {
+    if (isLinear(leg.type) || !leg.expiry) return leg;
+    const mark = marks?.[i] ?? leg.premium;
+    const vol = impliedVol(leg.type as 'CE' | 'PE', spot, leg.strike, yearsToExpiry(now, leg.expiry), mark);
+    return vol === null ? leg : { ...leg, iv: vol * 100 };
+  });
 }
 
 export interface PayoffPoint {
