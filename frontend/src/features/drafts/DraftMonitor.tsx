@@ -11,6 +11,7 @@ import { applyDraftTrade, draftLegToLeg, draftPnl, draftPrices, exitLegTrade } f
 import { strategyGreeks, strategyMetrics } from '../../domain/payoff';
 import type { LegAction } from '../../domain/types';
 import { useOptionChain, useSpot } from '../../hooks/market';
+import { confirmDialog, promptDialog } from '../../lib/dialog';
 import { inr, num, signedInr, signedPct } from '../../lib/format';
 import { dateTime, useDraftQuotes } from './useDraftQuotes';
 
@@ -106,36 +107,51 @@ export function DraftMonitor({
     });
   };
 
-  const exitLeg = (i: number) => {
+  const exitLeg = async (i: number) => {
     const leg = draft.legs[i];
     const price = prices[i];
     if (price == null) {
       setActionError('This leg has no live price to exit at yet.');
       return;
     }
-    if (!window.confirm(`Exit ${leg.action === 'BUY' ? 'long' : 'short'} ${instrument(leg)} (${leg.lots * leg.lotSize}) at ${num(price)}?`)) return;
+    const ok = await confirmDialog({
+      title: `Are you sure you want to exit ${instrument(leg)}?`,
+      message: `${leg.action === 'BUY' ? 'Sell' : 'Buy back'} ${leg.lots * leg.lotSize} at ${num(price)}.`,
+      confirmLabel: 'Yes, Exit',
+    });
+    if (!ok) return;
     void fill(exitLegTrade(leg, price));
   };
 
-  const rename = () => {
-    const name = window.prompt('Rename draft', draft.name);
+  const rename = async () => {
+    const name = await promptDialog({ title: 'Rename draft', defaultValue: draft.name, confirmLabel: 'Save' });
     if (name === null || name.trim() === '' || name === draft.name) return;
     void act(async () => onChanged((await api.renameDraft(draft.id, name)).draft));
   };
 
-  const close = () => {
+  const close = async () => {
     if (!pnl.complete) {
       setActionError('Every leg needs a live price to close at market. Connect Upstox, or wait for quotes to load.');
       return;
     }
-    if (!window.confirm(`Close “${draft.name}” at current prices? Recorded P&L: ${signedInr(pnl.total)}`)) return;
+    const ok = await confirmDialog({
+      title: `Close “${draft.name}” at market?`,
+      message: `Every open leg exits at its current price. Recorded P&L: ${signedInr(pnl.total)}.`,
+      confirmLabel: 'Yes, Close',
+    });
+    if (!ok) return;
     void act(async () => onChanged((await api.closeDraft(draft.id, prices as number[], spot)).draft));
   };
 
   const reopen = () => void act(async () => onChanged((await api.reopenDraft(draft.id)).draft));
 
-  const remove = () => {
-    if (!window.confirm(`Delete “${draft.name}”? This cannot be undone.`)) return;
+  const remove = async () => {
+    const ok = await confirmDialog({
+      title: 'Are you sure you want to delete?',
+      message: `“${draft.name}” and its trade record will be removed. This cannot be undone.`,
+      confirmLabel: 'Yes, Delete',
+    });
+    if (!ok) return;
     void act(async () => {
       await api.deleteDraft(draft.id);
       onDeleted();
@@ -249,7 +265,7 @@ export function DraftMonitor({
               legs={legs}
               maxHeight={520}
               onAddLeg={addFromChain}
-              onRemoveLegs={(ids) => ids.forEach((id) => exitLeg(Number(id)))}
+              onRemoveLegs={(ids) => ids.forEach((id) => void exitLeg(Number(id)))}
               onClear={close}
             />
           ) : (

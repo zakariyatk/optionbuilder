@@ -25,6 +25,7 @@ import { PositionsPage } from './features/positions/PositionsPage';
 import { DailyReport } from './features/report/DailyReport';
 import { useBrokerMargin, useBrokerStatus, useOptionChain, useSpot, useSymbols } from './hooks/market';
 import { useAsync } from './hooks/useAsync';
+import { confirmDialog } from './lib/dialog';
 import { useStrategy } from './store/strategy';
 
 const PAGE_KEY = 'option-builder-tab';
@@ -175,10 +176,20 @@ function Workspace({ showLogout, onLogout }: { showLogout: boolean; onLogout: ()
     [legs, chain],
   );
 
-  const changeSymbol = (next: string) => {
-    if (next === symbol) return;
-    if (legs.length > 0 && !window.confirm(`Switching to ${next} clears the ${legs.length} leg(s) in your current strategy. Continue?`)) return;
+  /** Resolves true once the switch happened (it clears the legs, so it asks first). */
+  const changeSymbol = async (next: string): Promise<boolean> => {
+    if (next === symbol) return true;
+    if (
+      legs.length > 0 &&
+      !(await confirmDialog({
+        title: `Switch to ${next}?`,
+        message: `This clears the ${legs.length} leg${legs.length > 1 ? 's' : ''} in your current strategy.`,
+        confirmLabel: 'Yes, Switch',
+      }))
+    )
+      return false;
     setSymbol(next, symbols.find((s) => s.symbol === next)?.lotSize ?? 1);
+    return true;
   };
 
   const addFromChain = (type: 'CE' | 'PE', action: LegAction, strike: number, premium: number, side: ChainSide | null, lots = 1) => {
@@ -196,20 +207,28 @@ function Workspace({ showLogout, onLogout }: { showLogout: boolean; onLogout: ()
     setNotice(`${action === 'BUY' ? 'Bought' : 'Sold'} ${lots * effectiveLot} × ${strike.toLocaleString('en-IN')} ${type}`);
   };
 
-  const applyTemplate = (t: StrategyTemplate) => {
+  const applyTemplate = async (t: StrategyTemplate) => {
     const rows = chain?.rows?.length ? chain.rows : spot ? generateStrikes(symbol, spot, 30).map((strike) => ({ strike, call: null, put: null })) : [];
     const built = spot ? buildFromTemplate(t, rows, spot, effectiveLot, chain?.expiry ?? null) : null;
     if (!built) {
       setNotice('Not enough strikes around the money to build that template.');
       return;
     }
-    if (legs.length > 0 && !window.confirm(`Replace the ${legs.length} leg(s) in your strategy with a ${t.name}?`)) return;
+    if (
+      legs.length > 0 &&
+      !(await confirmDialog({
+        title: `Replace your strategy with a ${t.name}?`,
+        message: `The ${legs.length} leg${legs.length > 1 ? 's' : ''} you have now will be removed.`,
+        confirmLabel: 'Yes, Replace',
+      }))
+    )
+      return;
     replaceLegs(built);
     if (!chain?.rows?.length) setNotice(`${t.name} added — enter premiums manually (no live chain).`);
   };
 
-  const confirmClear = () => {
-    if (window.confirm('Remove all legs from this strategy?')) clearLegs();
+  const confirmClear = async () => {
+    if (await confirmDialog({ title: 'Are you sure you want to clear all legs?', confirmLabel: 'Yes, Clear' })) clearLegs();
   };
 
   /** Records the working strategy, at its current premiums, as a draft portfolio. */
@@ -225,8 +244,16 @@ function Workspace({ showLogout, onLogout }: { showLogout: boolean; onLogout: ()
     }
   };
 
-  const openDraftInBuilder = (d: Draft) => {
-    if (legs.length > 0 && !window.confirm('Replace your current strategy with this draft?')) return;
+  const openDraftInBuilder = async (d: Draft) => {
+    if (
+      legs.length > 0 &&
+      !(await confirmDialog({
+        title: 'Replace your current strategy?',
+        message: `“${d.name}” will be loaded into the builder in its place.`,
+        confirmLabel: 'Yes, Replace',
+      }))
+    )
+      return;
     setSymbol(d.symbol, symbols.find((s) => s.symbol === d.symbol)?.lotSize ?? d.legs[0]?.lotSize ?? lotSize);
     replaceLegs(d.legs);
     navigate({ page: 'builder' });
@@ -297,9 +324,8 @@ function Workspace({ showLogout, onLogout }: { showLogout: boolean; onLogout: ()
               symbol={symbol}
               symbolInfo={symbols}
               brokerConnected={brokerConnected}
-              onOpenBuilder={(next) => {
-                if (next !== symbol) changeSymbol(next);
-                if (useStrategy.getState().symbol === next) navigate({ page: 'builder' });
+              onOpenBuilder={async (next) => {
+                if (await changeSymbol(next)) navigate({ page: 'builder' });
               }}
             />
           </ErrorBoundary>

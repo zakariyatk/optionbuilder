@@ -13,6 +13,7 @@
  * this page in a browser rather than reimplementing the renderer.
  */
 import { APP_BASE } from '../../api/client';
+import { promptDialog } from '../../lib/dialog';
 
 
 // ------------------------------------------------------------------ config
@@ -1156,16 +1157,18 @@ function buildModal() {
     if (!S.slides.length) return;
     download(S.slides[S.index], fileStem(S.model) + '-' + (S.index + 1) + '.png');
   };
-  ui.btnDrive.onclick = function () {
+  ui.btnDrive.onclick = async function () {
     if (!S.slides.length) return;
     if (!driveClientId()) {
-      var id = window.prompt(
-        'Paste your Google OAuth Client ID.\n\n' +
-        'Create one free at console.cloud.google.com — APIs & Services →\n' +
-        'Credentials → Create credentials → OAuth client ID → Web application,\n' +
-        'with https://adddots.com as an authorised JavaScript origin.\n\n' +
-        'It looks like 1234567890-abc123.apps.googleusercontent.com and is\n' +
-        'stored in this browser only.', '');
+      var id = await promptDialog({
+        title: 'Paste your Google OAuth Client ID',
+        message:
+          'Create one free at console.cloud.google.com — APIs & Services → Credentials → ' +
+          'Create credentials → OAuth client ID → Web application, with https://adddots.com ' +
+          'as an authorised JavaScript origin. It is stored in this browser only.',
+        placeholder: '1234567890-abc123.apps.googleusercontent.com',
+        confirmLabel: 'Save',
+      });
       if (!id) return;
       setDriveClientId(id.trim());
     }
@@ -1197,7 +1200,7 @@ function buildModal() {
         setTimeout(function () { ui.btnCap.textContent = 'Copy caption'; }, 1800);
       });
     } else {
-      window.prompt('Caption', txt);
+      promptDialog({ title: 'Caption', message: 'Copy the caption below.', defaultValue: txt, multiline: true, confirmLabel: 'Done' });
     }
   };
 
