@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { api, errorMessage, onLoginRequired } from './api/client';
 import type { ChainSide, Draft, Session } from './api/types';
 import { AppHeader } from './components/AppHeader';
@@ -18,7 +18,6 @@ import { legToDraftLeg } from './domain/drafts';
 import { strategyGreeks, strategyMetrics } from './domain/payoff';
 import { buildFromTemplate, type StrategyTemplate } from './domain/templates';
 import type { LegAction } from './domain/types';
-import { ChartPage } from './features/chart/ChartPage';
 import { DraftMonitor } from './features/drafts/DraftMonitor';
 import { DraftsPage } from './features/drafts/DraftsPage';
 import { PositionsPage } from './features/positions/PositionsPage';
@@ -29,6 +28,9 @@ import { confirmDialog } from './lib/dialog';
 import { useStrategy } from './store/strategy';
 
 const PAGE_KEY = 'option-builder-tab';
+
+// The chart engine is large, so its page loads only when opened.
+const ChartPage = lazy(() => import('./features/chart/ChartPage').then((m) => ({ default: m.ChartPage })));
 
 function initialRoute(): Route {
   const fromHash = parseRoute(window.location.hash);
@@ -320,14 +322,16 @@ function Workspace({ showLogout, onLogout }: { showLogout: boolean; onLogout: ()
 
         {route.page === 'chart' && (
           <ErrorBoundary label="the chart">
-            <ChartPage
-              symbol={symbol}
-              symbolInfo={symbols}
-              brokerConnected={brokerConnected}
-              onOpenBuilder={async (next) => {
-                if (await changeSymbol(next)) navigate({ page: 'builder' });
-              }}
-            />
+            <Suspense fallback={<Card className="px-4 py-10 text-center text-sm text-[var(--text-muted)]">Loading chart…</Card>}>
+              <ChartPage
+                symbol={symbol}
+                symbolInfo={symbols}
+                brokerConnected={brokerConnected}
+                onOpenBuilder={async (next) => {
+                  if (await changeSymbol(next)) navigate({ page: 'builder' });
+                }}
+              />
+            </Suspense>
           </ErrorBoundary>
         )}
 

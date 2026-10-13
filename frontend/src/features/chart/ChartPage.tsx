@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { SymbolInfo } from '../../api/types';
-import { UpstoxChart } from './UpstoxChart';
+import { ProChart } from './ProChart';
 import { Watchlist } from './Watchlist';
 
 /** The theme actually applied to the page: the explicit choice on <html>, else the OS preference. */
@@ -27,7 +27,7 @@ function usePageTheme(): 'light' | 'dark' {
   return theme;
 }
 
-/** Analyse → Chart: an Upstox-fed NSE chart with a watchlist alongside. */
+/** Analyse → Chart: a TradingView-style chart on Upstox data, with a watchlist alongside. */
 export function ChartPage({
   symbol,
   symbolInfo,
@@ -48,7 +48,7 @@ export function ChartPage({
   return (
     <div className="grid grid-cols-1 gap-3 lg:grid-cols-[minmax(0,1fr)_320px]">
       <div className="overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--surface-card)]" style={{ height: panelHeight }}>
-        <UpstoxChart symbol={chartSymbol} theme={theme} brokerConnected={brokerConnected} />
+        <ProChart symbol={chartSymbol} symbolInfo={symbolInfo} theme={theme} brokerConnected={brokerConnected} />
       </div>
       <div className="flex min-h-[420px] flex-col lg:min-h-0" style={{ height: panelHeight }}>
         <Watchlist symbolInfo={symbolInfo} selected={chartSymbol} onSelect={setChartSymbol} onOpenBuilder={onOpenBuilder} />

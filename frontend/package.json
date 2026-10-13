@@ -15,8 +15,9 @@
     "release": "npm run typecheck && npm run lint && npm test && vite build && node ../scripts/package-release.mjs"
   },
   "dependencies": {
+    "@klinecharts/pro": "0.1.1",
     "html-to-image": "1.11.13",
-    "lightweight-charts": "5.2.1",
+    "klinecharts": "9.8.12",
     "react": "19.1.1",
     "react-dom": "19.1.1",
     "zustand": "5.0.8"

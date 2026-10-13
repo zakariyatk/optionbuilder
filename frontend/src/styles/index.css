@@ -257,3 +257,10 @@ input[type='number']::-webkit-inner-spin-button {
   outline: 2px solid var(--focus);
   outline-offset: 2px;
 }
+
+/* The chart engine draws its canvas text in "Helvetica Neue", which Windows
+   lacks (it falls back to a serif). Use the real face where installed, else Arial. */
+@font-face {
+  font-family: 'Helvetica Neue';
+  src: local('Helvetica Neue'), local('HelveticaNeue'), local('Arial'), local('Helvetica');
+}
