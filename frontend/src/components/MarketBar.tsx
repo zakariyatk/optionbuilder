@@ -31,6 +31,7 @@ export function MarketBar({
   spot,
   spotError,
   updatedAt,
+  showExpiry = true,
 }: {
   symbols: SymbolInfo[];
   symbol: string;
@@ -41,6 +42,8 @@ export function MarketBar({
   spot: SpotQuote | null;
   spotError: string | null;
   updatedAt: number | null;
+  /** The chart page has no use for an option expiry. */
+  showExpiry?: boolean;
 }) {
   const change = spot ? spot.price - spot.previousClose : null;
   const changePct = spot && spot.previousClose ? (change! / spot.previousClose) * 100 : null;
@@ -77,27 +80,31 @@ export function MarketBar({
         )}
       </select>
 
-      <label className="sr-only" htmlFor="expiry-select">
-        Expiry
-      </label>
-      <select
-        id="expiry-select"
-        className={selectClass}
-        value={expiry ?? ''}
-        disabled={expiryDates.length === 0}
-        onChange={(e) => onExpiryChange(e.target.value)}
-      >
-        {expiryDates.length === 0 && <option value="">No expiry data</option>}
-        {expiryDates.map((e) => {
-          const dte = daysToExpiry(e);
-          return (
-            <option key={e} value={e}>
-              {formatExpiry(e)}
-              {dte !== null ? ` · ${dte}d` : ''}
-            </option>
-          );
-        })}
-      </select>
+      {showExpiry && (
+        <>
+          <label className="sr-only" htmlFor="expiry-select">
+            Expiry
+          </label>
+          <select
+            id="expiry-select"
+            className={selectClass}
+            value={expiry ?? ''}
+            disabled={expiryDates.length === 0}
+            onChange={(e) => onExpiryChange(e.target.value)}
+          >
+            {expiryDates.length === 0 && <option value="">No expiry data</option>}
+            {expiryDates.map((e) => {
+              const dte = daysToExpiry(e);
+              return (
+                <option key={e} value={e}>
+                  {formatExpiry(e)}
+                  {dte !== null ? ` · ${dte}d` : ''}
+                </option>
+              );
+            })}
+          </select>
+        </>
+      )}
 
       <div className="ml-1 flex items-baseline gap-2 tabular" aria-live="polite">
         {spot ? (

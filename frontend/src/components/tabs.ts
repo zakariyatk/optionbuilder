@@ -1,4 +1,4 @@
-export type PageId = 'builder' | 'drafts' | 'chain' | 'report' | 'positions';
+export type PageId = 'builder' | 'drafts' | 'chart' | 'chain' | 'report' | 'positions';
 
 export interface Route {
   page: PageId;
@@ -9,6 +9,7 @@ export interface Route {
 export const PAGE_LABELS: Record<PageId, string> = {
   builder: 'Strategy Builder',
   drafts: 'Draft Portfolios',
+  chart: 'Chart',
   chain: 'Option Chain',
   report: 'Daily Report',
   positions: 'Positions',
@@ -33,6 +34,7 @@ export const NAV: NavEntry[] = [
   {
     label: 'Analyse',
     items: [
+      { page: 'chart', description: 'TradingView chart with indicators and drawing tools' },
       { page: 'chain', description: 'Full chain with OI, volume and IV' },
       { page: 'report', description: 'Levels, flows, global cues and news' },
     ],

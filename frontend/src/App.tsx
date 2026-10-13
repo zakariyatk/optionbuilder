@@ -18,6 +18,7 @@ import { legToDraftLeg } from './domain/drafts';
 import { strategyGreeks, strategyMetrics } from './domain/payoff';
 import { buildFromTemplate, type StrategyTemplate } from './domain/templates';
 import type { LegAction } from './domain/types';
+import { ChartPage } from './features/chart/ChartPage';
 import { DraftMonitor } from './features/drafts/DraftMonitor';
 import { DraftsPage } from './features/drafts/DraftsPage';
 import { PositionsPage } from './features/positions/PositionsPage';
@@ -41,7 +42,7 @@ function initialRoute(): Route {
 }
 
 /** Pages that show the symbol / expiry bar and use the live chain. */
-const MARKET_PAGES: PageId[] = ['builder', 'chain', 'report'];
+const MARKET_PAGES: PageId[] = ['builder', 'chart', 'chain', 'report'];
 
 /** Session gate: shows the login form until the backend says we're in. */
 export default function App() {
@@ -273,6 +274,7 @@ function Workspace({ showLogout, onLogout }: { showLogout: boolean; onLogout: ()
               spot={spotState.data}
               spotError={spotState.error}
               updatedAt={chainState.updatedAt ?? spotState.updatedAt}
+              showExpiry={route.page !== 'chart'}
             />
             {brokerConnected && chainState.error && !chain && <Notice tone="critical">Option chain: {chainState.error}</Notice>}
           </div>
@@ -287,6 +289,12 @@ function Workspace({ showLogout, onLogout }: { showLogout: boolean; onLogout: ()
         {route.page === 'report' && (
           <ErrorBoundary label="the daily report">
             <DailyReport symbol={symbol} brokerConnected={brokerConnected} />
+          </ErrorBoundary>
+        )}
+
+        {route.page === 'chart' && (
+          <ErrorBoundary label="the chart">
+            <ChartPage symbol={symbol} />
           </ErrorBoundary>
         )}
 
