@@ -474,7 +474,9 @@ function Workspace({ showLogout, onLogout }: { showLogout: boolean; onLogout: ()
           </section>
         )}
 
-        <footer className="mt-8 border-t border-[var(--border)] pt-3 text-[10px] leading-relaxed text-[var(--text-muted)]">
+        <footer
+          className={`mt-8 border-t border-[var(--border)] pt-3 text-[10px] leading-relaxed text-[var(--text-muted)] ${route.page === 'chart' ? 'max-md:hidden' : ''}`}
+        >
           Option Builder is an analysis tool, not investment advice. Prices, margins and Greeks are estimates — verify with your broker before trading.
         </footer>
       </main>

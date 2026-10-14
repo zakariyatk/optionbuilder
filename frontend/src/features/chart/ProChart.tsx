@@ -1,24 +1,12 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, type RefObject } from 'react';
 import { ExternalLink } from 'lucide-react';
 import { KLineChartPro, type Datafeed, type Period, type SymbolInfo as ProSymbol } from '@klinecharts/pro';
 import '@klinecharts/pro/dist/klinecharts-pro.css';
-import type { KLineData } from 'klinecharts';
+import { TooltipShowRule, type KLineData } from 'klinecharts';
 import { api, UPSTOX_LOGIN_URL } from '../../api/client';
+import { PERIODS } from './periods';
 import type { SymbolInfo } from '../../api/types';
 
-/** The chart's periods, and the Upstox candle timeframe each one loads. */
-const PERIODS: (Period & { tf: string })[] = [
-  { multiplier: 1, timespan: 'minute', text: '1m', tf: '1m' },
-  { multiplier: 3, timespan: 'minute', text: '3m', tf: '3m' },
-  { multiplier: 5, timespan: 'minute', text: '5m', tf: '5m' },
-  { multiplier: 15, timespan: 'minute', text: '15m', tf: '15m' },
-  { multiplier: 30, timespan: 'minute', text: '30m', tf: '30m' },
-  { multiplier: 1, timespan: 'hour', text: '1H', tf: '1h' },
-  { multiplier: 4, timespan: 'hour', text: '4H', tf: '4h' },
-  { multiplier: 1, timespan: 'day', text: 'D', tf: '1D' },
-  { multiplier: 1, timespan: 'week', text: 'W', tf: '1W' },
-  { multiplier: 1, timespan: 'month', text: 'M', tf: '1M' },
-];
 const INTRADAY_POLL_MS = 15_000;
 const DAILY_POLL_MS = 60_000;
 
@@ -86,6 +74,18 @@ function upstoxDatafeed(symbols: () => SymbolInfo[]): Datafeed {
   };
 }
 
+/** Built-in toolbar entries a custom (phone) toolbar can open. */
+export type ProTool = 'Indicator' | 'Timezone' | 'Setting' | 'Screenshot' | 'Full Screen';
+
+/** Imperative handle for driving the chart from outside its own toolbar. */
+export interface ProChartActions {
+  setPeriod: (tf: string) => void;
+  /** Opens one of the chart's own dialogs (indicators, settings, …). */
+  openTool: (tool: ProTool) => void;
+  /** Shows / hides the drawing-tools rail. */
+  toggleDrawing: () => void;
+}
+
 /**
  * TradingView-style chart (KLineChart Pro): drawing toolbar, indicators,
  * periods, timezone, settings and screenshot — fed by the user's Upstox data.
@@ -95,16 +95,46 @@ export function ProChart({
   symbolInfo,
   theme,
   brokerConnected,
+  compact = false,
+  actionsRef,
 }: {
   symbol: string;
   symbolInfo: SymbolInfo[];
   theme: 'light' | 'dark';
   brokerConnected: boolean;
+  /** Phone layout: no built-in period bar or drawing rail; a parent toolbar drives them through `actionsRef`. */
+  compact?: boolean;
+  actionsRef?: RefObject<ProChartActions | null>;
 }) {
   const host = useRef<HTMLDivElement>(null);
   const chart = useRef<KLineChartPro | null>(null);
   const symbolsRef = useRef(symbolInfo);
   symbolsRef.current = symbolInfo;
+  const compactRef = useRef(compact);
+  compactRef.current = compact;
+
+  useEffect(() => {
+    if (!actionsRef) return;
+    actionsRef.current = {
+      setPeriod: (tf) => {
+        const p = PERIODS.find((x) => x.tf === tf);
+        if (p) chart.current?.setPeriod(p);
+      },
+      openTool: (tool) => {
+        const items = host.current?.querySelectorAll<HTMLElement>('.klinecharts-pro-period-bar .item.tools') ?? [];
+        [...items].find((el) => el.textContent?.trim() === tool)?.click();
+      },
+      toggleDrawing: () => {
+        // The library listens on the icon itself, not its wrapper.
+        host.current?.querySelector('.klinecharts-pro-period-bar .menu-container svg')?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      },
+    };
+    return () => {
+      actionsRef.current = null;
+    };
+  }, [actionsRef]);
+
+
 
   // Built once per mount (and on reconnect); symbol and theme changes go through the API.
   useEffect(() => {
@@ -122,6 +152,9 @@ export function ProChart({
       symbol: toProSymbol(info ?? { symbol }),
       period: PERIODS[3],
       periods: PERIODS,
+      // Phones: no drawing rail until asked for, and the OHLC legend only while the crosshair is on a candle (as in mobile TradingView).
+      drawingBarVisible: !compactRef.current,
+      styles: { candle: { tooltip: { showRule: compactRef.current ? TooltipShowRule.FollowCross : TooltipShowRule.Always } } },
       mainIndicators: ['MA'],
       subIndicators: ['VOL'],
       datafeed: upstoxDatafeed(() => symbolsRef.current),
@@ -155,5 +188,5 @@ export function ProChart({
       </div>
     );
   }
-  return <div ref={host} className="ob-pro-chart h-full w-full" />;
+  return <div ref={host} className={`ob-pro-chart h-full w-full ${compact ? 'ob-pro-compact' : ''}`} />;
 }

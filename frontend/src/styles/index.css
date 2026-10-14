@@ -340,3 +340,16 @@ input[type='number']::-webkit-inner-spin-button {
 .ob-dual .ob-range + .ob-range::-moz-range-track {
   background: transparent;
 }
+
+/* The chart library hard-codes height: 80vh; size it to its panel instead. */
+.ob-pro-chart.klinecharts-pro {
+  height: 100%;
+}
+
+/* Phone chart: the page's own toolbar replaces the chart's desktop period bar. */
+.ob-pro-compact .klinecharts-pro-period-bar {
+  display: none;
+}
+.ob-pro-compact .klinecharts-pro-content {
+  height: 100%;
+}
