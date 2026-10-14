@@ -13,3 +13,10 @@ export const PERIODS: (Period & { tf: string })[] = [
   { multiplier: 1, timespan: 'week', text: 'W', tf: '1W' },
   { multiplier: 1, timespan: 'month', text: 'M', tf: '1M' },
 ];
+
+/** Length of one bar for minute / hour periods; null for day and longer (they follow the session, not a fixed span). */
+export function periodMs(p: Pick<Period, 'multiplier' | 'timespan'>): number | null {
+  if (p.timespan === 'minute') return p.multiplier * 60_000;
+  if (p.timespan === 'hour') return p.multiplier * 3_600_000;
+  return null;
+}

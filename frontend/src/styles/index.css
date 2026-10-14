@@ -353,3 +353,21 @@ input[type='number']::-webkit-inner-spin-button {
 .ob-pro-compact .klinecharts-pro-content {
   height: 100%;
 }
+
+/* Live price + candle countdown on the chart's price axis (see features/chart/liveTag.ts). */
+.ob-live-tag {
+  position: absolute;
+  z-index: 5;
+  pointer-events: none;
+  padding: 2px 4px;
+  border-radius: 2px;
+  color: #fff;
+  font: 600 12px/1.25 Arial, Helvetica, sans-serif;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  white-space: nowrap;
+}
+.ob-live-tag-time {
+  font-weight: 400;
+  opacity: 0.9;
+}

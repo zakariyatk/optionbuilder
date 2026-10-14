@@ -5,6 +5,7 @@ import type { SpotQuote, SymbolInfo, WatchQuote } from '../../api/types';
 import { Button } from '../../components/ui';
 import { useAsync } from '../../hooks/useAsync';
 import { num } from '../../lib/format';
+import { nseOpen } from '../../lib/nse';
 import { activeList, useWatchlist } from '../../store/watchlist';
 import { WatchlistMenu } from './WatchlistMenu';
 
@@ -12,14 +13,6 @@ const WATCH_POLL_MS = 15_000;
 
 const isQuote = (q: WatchQuote | undefined): q is SpotQuote => !!q && !('error' in q);
 const changeColor = (v: number) => (v > 0 ? 'var(--good-text)' : v < 0 ? 'var(--critical)' : 'var(--text-secondary)');
-
-/** NSE cash session: Mon–Fri, 09:15–15:30 IST (exchange holidays aside). */
-function nseOpen(now = new Date()): boolean {
-  const ist = new Date(now.getTime() + (5.5 * 60 + now.getTimezoneOffset()) * 60_000);
-  const day = ist.getDay();
-  const minutes = ist.getHours() * 60 + ist.getMinutes();
-  return day >= 1 && day <= 5 && minutes >= 9 * 60 + 15 && minutes < 15 * 60 + 30;
-}
 
 /**
  * TradingView-style watchlist: live NSE spot prices for the user's symbols.
