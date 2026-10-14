@@ -1,7 +1,6 @@
 import { ActionType, DomPosition, init, LineType, type Chart, type DeepPartial, type Styles } from 'klinecharts';
 import type { Period } from '@klinecharts/pro';
-import { nseCloseMs, nseOpen } from '../../lib/nse';
-import { periodMs } from './periods';
+import { candleCloseMs, fmtLeft } from '../../lib/nse';
 
 const UP = '#2DC08E';
 const DOWN = '#F92855';
@@ -29,23 +28,6 @@ export function innerChart(host: HTMLElement): Chart | null {
 }
 
 const fmtPrice = (v: number) => v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-
-function fmtLeft(ms: number): string {
-  const s = Math.max(0, Math.floor(ms / 1000));
-  const hh = Math.floor(s / 3600);
-  const mm = Math.floor((s % 3600) / 60);
-  const ss = s % 60;
-  const two = (n: number) => String(n).padStart(2, '0');
-  return hh > 0 ? `${hh}:${two(mm)}:${two(ss)}` : `${two(mm)}:${two(ss)}`;
-}
-
-/** Time left in the forming bar, or null when there is no running bar to count down. */
-function timeLeft(barStart: number, period: Period, now: number): number | null {
-  if (!nseOpen(new Date(now))) return null;
-  const span = periodMs(period);
-  const end = span !== null ? Math.min(barStart + span, nseCloseMs(new Date(now))) : period.timespan === 'day' ? nseCloseMs(new Date(now)) : null;
-  return end !== null && end > now ? end - now : null;
-}
 
 /**
  * TradingView-style last-price tag on the price axis: the live price on a
@@ -83,9 +65,9 @@ export function attachLiveTag(host: HTMLElement, chart: Chart, getPeriod: () => 
       return;
     }
     price.textContent = fmtPrice(last.close);
-    const remaining = timeLeft(last.timestamp, getPeriod(), Date.now());
-    left.textContent = remaining !== null ? fmtLeft(remaining) : '';
-    left.style.display = remaining !== null ? '' : 'none';
+    const period = getPeriod();
+    const now = Date.now();
+    left.textContent = fmtLeft(candleCloseMs(period.timespan, period.multiplier, now) - now);
     tag.style.display = '';
     tag.style.background = last.close >= last.open ? UP : DOWN;
     tag.style.left = `${axisBox.left - hostBox.left}px`;
