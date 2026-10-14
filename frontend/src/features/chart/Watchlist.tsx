@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { ArrowRight, Plus, X } from 'lucide-react';
 import { api } from '../../api/client';
 import type { SpotQuote, SymbolInfo, WatchQuote } from '../../api/types';
 import { Button } from '../../components/ui';
@@ -76,9 +77,9 @@ export function Watchlist({
           aria-expanded={adding}
           aria-label="Add symbol"
           title="Add symbol"
-          className="flex h-7 w-7 items-center justify-center rounded-md text-lg leading-none text-[var(--text-secondary)] hover:bg-[var(--surface-sunken)] hover:text-[var(--text-primary)]"
+          className="flex h-8 w-8 items-center justify-center rounded-md text-[var(--text-secondary)] hover:bg-[var(--surface-sunken)] hover:text-[var(--text-primary)] pointer-coarse:h-11 pointer-coarse:w-11"
         >
-          +
+          <Plus size={20} aria-hidden="true" />
         </button>
       </div>
 
@@ -137,7 +138,7 @@ export function Watchlist({
                 type="button"
                 onClick={() => onSelect(s)}
                 aria-current={active ? 'true' : undefined}
-                className={`grid w-full grid-cols-[minmax(0,1fr)_auto_auto_auto] items-center gap-x-3 border-b border-[var(--gridline)] px-3 py-2 text-left text-[13px] tabular ${
+                className={`grid w-full grid-cols-[minmax(0,1fr)_auto_auto_auto] items-center gap-x-3 border-b border-[var(--gridline)] px-3 py-2 text-left text-[13px] tabular pointer-coarse:py-3 pointer-coarse:pr-12 ${
                   active ? 'bg-[var(--surface-sunken)] shadow-[inset_2px_0_0_var(--series-blue)]' : 'hover:bg-[var(--surface-sunken)]'
                 }`}
               >
@@ -157,9 +158,9 @@ export function Watchlist({
                 onClick={() => remove(s)}
                 aria-label={`Remove ${s}`}
                 title="Remove"
-                className="absolute right-1 top-1/2 hidden h-5 w-5 -translate-y-1/2 items-center justify-center rounded bg-[var(--surface-raised)] text-xs text-[var(--text-muted)] shadow hover:text-[var(--critical)] group-hover:flex focus:flex"
+                className="absolute right-1 top-1/2 hidden h-6 w-6 -translate-y-1/2 items-center justify-center rounded bg-[var(--surface-raised)] text-[var(--text-muted)] shadow hover:text-[var(--critical)] group-hover:flex focus:flex pointer-coarse:flex pointer-coarse:h-9 pointer-coarse:w-9"
               >
-                ×
+                <X size={16} aria-hidden="true" />
               </button>
             </li>
           );
@@ -197,7 +198,8 @@ export function Watchlist({
           </dl>
         )}
         <Button className="mt-3 w-full" onClick={() => onOpenBuilder(selected)}>
-          Build strategy on {selected} →
+          Build strategy on {selected}
+          <ArrowRight size={16} aria-hidden="true" />
         </Button>
       </div>
     </aside>

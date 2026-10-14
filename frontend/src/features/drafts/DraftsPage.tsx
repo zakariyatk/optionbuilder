@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { Plus } from 'lucide-react';
 import type { Draft } from '../../api/types';
 import { Button, Card, CardHeader, Notice, Skeleton } from '../../components/ui';
 import { formatExpiry } from '../../domain/dates';
@@ -65,7 +66,8 @@ export function DraftsPage({
         </Card>
         <Card className="flex items-center justify-center px-4 py-3">
           <Button variant="primary" onClick={onNew}>
-            + New strategy
+            <Plus size={16} aria-hidden="true" />
+            New strategy
           </Button>
         </Card>
       </div>
@@ -89,7 +91,7 @@ export function DraftsPage({
             No drafts yet. Build a strategy, then use <b>Save to drafts</b> to track it here with live prices.
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <div className="relative overflow-x-auto">
             <table className="w-full min-w-[640px] border-collapse text-sm">
               <thead className="text-left text-xs text-[var(--text-muted)]">
                 <tr className="border-b border-[var(--border)]">

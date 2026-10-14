@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type KeyboardEvent, type PointerEvent } from 'react';
+import { Hand, Maximize2, Minus, Plus, SquareDashed, ZoomIn, ZoomOut } from 'lucide-react';
 import type { ChainRow } from '../api/types';
 import { strikeOi, type OiMode } from '../domain/chain';
 import { parseExpiry } from '../domain/dates';
@@ -8,17 +9,27 @@ import { niceStep, panRange, rangeBetween, zoomRange, type Range } from '../doma
 import { axisIndian, signedInr, signedPct } from '../lib/format';
 import { Card, LegendSwatch } from './ui';
 
-// SVG coordinate space; the element scales to its container.
-const W = 800;
-const H = 410;
+// SVG coordinate space; the element scales to its container. Phones get a
+// narrower, taller space so axis labels stay readable instead of shrinking to ~5px.
 const LEFT = 56;
-// Room on the right for the open-interest axis.
-const RIGHT = W - 44;
 const TOP = 20;
-// Room below the plot for the price axis and the projected-P&L pill.
-const BOTTOM = H - 62;
-const PLOT_W = RIGHT - LEFT;
-const PLOT_H = BOTTOM - TOP;
+function geometry(compact: boolean) {
+  const W = compact ? 440 : 800;
+  const H = compact ? 380 : 410;
+  // Room on the right for the open-interest axis.
+  const RIGHT = W - 44;
+  // Room below the plot for the price axis and the projected-P&L pill.
+  const BOTTOM = H - 62;
+  return { W, H, RIGHT, BOTTOM, PLOT_W: RIGHT - LEFT, PLOT_H: BOTTOM - TOP };
+}
+
+const COMPACT_QUERY = '(max-width: 639px)';
+const subscribeCompact = (cb: () => void) => {
+  const mq = window.matchMedia?.(COMPACT_QUERY);
+  mq?.addEventListener('change', cb);
+  return () => mq?.removeEventListener('change', cb);
+};
+const getCompact = () => window.matchMedia?.(COMPACT_QUERY).matches ?? false;
 /** Smallest zoom window, as a fraction of the default range. */
 const MIN_SPAN = 0.02;
 /** How far past the default range you can pan or zoom out, in default spans per side. */
@@ -47,8 +58,9 @@ function ticks(min: number, max: number, count: number): number[] {
 function svgPoint(svg: SVGSVGElement, clientX: number, clientY: number): { x: number; y: number } | null {
   const box = svg.getBoundingClientRect();
   if (box.width <= 0 || box.height <= 0) return null;
-  const x = ((clientX - box.left) / box.width) * W;
-  const y = ((clientY - box.top) / box.height) * H;
+  const { width, height } = svg.viewBox.baseVal;
+  const x = ((clientX - box.left) / box.width) * width;
+  const y = ((clientY - box.top) / box.height) * height;
   return Number.isFinite(x) && Number.isFinite(y) ? { x, y } : null;
 }
 
@@ -129,6 +141,8 @@ export function PayoffChart({
   marks?: (number | null)[] | null;
   symbol?: string;
 }) {
+  const compact = useSyncExternalStore(subscribeCompact, getCompact, () => false);
+  const { W, H, RIGHT, BOTTOM, PLOT_W, PLOT_H } = geometry(compact);
   const svgRef = useRef<SVGSVGElement>(null);
   const [hoverX, setHoverX] = useState<number | null>(null);
   const [xZoom, setXZoom] = useState<Range | null>(null);
@@ -471,10 +485,10 @@ export function PayoffChart({
           : 'grab';
 
   const btn =
-    'rounded border border-[var(--border)] px-1.5 py-0.5 leading-none text-[var(--text-primary)] hover:border-[var(--border-strong)] disabled:opacity-40';
+    'inline-flex items-center justify-center gap-1 rounded border border-[var(--border)] px-1.5 py-0.5 leading-none text-[var(--text-primary)] hover:border-[var(--border-strong)] disabled:opacity-40 pointer-coarse:min-h-9 pointer-coarse:min-w-9 pointer-coarse:px-2';
   const on = 'border-[var(--border-strong)] bg-[var(--surface-sunken)] font-semibold';
   const stepBtn =
-    'flex h-8 w-8 items-center justify-center text-base text-[var(--text-primary)] hover:bg-[var(--surface-sunken)] disabled:opacity-40';
+    'flex h-8 w-8 items-center justify-center text-base text-[var(--text-primary)] hover:bg-[var(--surface-sunken)] disabled:opacity-40 pointer-coarse:h-11 pointer-coarse:w-11';
   const linkBtn = 'text-xs font-medium text-[var(--series-blue)] hover:underline disabled:opacity-40 disabled:no-underline';
 
   const underlying = symbol ?? 'Underlying';
@@ -514,7 +528,8 @@ export function PayoffChart({
         <span className="ml-auto flex items-center gap-1">
           <span className="flex items-center gap-1" role="group" aria-label="Drag mode">
             <button type="button" aria-pressed={mode === 'pan'} onClick={() => setMode('pan')} className={`${btn} ${mode === 'pan' ? on : ''}`} title="Drag to pan">
-              ✋ Pan
+              <Hand size={14} aria-hidden="true" />
+              Pan
             </button>
             <button
               type="button"
@@ -523,16 +538,18 @@ export function PayoffChart({
               className={`${btn} ${mode === 'zoom' ? on : ''}`}
               title="Drag a box to zoom (or hold Shift while dragging)"
             >
-              ⬚ Box zoom
+              <SquareDashed size={14} aria-hidden="true" />
+              Box zoom
             </button>
           </span>
           <button type="button" onClick={() => zoomX(1 / 1.4, (xMin + xMax) / 2)} className={btn} aria-label="Zoom in" title="Zoom in">
-            +
+            <ZoomIn size={14} aria-hidden="true" />
           </button>
           <button type="button" onClick={() => zoomX(1.4, (xMin + xMax) / 2)} className={btn} aria-label="Zoom out" title="Zoom out">
-            −
+            <ZoomOut size={14} aria-hidden="true" />
           </button>
           <button type="button" onClick={resetView} disabled={!zoomedAny} className={btn} title="Fit the whole payoff (double-click the chart)">
+            <Maximize2 size={14} aria-hidden="true" />
             Fit
           </button>
           <span className="w-10 text-right tabular" style={{ color: zoomedAny ? 'var(--text-secondary)' : 'var(--text-muted)' }}>
@@ -786,7 +803,7 @@ export function PayoffChart({
               </span>
               <div className="flex items-center overflow-hidden rounded-md border border-[var(--border)]">
                 <button type="button" className={stepBtn} aria-label={`Lower target by ${priceStep}`} onClick={() => setTarget(tp - priceStep)}>
-                  −
+                  <Minus size={16} aria-hidden="true" />
                 </button>
                 <input
                   type="text"
@@ -809,10 +826,10 @@ export function PayoffChart({
                       e.currentTarget.blur();
                     }
                   }}
-                  className="h-8 w-24 border-x border-[var(--border)] bg-transparent text-center text-sm tabular text-[var(--text-primary)] outline-none"
+                  className="h-8 w-24 border-x border-[var(--border)] bg-transparent text-center text-sm tabular text-[var(--text-primary)] outline-none pointer-coarse:h-11"
                 />
                 <button type="button" className={stepBtn} aria-label={`Raise target by ${priceStep}`} onClick={() => setTarget(tp + priceStep)}>
-                  +
+                  <Plus size={16} aria-hidden="true" />
                 </button>
               </div>
             </div>

@@ -1,3 +1,5 @@
+import { Briefcase, ChartCandlestick, ChartColumn, ChartLine, FolderOpen, Layers, Newspaper, Table2, type LucideIcon } from 'lucide-react';
+
 export type PageId = 'builder' | 'drafts' | 'chart' | 'oi' | 'chain' | 'report' | 'positions';
 
 export interface Route {
@@ -14,6 +16,16 @@ export const PAGE_LABELS: Record<PageId, string> = {
   chain: 'Option Chain',
   report: 'Daily Report',
   positions: 'Positions',
+};
+
+export const PAGE_ICONS: Record<PageId, LucideIcon> = {
+  builder: Layers,
+  drafts: FolderOpen,
+  chart: ChartCandlestick,
+  oi: ChartColumn,
+  chain: Table2,
+  report: Newspaper,
+  positions: Briefcase,
 };
 
 export interface NavItem {
@@ -42,6 +54,15 @@ export const NAV: NavEntry[] = [
     ],
   },
   { label: 'Positions', page: 'positions' },
+];
+
+/** Phone tab bar: the most used pages one tap away; the Analyse group opens as a sheet. */
+export type MobileTab = { label: string; icon: LucideIcon; page: PageId } | { label: string; icon: LucideIcon; group: string };
+export const MOBILE_TABS: MobileTab[] = [
+  { label: 'Builder', icon: Layers, page: 'builder' },
+  { label: 'Drafts', icon: FolderOpen, page: 'drafts' },
+  { label: 'Analyse', icon: ChartLine, group: 'Analyse' },
+  { label: 'Positions', icon: Briefcase, page: 'positions' },
 ];
 
 const PAGES = Object.keys(PAGE_LABELS) as PageId[];

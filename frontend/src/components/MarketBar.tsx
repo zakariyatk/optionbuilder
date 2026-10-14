@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { TriangleAlert } from 'lucide-react';
 import type { SpotQuote, SymbolInfo } from '../api/types';
 import { daysToExpiry, formatExpiry } from '../domain/dates';
 import { num } from '../lib/format';
@@ -15,8 +16,9 @@ function Freshness({ at }: { at: number | null }) {
   const secs = Math.max(0, Math.round((now - at) / 1000));
   const stale = secs > 60;
   return (
-    <span className="text-[11px] tabular" style={{ color: stale ? 'var(--warning)' : 'var(--text-muted)' }}>
-      {stale ? '⚠ ' : ''}Updated {secs < 60 ? `${secs}s` : `${Math.floor(secs / 60)}m`} ago
+    <span className="inline-flex items-center gap-1 text-[11px] tabular" style={{ color: stale ? 'var(--warning)' : 'var(--text-muted)' }}>
+      {stale && <TriangleAlert size={14} aria-hidden="true" />}
+      Updated {secs < 60 ? `${secs}s` : `${Math.floor(secs / 60)}m`} ago
     </span>
   );
 }
@@ -52,11 +54,11 @@ export function MarketBar({
   const stocks = options.filter((s) => !indices.includes(s));
 
   return (
-    <Card className="flex flex-wrap items-center gap-3 px-4 py-3">
+    <Card className="flex flex-wrap items-center gap-2 px-3 py-3 sm:gap-3 sm:px-4">
       <label className="sr-only" htmlFor="symbol-select">
         Underlying
       </label>
-      <select id="symbol-select" className={`${selectClass} font-medium`} value={symbol} onChange={(e) => onSymbolChange(e.target.value)}>
+      <select id="symbol-select" className={`${selectClass} font-medium max-sm:flex-[3_1_0%]`} value={symbol} onChange={(e) => onSymbolChange(e.target.value)}>
         {indices.length > 0 && (
           <optgroup label="Indices">
             {indices.map((s) => (
@@ -82,7 +84,7 @@ export function MarketBar({
       </label>
       <select
         id="expiry-select"
-        className={selectClass}
+        className={`${selectClass} max-sm:flex-[2_1_0%]`}
         value={expiry ?? ''}
         disabled={expiryDates.length === 0}
         onChange={(e) => onExpiryChange(e.target.value)}
@@ -99,7 +101,7 @@ export function MarketBar({
         })}
       </select>
 
-      <div className="ml-1 flex items-baseline gap-2 tabular" aria-live="polite">
+      <div className="ml-1 flex items-baseline gap-2 tabular max-sm:order-last max-sm:ml-0 max-sm:basis-full max-sm:flex-wrap" aria-live="polite">
         {spot ? (
           <>
             <span className="text-lg font-semibold">{spot.price.toLocaleString('en-IN')}</span>
@@ -120,7 +122,7 @@ export function MarketBar({
         )}
       </div>
 
-      <div className="ml-auto">
+      <div className="ml-auto max-sm:order-last max-sm:-mt-1 max-sm:ml-0">
         <Freshness at={updatedAt} />
       </div>
     </Card>

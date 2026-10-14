@@ -1,4 +1,5 @@
 import { UPSTOX_LOGIN_URL, api } from '../../api/client';
+import { ExternalLink } from 'lucide-react';
 import type { BrokerPosition } from '../../api/types';
 import { Card, CardHeader, Notice, Skeleton } from '../../components/ui';
 import { useAsync } from '../../hooks/useAsync';
@@ -37,9 +38,10 @@ export function PositionsPage({ brokerConnected, brokerConfigured }: { brokerCon
             href={UPSTOX_LOGIN_URL}
             target="_blank"
             rel="noreferrer"
-            className="rounded-md bg-[var(--series-blue)] px-4 py-2 text-sm font-medium text-white hover:opacity-90"
+            className="inline-flex min-h-11 items-center gap-2 rounded-md bg-[var(--series-blue)] px-4 py-2 text-sm font-medium text-white hover:opacity-90"
           >
-            Connect Upstox →
+            Connect Upstox
+            <ExternalLink size={16} aria-hidden="true" />
           </a>
         )}
       </Card>
@@ -54,7 +56,7 @@ export function PositionsPage({ brokerConnected, brokerConfigured }: { brokerCon
   const unrealised = positions.reduce((s, p) => s + p.unrealised, 0);
 
   const table = (list: BrokerPosition[], dim: boolean) => (
-    <div className="overflow-x-auto">
+    <div className="relative overflow-x-auto">
       <table className="w-full min-w-[640px] border-collapse text-sm tabular">
         <thead className="text-left text-xs text-[var(--text-muted)]">
           <tr className="border-b border-[var(--border)]">

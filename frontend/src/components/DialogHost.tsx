@@ -58,7 +58,8 @@ export function DialogHost() {
   const messageId = current.message ? 'app-dialog-message' : undefined;
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/45 p-4" onMouseDown={(e) => e.target === e.currentTarget && cancel()}>
+    <div
+      className="fixed inset-0 z-[100] flex items-start justify-center overflow-y-auto bg-black/45 p-4 pt-[max(12vh,env(safe-area-inset-top))] sm:items-center sm:pt-4" onMouseDown={(e) => e.target === e.currentTarget && cancel()}>
       <div
         ref={box}
         role={current.kind === 'confirm' ? 'alertdialog' : 'dialog'}
@@ -102,11 +103,11 @@ export function DialogHost() {
             />
           ))}
 
-        <div className="mt-6 flex justify-center gap-3">
+        <div className="mt-6 flex flex-wrap-reverse justify-center gap-3">
           <button
             type="button"
             onClick={cancel}
-            className="h-11 min-w-[7.5rem] rounded-lg border border-[var(--border-strong)] bg-[var(--surface-raised)] px-5 text-base font-semibold text-[var(--text-primary)] hover:bg-[var(--surface-sunken)]"
+            className="h-11 min-w-[7.5rem] flex-1 rounded-lg sm:flex-none border border-[var(--border-strong)] bg-[var(--surface-raised)] px-5 text-base font-semibold text-[var(--text-primary)] hover:bg-[var(--surface-sunken)]"
           >
             {current.cancelLabel ?? 'Cancel'}
           </button>
@@ -114,7 +115,7 @@ export function DialogHost() {
             ref={confirmBtn}
             type="button"
             onClick={confirm}
-            className="h-11 min-w-[9rem] rounded-lg bg-[var(--series-blue)] px-5 text-base font-semibold text-white hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--series-blue)]"
+            className="h-11 min-w-[9rem] flex-1 rounded-lg sm:flex-none bg-[var(--series-blue)] px-5 text-base font-semibold text-white hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--series-blue)]"
           >
             {current.confirmLabel ?? 'OK'}
           </button>
