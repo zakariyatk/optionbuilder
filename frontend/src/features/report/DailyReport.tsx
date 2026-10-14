@@ -1,4 +1,5 @@
 import { useRef, useState, type ReactNode } from 'react';
+import { Camera, Download, ExternalLink, TriangleAlert } from 'lucide-react';
 import { UPSTOX_LOGIN_URL, api, assetUrl, errorMessage } from '../../api/client';
 import type { FiiDiiRow, GlobalMarkets, MaxOiSummary, NewsItem, OiPeak } from '../../api/types';
 import { Button, Card, Skeleton, Stat, type Tone } from '../../components/ui';
@@ -186,8 +187,9 @@ function GlobalCues({ data }: { data: GlobalMarkets }) {
         {sentiment.caveats.length > 0 && (
           <ul className="mt-1.5 flex flex-col gap-0.5">
             {sentiment.caveats.map((c) => (
-              <li key={c} className="text-[11px] text-[var(--warning)]">
-                ⚠ {c}
+              <li key={c} className="flex items-start gap-1 text-[11px] text-[var(--warning)]">
+                <TriangleAlert size={14} aria-hidden="true" className="mt-px shrink-0" />
+                {c}
               </li>
             ))}
           </ul>
@@ -297,9 +299,13 @@ export function DailyReport({ symbol, brokerConnected }: { symbol: string; broke
       <div className="flex flex-wrap items-center justify-end gap-2">
         {exportError && <span className="mr-auto text-[11px] text-[var(--critical)]">{exportError}</span>}
         <Button onClick={() => openInstagramCarousel(symbol)} title="Build a 7-slide Instagram carousel from this report" className="font-semibold">
-          📸 Instagram post
+          <Camera size={16} aria-hidden="true" />
+          Instagram post
         </Button>
-        <span className="text-[11px] text-[var(--text-muted)]">Export report</span>
+        <span className="inline-flex items-center gap-1 text-[11px] text-[var(--text-muted)]">
+          <Download size={14} aria-hidden="true" />
+          Export report
+        </span>
         <Button onClick={() => exportAs('png')} disabled={exporting !== null} title="Download as PNG — sharper text, larger file">
           {exporting === 'png' ? 'Rendering…' : 'PNG'}
         </Button>
@@ -367,7 +373,8 @@ export function DailyReport({ symbol, brokerConnected }: { symbol: string; broke
             <div className="text-xs text-[var(--text-muted)]">
               Connect Upstox to load open-interest data.{' '}
               <a href={UPSTOX_LOGIN_URL} target="_blank" rel="noreferrer" className="text-[var(--good-text)] hover:underline">
-                Connect →
+                Connect
+                <ExternalLink size={12} aria-hidden="true" className="ml-0.5 inline align-[-1px]" />
               </a>
             </div>
           )}

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { ChevronDown, FolderOpen } from 'lucide-react';
 import { TEMPLATES, type StrategyTemplate } from '../domain/templates';
 import { Button, Card } from './ui';
 
@@ -24,10 +25,10 @@ function Popover({ label, children, disabled }: { label: ReactNode; children: (c
   return (
     <div className="relative" ref={ref}>
       <Button onClick={() => setOpen((o) => !o)} aria-expanded={open} aria-haspopup="true" disabled={disabled}>
-        {label} <span aria-hidden="true">▾</span>
+        {label} <ChevronDown size={16} aria-hidden="true" className={`transition-transform ${open ? 'rotate-180' : ''}`} />
       </Button>
       {open && (
-        <div className="absolute left-0 z-20 mt-1 w-[min(22rem,calc(100vw-2rem))] rounded-lg border border-[var(--border-strong)] bg-[var(--surface-raised)] p-1 shadow-xl">
+        <div className="absolute left-0 z-20 mt-1 w-[min(22rem,calc(100vw-2rem))] max-sm:fixed max-sm:inset-x-4 max-sm:mt-2 max-sm:w-auto rounded-lg border border-[var(--border-strong)] bg-[var(--surface-raised)] p-1 shadow-xl">
           {children(() => setOpen(false))}
         </div>
       )}
@@ -70,16 +71,16 @@ export function StrategyToolbar({
 
   return (
     <Card className="flex flex-wrap items-center gap-2 px-3 py-2">
-      <span className="mr-1 text-xs font-semibold">Strategy</span>
+      <span className="mr-1 text-xs font-semibold max-sm:hidden">Strategy</span>
 
       <Popover label="Templates" disabled={!canBuild}>
         {(close) => (
-          <ul className="max-h-80 overflow-auto">
+          <ul className="max-h-[min(20rem,60dvh)] overflow-auto overscroll-contain">
             {TEMPLATES.map((t) => (
               <li key={t.id}>
                 <button
                   type="button"
-                  className="w-full rounded px-2 py-1.5 text-left hover:bg-[var(--surface-sunken)]"
+                  className="w-full rounded px-2 py-1.5 text-left hover:bg-[var(--surface-sunken)] pointer-coarse:py-2.5"
                   onClick={() => {
                     onTemplate(t);
                     close();
@@ -126,7 +127,7 @@ export function StrategyToolbar({
                 aria-label="Draft name"
                 maxLength={80}
                 autoFocus
-                className="min-w-0 flex-1 rounded border border-[var(--border)] bg-transparent px-2 py-1 text-xs"
+                className="min-w-0 flex-1 rounded border border-[var(--border)] bg-transparent px-2 py-1 text-xs pointer-coarse:min-h-11"
               />
               <Button type="submit" variant="primary" disabled={saving}>
                 {saving ? 'Saving…' : 'Save'}
@@ -137,7 +138,8 @@ export function StrategyToolbar({
       </Popover>
 
       <Button onClick={onViewDrafts} title="Trade → Draft Portfolios">
-        Drafts{draftCount ? ` (${draftCount})` : ''} →
+        <FolderOpen size={16} aria-hidden="true" />
+        Drafts{draftCount ? ` (${draftCount})` : ''}
       </Button>
 
       <span className="ml-auto hidden text-[11px] text-[var(--text-muted)] md:inline">

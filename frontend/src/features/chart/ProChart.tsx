@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { ExternalLink } from 'lucide-react';
 import { KLineChartPro, type Datafeed, type Period, type SymbolInfo as ProSymbol } from '@klinecharts/pro';
 import '@klinecharts/pro/dist/klinecharts-pro.css';
 import type { KLineData } from 'klinecharts';
@@ -147,8 +148,9 @@ export function ProChart({
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3 text-center text-sm text-[var(--text-muted)]">
         Connect Upstox to load the chart from your account.
-        <a href={UPSTOX_LOGIN_URL} target="_blank" rel="noreferrer" className="rounded-md bg-[var(--series-blue)] px-4 py-2 text-sm font-medium text-white">
-          Connect Upstox →
+        <a href={UPSTOX_LOGIN_URL} target="_blank" rel="noreferrer" className="inline-flex min-h-11 items-center gap-2 rounded-md bg-[var(--series-blue)] px-4 py-2 text-sm font-medium text-white">
+          Connect Upstox
+          <ExternalLink size={16} aria-hidden="true" />
         </a>
       </div>
     );

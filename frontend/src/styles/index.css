@@ -117,6 +117,65 @@ body {
     #050505;
 }
 
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+/* A wide table or chart scrolls inside its own card, never the page sideways. */
+body {
+  overflow-x: clip;
+}
+
+/* No double-tap zoom delay on controls; no grey flash on tap. */
+button,
+a,
+select,
+input,
+label,
+[role='button'] {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* iOS zooms the page into any field under 16px; keep fields at 16px on touch screens. */
+@media (pointer: coarse) {
+  input:not([type='checkbox']):not([type='radio']):not([type='range']),
+  select,
+  textarea {
+    font-size: 16px;
+  }
+  input[type='checkbox'],
+  input[type='radio'] {
+    width: 20px;
+    height: 20px;
+  }
+}
+
+/* Page gutters that also clear device notches (the viewport uses viewport-fit=cover). */
+:root {
+  --gutter: 1rem;
+  /* Height of the mobile tab bar, so content and toasts can clear it. */
+  --tabbar-h: calc(3.75rem + env(safe-area-inset-bottom));
+}
+@media (min-width: 768px) {
+  :root {
+    --tabbar-h: 0px;
+  }
+}
+@media (min-width: 1024px) {
+  :root {
+    --gutter: 1.5rem;
+  }
+}
+.safe-x {
+  padding-left: max(var(--gutter), env(safe-area-inset-left));
+  padding-right: max(var(--gutter), env(safe-area-inset-right));
+}
+.safe-top {
+  padding-top: env(safe-area-inset-top);
+}
+
 :focus-visible {
   outline: 2px solid var(--focus);
   outline-offset: 1px;

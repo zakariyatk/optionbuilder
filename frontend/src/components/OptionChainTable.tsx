@@ -87,7 +87,8 @@ export function OptionChainTable({
   symbol: string;
   lotSize: number;
   expiry: string | null;
-  maxHeight?: number;
+  /** Pixels, or any CSS length. */
+  maxHeight?: number | string;
   /** Adds IV and volume columns — used on the full-width chain tab. */
   detailed?: boolean;
   onAddLeg: AddLegFn;
@@ -140,7 +141,7 @@ export function OptionChainTable({
   return (
     <div
       ref={scrollRef}
-      className="overflow-auto rounded-lg border border-[var(--border)] bg-[var(--surface-card)]"
+      className="relative overflow-auto rounded-lg border border-[var(--border)] bg-[var(--surface-card)]"
       style={{ maxHeight }}
     >
       {manualMode && (

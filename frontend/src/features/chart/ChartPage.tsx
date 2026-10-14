@@ -43,7 +43,8 @@ export function ChartPage({
   const theme = usePageTheme();
   // The chart has its own symbol, so browsing the watchlist never touches the strategy being built.
   const [chartSymbol, setChartSymbol] = useState(symbol);
-  const panelHeight = 'max(520px, calc(100vh - 7rem))';
+  // Fill the screen below the header (and above the phone tab bar).
+  const panelHeight = 'max(420px, calc(100dvh - 7rem - var(--tabbar-h)))';
 
   return (
     <div className="grid grid-cols-1 gap-3 lg:grid-cols-[minmax(0,1fr)_320px]">

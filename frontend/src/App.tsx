@@ -1,4 +1,5 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
+import { ArrowRight } from 'lucide-react';
 import { api, errorMessage, onLoginRequired } from './api/client';
 import type { ChainSide, Draft, Session } from './api/types';
 import { AppHeader } from './components/AppHeader';
@@ -291,7 +292,7 @@ function Workspace({ showLogout, onLogout }: { showLogout: boolean; onLogout: ()
     <>
       <AppHeader route={route} onNavigate={navigate} broker={broker} onLogout={onLogout} showLogout={showLogout} />
 
-      <main className="w-full px-4 py-5 lg:px-6">
+      <main className="safe-x w-full pt-4 md:py-5" style={{ paddingBottom: 'calc(var(--tabbar-h) + 1.25rem)' }}>
         {marketPage && (
           <div className="mb-4 flex flex-col gap-2">
             <MarketBar
@@ -310,7 +311,11 @@ function Workspace({ showLogout, onLogout }: { showLogout: boolean; onLogout: ()
         )}
 
         {notice && (
-          <div className="fixed bottom-4 left-1/2 z-40 -translate-x-1/2 rounded-md bg-[var(--accent)] px-3 py-2 text-xs text-[var(--accent-text)] shadow-lg" role="status">
+          <div
+            className="fixed left-1/2 z-50 w-max max-w-[calc(100vw-2rem)] -translate-x-1/2 rounded-md bg-[var(--accent)] px-3 py-2 text-center text-xs text-[var(--accent-text)] shadow-lg pointer-coarse:text-sm"
+            style={{ bottom: 'calc(var(--tabbar-h) + 1rem)' }}
+            role="status"
+          >
             {notice}
           </div>
         )}
@@ -393,15 +398,16 @@ function Workspace({ showLogout, onLogout }: { showLogout: boolean; onLogout: ()
         {route.page === 'chain' && (
           <section className="flex flex-col gap-2">
             <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-[var(--text-muted)]">
-              <span>Click B / S on any strike to add it to your strategy.</span>
+              <span>Tap B / S on any strike to add it to your strategy.</span>
               {legs.length > 0 && (
                 <Button onClick={() => navigate({ page: 'builder' })}>
-                  {legs.length} leg{legs.length > 1 ? 's' : ''} in strategy — open builder →
+                  {legs.length} leg{legs.length > 1 ? 's' : ''} in strategy — open builder
+                  <ArrowRight size={16} aria-hidden="true" />
                 </Button>
               )}
             </div>
             <ErrorBoundary label="the option chain">
-              <OptionChainTable {...chainProps} maxHeight={720} detailed />
+              <OptionChainTable {...chainProps} maxHeight="min(720px, calc(100dvh - var(--tabbar-h) - 9rem))" detailed />
             </ErrorBoundary>
           </section>
         )}

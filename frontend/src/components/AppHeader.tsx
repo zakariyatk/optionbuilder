@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { ChevronDown, ExternalLink, LogOut, Moon, Sun } from 'lucide-react';
 import { UPSTOX_LOGIN_URL } from '../api/client';
 import type { AuthStatus } from '../api/types';
 import { useTheme } from '../hooks/useTheme';
-import { NAV, PAGE_LABELS, type PageId, type Route } from './tabs';
+import { MOBILE_TABS, NAV, PAGE_ICONS, PAGE_LABELS, type NavItem, type PageId, type Route } from './tabs';
 import { Dot } from './ui';
 
 function BrokerBadge({ status }: { status: AuthStatus | null }) {
@@ -26,10 +27,11 @@ function BrokerBadge({ status }: { status: AuthStatus | null }) {
         href={UPSTOX_LOGIN_URL}
         target="_blank"
         rel="noreferrer"
-        className="rounded-md px-2.5 py-1 text-xs font-medium hover:opacity-85"
+        className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium hover:opacity-85 pointer-coarse:min-h-10"
         style={{ background: 'var(--good-fill)', color: 'var(--good-text)' }}
       >
-        Connect Upstox for live data →
+        Connect Upstox for live data
+        <ExternalLink size={14} aria-hidden="true" />
       </a>
     );
   }
@@ -94,10 +96,109 @@ function Menu({
 }
 
 const Chevron = ({ open }: { open: boolean }) => (
-  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden="true" className={`transition-transform ${open ? 'rotate-180' : ''}`}>
-    <path d="m6 9 6 6 6-6" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-  </svg>
+  <ChevronDown size={14} strokeWidth={2.25} aria-hidden="true" className={`transition-transform ${open ? 'rotate-180' : ''}`} />
 );
+
+/** One page in a navigation list: icon, name and a one-line description. */
+function PageItem({ item, active, onClick }: { item: NavItem; active: boolean; onClick: () => void }) {
+  const Icon = PAGE_ICONS[item.page];
+  return (
+    <button
+      type="button"
+      role="menuitem"
+      aria-current={active ? 'page' : undefined}
+      onClick={onClick}
+      className="flex w-full items-start gap-3 rounded-md px-3 py-2.5 text-left hover:bg-[var(--surface-sunken)]"
+    >
+      <Icon size={20} strokeWidth={1.75} aria-hidden="true" className={`mt-0.5 shrink-0 ${active ? 'text-[var(--series-blue)]' : 'text-[var(--text-secondary)]'}`} />
+      <span className="min-w-0">
+        <span className={`block text-sm font-medium ${active ? 'text-[var(--series-blue)]' : ''}`}>{PAGE_LABELS[item.page]}</span>
+        <span className="block text-xs text-[var(--text-muted)]">{item.description}</span>
+      </span>
+    </button>
+  );
+}
+
+/** Phone navigation: a bottom tab bar; a group tab opens its pages in a bottom sheet. */
+function MobileTabBar({ route, onNavigate }: { route: Route; onNavigate: (page: PageId) => void }) {
+  const [sheet, setSheet] = useState<string | null>(null);
+  const group = sheet ? NAV.find((e) => e.label === sheet && 'items' in e) : undefined;
+  const items = group && 'items' in group ? group.items : [];
+
+  useEffect(() => {
+    if (!sheet) return;
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setSheet(null);
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [sheet]);
+
+  return (
+    <>
+      {sheet && (
+        <div className="fixed inset-0 z-40 bg-black/45 md:hidden" onClick={() => setSheet(null)}>
+          <div
+            role="menu"
+            aria-label={`${sheet} pages`}
+            onClick={(e) => e.stopPropagation()}
+            className="absolute inset-x-0 rounded-t-2xl border-t border-[var(--border-strong)] bg-[var(--surface-raised)] p-2 shadow-2xl"
+            style={{ bottom: 'var(--tabbar-h)' }}
+          >
+            <div className="px-3 pb-1 pt-2 text-[11px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">{sheet}</div>
+            {items.map((item) => (
+              <PageItem
+                key={item.page}
+                item={item}
+                active={route.page === item.page}
+                onClick={() => {
+                  setSheet(null);
+                  onNavigate(item.page);
+                }}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+      <nav
+        aria-label="Main"
+        className="fixed inset-x-0 bottom-0 z-40 flex border-t border-[var(--border)] bg-[var(--surface-raised)] md:hidden"
+        style={{ height: 'var(--tabbar-h)', paddingBottom: 'env(safe-area-inset-bottom)', paddingLeft: 'env(safe-area-inset-left)', paddingRight: 'env(safe-area-inset-right)' }}
+      >
+        {MOBILE_TABS.map((tab) => {
+          const groupEntry = 'group' in tab ? NAV.find((e) => e.label === tab.group) : undefined;
+          const active =
+            'page' in tab
+              ? route.page === tab.page
+              : !!groupEntry && 'items' in groupEntry && groupEntry.items.some((i) => i.page === route.page);
+          const open = 'group' in tab && sheet === tab.group;
+          const Icon = tab.icon;
+          return (
+            <button
+              key={tab.label}
+              type="button"
+              aria-current={'page' in tab && active ? 'page' : undefined}
+              aria-haspopup={'group' in tab ? 'menu' : undefined}
+              aria-expanded={'group' in tab ? open : undefined}
+              onClick={() => {
+                if ('page' in tab) {
+                  setSheet(null);
+                  onNavigate(tab.page);
+                } else setSheet((s) => (s === tab.group ? null : tab.group));
+              }}
+              className={`flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 text-[11px] font-medium ${
+                active || open ? 'text-[var(--series-blue)]' : 'text-[var(--text-secondary)]'
+              }`}
+            >
+              <span className={`flex h-7 w-14 items-center justify-center rounded-full ${active ? 'bg-[color-mix(in_srgb,var(--series-blue)_14%,transparent)]' : ''}`}>
+                <Icon size={22} strokeWidth={active ? 2.1 : 1.75} aria-hidden="true" />
+              </span>
+              <span className="truncate">{tab.label}</span>
+            </button>
+          );
+        })}
+      </nav>
+    </>
+  );
+}
 
 const navItemClass = (active: boolean) =>
   `relative flex h-full items-center gap-1 px-3 text-sm font-medium transition-colors ${
@@ -130,8 +231,9 @@ export function AppHeader({
   const userName = broker?.token?.user_name ?? null;
 
   return (
-    <header className="sticky top-0 z-30 border-b border-[var(--border)] bg-[var(--surface-raised)]">
-      <div className="flex w-full flex-wrap items-center gap-x-4 px-4 md:h-14 md:flex-nowrap lg:px-6">
+    <>
+    <header className="safe-top sticky top-0 z-30 border-b border-[var(--border)] bg-[var(--surface-raised)]">
+      <div className="safe-x flex h-14 w-full items-center gap-x-4">
         <div className="flex h-14 min-w-0 items-center gap-2.5">
           <a className="ob-logo" href="https://www.adddots.com/" aria-label="ADD DOTS home">
             AD
@@ -145,10 +247,7 @@ export function AppHeader({
           <span className="truncate text-sm font-semibold text-[var(--text-primary)]">{PAGE_LABELS[route.page]}</span>
         </div>
 
-        <nav
-          aria-label="Main"
-          className="order-last -mx-4 flex h-11 w-[calc(100%+2rem)] items-stretch justify-center gap-1 border-t border-[var(--border)] md:order-none md:mx-0 md:h-full md:w-auto md:flex-1 md:border-t-0"
-        >
+        <nav aria-label="Main" className="hidden h-full flex-1 items-stretch justify-center gap-1 md:flex">
           {NAV.map((entry) =>
             'page' in entry ? (
               <button
@@ -172,19 +271,15 @@ export function AppHeader({
               >
                 {(close) =>
                   entry.items.map((item) => (
-                    <button
+                    <PageItem
                       key={item.page}
-                      type="button"
-                      role="menuitem"
+                      item={item}
+                      active={route.page === item.page}
                       onClick={() => {
                         go(item.page);
                         close();
                       }}
-                      className="block w-full rounded-md px-3 py-2 text-left hover:bg-[var(--surface-sunken)]"
-                    >
-                      <div className={`text-sm font-medium ${route.page === item.page ? 'text-[var(--series-blue)]' : ''}`}>{PAGE_LABELS[item.page]}</div>
-                      <div className="text-xs text-[var(--text-muted)]">{item.description}</div>
-                    </button>
+                    />
                   ))
                 }
               </Menu>
@@ -192,7 +287,7 @@ export function AppHeader({
           )}
         </nav>
 
-        <div className="ml-auto flex h-14 items-center gap-3 md:ml-0">
+        <div className="ml-auto flex h-14 shrink-0 items-center gap-3 md:ml-0">
           <span className="hidden lg:block">
             <BrokerBadge status={broker} />
           </span>
@@ -200,7 +295,7 @@ export function AppHeader({
             label="Account menu"
             align="right"
             trigger={(open) => (
-              <span className="flex items-center gap-1 text-[var(--text-secondary)]">
+              <span className="flex min-h-11 items-center gap-1 text-[var(--text-secondary)]">
                 <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--series-blue)] text-xs font-bold text-white">
                   {initials(userName)}
                 </span>
@@ -216,7 +311,8 @@ export function AppHeader({
                     <BrokerBadge status={broker} />
                   </div>
                 </div>
-                <button type="button" role="menuitem" onClick={toggle} className="rounded-md px-3 py-2 text-left text-sm hover:bg-[var(--surface-sunken)]">
+                <button type="button" role="menuitem" onClick={toggle} className={accountItem}>
+                  {theme === 'light' ? <Moon size={18} aria-hidden="true" /> : <Sun size={18} aria-hidden="true" />}
                   {theme === 'light' ? 'Dark theme' : 'Light theme'}
                 </button>
                 {showLogout && (
@@ -227,8 +323,9 @@ export function AppHeader({
                       close();
                       onLogout();
                     }}
-                    className="rounded-md px-3 py-2 text-left text-sm text-[var(--critical)] hover:bg-[var(--surface-sunken)]"
+                    className={`${accountItem} text-[var(--critical)]`}
                   >
+                    <LogOut size={18} aria-hidden="true" />
                     Sign out
                   </button>
                 )}
@@ -238,5 +335,9 @@ export function AppHeader({
         </div>
       </div>
     </header>
+    <MobileTabBar route={route} onNavigate={go} />
+    </>
   );
 }
+
+const accountItem = 'flex min-h-11 items-center gap-2.5 rounded-md px-3 py-2 text-left text-sm hover:bg-[var(--surface-sunken)]';

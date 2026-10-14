@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { ExternalLink, Minus, Plus, RotateCcw } from 'lucide-react';
 import { api, UPSTOX_LOGIN_URL } from '../../api/client';
 import type { SpotQuote } from '../../api/types';
 import { Card } from '../../components/ui';
@@ -123,8 +124,9 @@ export function OpenInterestPage({ symbol, spot, brokerConnected }: { symbol: st
     return (
       <Card className="flex flex-col items-center gap-3 px-6 py-12 text-center text-sm text-[var(--text-muted)]">
         Open interest comes from your Upstox option chain.
-        <a href={UPSTOX_LOGIN_URL} target="_blank" rel="noreferrer" className="rounded-md bg-[var(--series-blue)] px-4 py-2 font-medium text-white">
-          Connect Upstox →
+        <a href={UPSTOX_LOGIN_URL} target="_blank" rel="noreferrer" className="inline-flex min-h-11 items-center gap-2 rounded-md bg-[var(--series-blue)] px-4 py-2 font-medium text-white">
+          Connect Upstox
+          <ExternalLink size={16} aria-hidden="true" />
         </a>
       </Card>
     );
@@ -215,8 +217,9 @@ export function OpenInterestPage({ symbol, spot, brokerConnected }: { symbol: st
           <Card className="p-4">
             <div className="flex items-center justify-between">
               <span className="text-sm text-[var(--text-secondary)]">Strike range</span>
-              <button type="button" onClick={() => setAround(10)} className="text-sm font-medium text-[var(--series-blue)] hover:underline">
-                ↺ Reset
+              <button type="button" onClick={() => setAround(10)} className="inline-flex min-h-9 items-center gap-1 text-sm font-medium text-[var(--series-blue)] hover:underline">
+                <RotateCcw size={16} aria-hidden="true" />
+                Reset
               </button>
             </div>
             <div className="mt-3 grid grid-cols-2 gap-3">
@@ -230,11 +233,11 @@ export function OpenInterestPage({ symbol, spot, brokerConnected }: { symbol: st
                   <div className="mb-1 text-xs text-[var(--text-muted)]">{label}</div>
                   <div className="flex items-center overflow-hidden rounded-md border border-[var(--border)]">
                     <button type="button" className={stepper} aria-label={`Lower ${label}`} onClick={() => setCustomRange({ [key]: (key === 'min' ? min : max) - step })}>
-                      −
+                      <Minus size={16} aria-hidden="true" />
                     </button>
                     <span className="flex-1 text-center text-sm tabular">{bounds ? (key === 'min' ? min : max) : '—'}</span>
                     <button type="button" className={stepper} aria-label={`Raise ${label}`} onClick={() => setCustomRange({ [key]: (key === 'min' ? min : max) + step })}>
-                      +
+                      <Plus size={16} aria-hidden="true" />
                     </button>
                   </div>
                 </div>

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { ChevronDown, Pencil, Plus, Trash2 } from 'lucide-react';
 import { confirmDialog } from '../../lib/dialog';
 import { activeList, useWatchlist } from '../../store/watchlist';
 
@@ -71,7 +72,7 @@ export function WatchlistMenu() {
   };
 
   const iconBtn =
-    'flex h-6 w-6 shrink-0 items-center justify-center rounded text-xs text-[var(--text-muted)] hover:bg-[var(--surface-sunken)] hover:text-[var(--text-primary)]';
+    'flex h-7 w-7 shrink-0 items-center justify-center rounded text-[var(--text-muted)] hover:bg-[var(--surface-sunken)] hover:text-[var(--text-primary)] pointer-coarse:h-10 pointer-coarse:w-10';
 
   return (
     <div ref={ref} className="relative min-w-0 flex-1">
@@ -88,17 +89,15 @@ export function WatchlistMenu() {
             setRenaming(active.id);
           }}
           title="Click to switch lists · double-click to rename"
-          className="flex max-w-full items-center gap-1 rounded-md border border-transparent px-1.5 py-0.5 text-sm font-semibold hover:border-[var(--border)]"
+          className="flex max-w-full items-center gap-1 rounded-md border border-transparent px-1.5 py-0.5 text-sm font-semibold hover:border-[var(--border)] pointer-coarse:min-h-10"
         >
           <span className="truncate">{active.name}</span>
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden="true" className={`shrink-0 transition-transform ${open ? 'rotate-180' : ''}`}>
-            <path d="m6 9 6 6 6-6" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
+          <ChevronDown size={16} aria-hidden="true" className={`shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
         </button>
       )}
 
       {open && (
-        <div role="menu" className="absolute left-0 top-full z-30 mt-1 w-64 rounded-lg border border-[var(--border-strong)] bg-[var(--surface-raised)] p-1 shadow-xl">
+        <div role="menu" className="absolute left-0 top-full z-30 mt-1 w-[min(16rem,calc(100vw-3rem))] rounded-lg border border-[var(--border-strong)] bg-[var(--surface-raised)] p-1 shadow-xl">
           <div className="max-h-72 overflow-y-auto">
             {lists.map((l) => (
               <div
@@ -126,7 +125,7 @@ export function WatchlistMenu() {
                 {renaming !== l.id && (
                   <>
                     <button type="button" className={iconBtn} aria-label={`Rename ${l.name}`} title="Rename" onClick={() => setRenaming(l.id)}>
-                      ✎
+                      <Pencil size={16} aria-hidden="true" />
                     </button>
                     <button
                       type="button"
@@ -136,7 +135,7 @@ export function WatchlistMenu() {
                       disabled={lists.length <= 1}
                       onClick={() => void remove(l.id, l.name)}
                     >
-                      🗑
+                      <Trash2 size={16} aria-hidden="true" />
                     </button>
                   </>
                 )}
@@ -150,7 +149,8 @@ export function WatchlistMenu() {
             onClick={() => setRenaming(create())}
             className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm font-medium text-[var(--series-blue)] hover:bg-[var(--surface-sunken)]"
           >
-            + Create new watchlist
+            <Plus size={18} aria-hidden="true" />
+            Create new watchlist
           </button>
         </div>
       )}
