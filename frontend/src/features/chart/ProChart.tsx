@@ -4,11 +4,15 @@ import { KLineChartPro, type Datafeed, type Period, type SymbolInfo as ProSymbol
 import '@klinecharts/pro/dist/klinecharts-pro.css';
 import { TooltipShowRule, type KLineData } from 'klinecharts';
 import { api, UPSTOX_LOGIN_URL } from '../../api/client';
-import { PERIODS } from './periods';
+import { nseOpen } from '../../lib/nse';
+import { attachLiveTag, innerChart, LIVE_TAG_STYLES } from './liveTag';
+import { PERIODS, periodMs } from './periods';
 import type { SymbolInfo } from '../../api/types';
 
 const INTRADAY_POLL_MS = 15_000;
 const DAILY_POLL_MS = 60_000;
+/** Live quote → forming candle. The server caches quotes for 5s, so this stays cheap. */
+const QUOTE_TICK_MS = 2_000;
 
 const tfOf = (p: Period) => PERIODS.find((x) => x.multiplier === p.multiplier && x.timespan === p.timespan)?.tf ?? '15m';
 
@@ -30,10 +34,13 @@ async function loadCandles(symbol: string, period: Period): Promise<KLineData[]>
 
 /**
  * Upstox as the chart's datafeed: the whole candle history Upstox gives for a
- * timeframe on first load, then the latest bar re-polled for live updates.
+ * timeframe on first load, then the latest bars re-polled, and in between the
+ * live quote moves the forming candle (and opens the next one on time) so the
+ * chart ticks like TradingView.
  */
-function upstoxDatafeed(symbols: () => SymbolInfo[]): Datafeed {
-  const timers = new Map<string, number>();
+function upstoxDatafeed(symbols: () => SymbolInfo[], onTick: () => void): Datafeed {
+  const timers = new Map<string, number[]>();
+  const stop = (k: string) => timers.get(k)?.forEach((t) => window.clearInterval(t));
   const key = (s: ProSymbol, p: Period) => `${s.ticker}|${p.multiplier}${p.timespan}`;
   return {
     async searchSymbols(search = '') {
@@ -51,24 +58,50 @@ function upstoxDatafeed(symbols: () => SymbolInfo[]): Datafeed {
     },
     subscribe(symbol, period, callback) {
       const k = key(symbol, period);
-      window.clearInterval(timers.get(k));
+      stop(k);
       let last = 0;
+      /** The forming bar, as last sent to the chart. */
+      let bar: KLineData | null = null;
+      const send = (b: KLineData) => {
+        bar = b;
+        callback(b);
+        onTick();
+      };
       const tick = async () => {
         if (document.visibilityState !== 'visible') return;
         try {
           const bars = await loadCandles(symbol.ticker, period);
-          for (const b of bars.slice(-2)) if (b.timestamp >= last) callback(b);
+          for (const b of bars.slice(-2)) if (b.timestamp >= last && (!bar || b.timestamp >= bar.timestamp)) send(b);
           last = bars[bars.length - 1]?.timestamp ?? last;
         } catch {
           /* keep the chart as is; the next poll retries */
         }
       };
+      const quoteTick = async () => {
+        if (!bar || document.visibilityState !== 'visible' || !nseOpen()) return;
+        try {
+          const q = (await api.watch([symbol.ticker])).quotes[0];
+          if (!bar || !q || 'error' in q || !(q.price > 0)) return;
+          const price = q.price;
+          const span = periodMs(period);
+          const now = Date.now();
+          if (span !== null && now >= bar.timestamp + span) {
+            // Open the next bar only when it directly follows this one (not across a session gap; the candle poll brings that).
+            if (now < bar.timestamp + 2 * span) send({ timestamp: bar.timestamp + span, open: price, high: price, low: price, close: price, volume: 0 });
+            return;
+          }
+          if (price !== bar.close) send({ ...bar, close: price, high: Math.max(bar.high, price), low: Math.min(bar.low, price) });
+        } catch {
+          /* next tick retries */
+        }
+      };
       const intraday = period.timespan === 'minute' || period.timespan === 'hour';
-      timers.set(k, window.setInterval(tick, intraday ? INTRADAY_POLL_MS : DAILY_POLL_MS));
+      void tick();
+      timers.set(k, [window.setInterval(tick, intraday ? INTRADAY_POLL_MS : DAILY_POLL_MS), window.setInterval(quoteTick, QUOTE_TICK_MS)]);
     },
     unsubscribe(symbol, period) {
       const k = key(symbol, period);
-      window.clearInterval(timers.get(k));
+      stop(k);
       timers.delete(k);
     },
   };
@@ -157,9 +190,26 @@ export function ProChart({
       styles: { candle: { tooltip: { showRule: compactRef.current ? TooltipShowRule.FollowCross : TooltipShowRule.Always } } },
       mainIndicators: ['MA'],
       subIndicators: ['VOL'],
-      datafeed: upstoxDatafeed(() => symbolsRef.current),
+      datafeed: upstoxDatafeed(
+        () => symbolsRef.current,
+        () => tag?.refresh(),
+      ),
     });
+    const pro = chart.current;
+
+    // Live price + candle countdown on the price axis, once the inner chart exists.
+    let tag: ReturnType<typeof attachLiveTag> | null = null;
+    let frame = 0;
+    const attach = () => {
+      const inner = innerChart(el);
+      if (inner) tag = attachLiveTag(el, inner, () => pro.getPeriod());
+      else frame = requestAnimationFrame(attach);
+    };
+    attach();
+
     return () => {
+      cancelAnimationFrame(frame);
+      tag?.dispose();
       el.replaceChildren();
       chart.current = null;
     };
@@ -175,6 +225,8 @@ export function ProChart({
 
   useEffect(() => {
     chart.current?.setTheme(theme);
+    // A theme swap resets the chart styles, including the live tag's.
+    chart.current?.setStyles(LIVE_TAG_STYLES);
   }, [theme]);
 
   if (!brokerConnected) {
