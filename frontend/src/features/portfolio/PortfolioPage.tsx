@@ -28,6 +28,7 @@ import { displaySymbol, isUs } from '../../lib/markets';
 import { nameOf } from '../../lib/symbolNames';
 import { marketOpen, NSE_SESSION, US_SESSION } from '../../lib/nse';
 import { buildDemoTransactions } from './demo';
+import { FxPanel } from './FxPanel';
 import { PerformanceChart, type ChartLine } from './PerformanceChart';
 import { TransactionDialog, type TxnDraft } from './TransactionDialog';
 import { useFuturesQuotes, useLiveQuotes, usePortfolios, usePriceHistory } from './usePortfolios';
@@ -625,6 +626,7 @@ export function PortfolioPage({ brokerConnected, symbols }: { brokerConnected: b
                   </div>
                 </>
               )}
+              <FxPanel txns={txns} history={history.data ?? undefined} liveFx={fx} currencyGain={v.currencyGain} />
             </Panel>
 
             <Panel

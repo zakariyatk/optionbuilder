@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import type { PortfolioTxn } from '../api/types';
 import {
+  avgBuyFx,
   benchmarkSeries,
+  usReturnsInrVsUsd,
   findOversell,
   holdingValue,
   replaceTxn,
@@ -288,5 +290,30 @@ describe('fractional US shares', () => {
     const v = valueBook(book, { 'US:AAPL': { price: 220, previousClose: 220 }, USDINR: { price: 80, previousClose: 80 } }, {}, '2026-10-10');
     expect(v.currentValue).toBeCloseTo(0.5 * 220 * 80);
     expect(v.totalPnl).toBeCloseTo(0.5 * 20 * 80);
+  });
+});
+
+describe('INR vs USD', () => {
+  it('splits US returns into dollar and rupee legs', () => {
+    const days = ['2026-01-05', '2026-01-06', '2026-01-07'];
+    const history = {
+      'US:AAPL': pts([['2026-01-05', 100], ['2026-01-06', 110], ['2026-01-07', 110]]),
+      USDINR: pts([['2026-01-05', 80], ['2026-01-06', 80], ['2026-01-07', 88]]),
+    };
+    const r = usReturnsInrVsUsd([txn({ symbol: 'US:AAPL', qty: 1, price: 100, fx: 80 }), txn({ symbol: 'INFY' })], history, days)!;
+    expect(r.usd.at(-1)!.value).toBeCloseTo(1.1);
+    expect(r.inr.at(-1)!.value).toBeCloseTo(1.21);
+  });
+  it('is null without US stocks', () => {
+    expect(usReturnsInrVsUsd([txn({})], {}, ['2026-01-05'])).toBeNull();
+  });
+  it('averages the buy rate by dollar amount', () => {
+    const t = [
+      txn({ symbol: 'US:AAPL', qty: 1, price: 100, fx: 80 }),
+      txn({ symbol: 'US:MSFT', qty: 3, price: 100, fx: 84 }),
+      txn({ symbol: 'US:AAPL', side: 'SELL', qty: 1, price: 100, fx: 90 }),
+    ];
+    expect(avgBuyFx(t)).toBeCloseTo(83);
+    expect(avgBuyFx([txn({})])).toBeNull();
   });
 });

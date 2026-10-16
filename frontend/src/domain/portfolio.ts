@@ -612,3 +612,41 @@ export function monthlyReturns(s: SeriesPoint[]): { month: string; ret: number }
   }
   return out;
 }
+
+// ------------------------------------------------------------- INR vs USD
+
+/**
+ * Your US stocks' time-weighted return measured two ways: in rupees (each
+ * day's USD/INR, as the portfolio chart does) and in dollars (as if the rate
+ * never moved). The gap between them is what the rupee added or took away.
+ * Null when the portfolio holds no US stocks.
+ */
+export function usReturnsInrVsUsd(
+  txns: PortfolioTxn[],
+  history: Record<string, PricePoints>,
+  calendar: string[],
+): { inr: SeriesPoint[]; usd: SeriesPoint[] } | null {
+  const us = txns.filter((t) => t.kind === 'STOCK' && isUs(t.symbol));
+  if (us.length === 0) return null;
+  const inr = portfolioSeries(us, history, calendar);
+  // The same maths with every rate pinned at 1 gives the dollar return.
+  const flat: Record<string, PricePoints> = { ...history, [FX_KEY]: (history[FX_KEY] ?? []).map(([t]) => [t, 1]) };
+  const usd = portfolioSeries(
+    us.map((t) => ({ ...t, fx: 1 })),
+    flat,
+    calendar,
+  );
+  return { inr, usd };
+}
+
+/** The USD/INR you paid on average across your US buys, weighted by their dollar amount. Null with none. */
+export function avgBuyFx(txns: PortfolioTxn[]): number | null {
+  let usd = 0;
+  let rupees = 0;
+  for (const t of txns) {
+    if (t.kind !== 'STOCK' || t.side !== 'BUY' || !isUs(t.symbol) || !(t.fx && t.fx > 0)) continue;
+    usd += t.qty * t.price;
+    rupees += t.qty * t.price * t.fx;
+  }
+  return usd > 0 ? rupees / usd : null;
+}
