@@ -6,6 +6,9 @@ import { BottomSheet } from '../../components/BottomSheet';
 import { useAsync } from '../../hooks/useAsync';
 import { PHONE_QUERY, useMediaQuery } from '../../hooks/useMediaQuery';
 import { num } from '../../lib/format';
+import { useChartLayout } from '../../store/chartLayout';
+import { CELL_NAMES, chartCount, gridStyle, layoutById } from './layouts';
+import { LayoutMenu } from './LayoutMenu';
 import { PERIODS } from './periods';
 import { ProChart, type ProChartActions, type ProTool } from './ProChart';
 import { Watchlist } from './Watchlist';
@@ -49,14 +52,16 @@ export function ChartPage({
 }) {
   const theme = usePageTheme();
   const phone = useMediaQuery(PHONE_QUERY);
-  // The chart has its own symbol, so browsing the watchlist never touches the strategy being built.
-  const [chartSymbol, setChartSymbol] = useState(symbol);
+  // The charts have their own symbols, so browsing the watchlist never touches the strategy being built.
+  const { layoutId, symbols: chartSymbols, active, setLayout, setActive, setSymbol } = useChartLayout();
+  // The first chart opens on the builder's underlying, as the single chart always did.
+  useEffect(() => useChartLayout.getState().setSymbol(symbol, 0), [symbol]);
 
   if (phone) {
     return (
       <PhoneChart
-        symbol={chartSymbol}
-        onSymbol={setChartSymbol}
+        symbol={chartSymbols[0]}
+        onSymbol={(s) => setSymbol(s, 0)}
         symbolInfo={symbolInfo}
         theme={theme}
         brokerConnected={brokerConnected}
@@ -66,13 +71,40 @@ export function ChartPage({
   }
 
   const panelHeight = 'max(520px, calc(100dvh - 7rem))';
+  const layout = layoutById(layoutId);
+  const count = chartCount(layout);
   return (
     <div className="grid grid-cols-1 gap-3 lg:grid-cols-[minmax(0,1fr)_320px]">
-      <div className="overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--surface-card)]" style={{ height: panelHeight }}>
-        <ProChart symbol={chartSymbol} symbolInfo={symbolInfo} theme={theme} brokerConnected={brokerConnected} />
+      <div className="flex flex-col overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--surface-card)]" style={{ height: panelHeight }}>
+        {/* Above the charts, whose own labels and panels use z-index, so the layout menu opens over them. */}
+        <div className="relative z-40 flex items-center gap-2 border-b border-[var(--border)] px-2 py-1">
+          <LayoutMenu layoutId={layout.id} onChange={setLayout} />
+          {count > 1 && <span className="truncate text-xs text-[var(--text-muted)]">Click a chart to select it; the watchlist changes the selected chart.</span>}
+        </div>
+        <div className="grid min-h-0 flex-1 gap-px bg-[var(--border)]" style={gridStyle(layout)}>
+          {CELL_NAMES.slice(0, count).map((area, i) => (
+            <div
+              key={i}
+              data-chart-active={String(i === active)}
+              onPointerDownCapture={() => setActive(i)}
+              onFocusCapture={() => setActive(i)}
+              className="relative min-h-0 min-w-0 bg-[var(--surface-card)]"
+              style={{ gridArea: area }}
+            >
+              <ProChart
+                symbol={chartSymbols[i]}
+                symbolInfo={symbolInfo}
+                theme={theme}
+                brokerConnected={brokerConnected}
+                onSymbolChange={(s) => setSymbol(s, i)}
+              />
+              {count > 1 && i === active && <div aria-hidden="true" className="pointer-events-none absolute inset-0 z-20 border-2 border-[var(--series-blue)]" />}
+            </div>
+          ))}
+        </div>
       </div>
       <div className="flex min-h-[420px] flex-col lg:min-h-0" style={{ height: panelHeight }}>
-        <Watchlist symbolInfo={symbolInfo} selected={chartSymbol} onSelect={setChartSymbol} onOpenBuilder={onOpenBuilder} />
+        <Watchlist symbolInfo={symbolInfo} selected={chartSymbols[active]} onSelect={(s) => setSymbol(s)} onOpenBuilder={onOpenBuilder} />
       </div>
     </div>
   );

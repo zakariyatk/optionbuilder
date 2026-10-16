@@ -20,6 +20,13 @@ export const LIVE_TAG_STYLES: DeepPartial<Styles> = {
  * private, but klinecharts' init() hands back the existing chart when the
  * element's id matches the chart id it was registered under.
  */
+/**
+ * With several charts on the page only the active one answers keyboard
+ * shortcuts; its cell carries data-chart-active="true". A chart outside any
+ * cell (one chart, phones) always is.
+ */
+export const isActiveChart = (host: HTMLElement) => host.closest('[data-chart-active]')?.getAttribute('data-chart-active') !== 'false';
+
 export function innerChart(host: HTMLElement): Chart | null {
   const el = host.querySelector<HTMLElement>('[k-line-chart-id]');
   if (!el) return null;

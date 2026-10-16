@@ -1,4 +1,5 @@
 import { init, registerOverlay, type Chart, type Overlay, type OverlayEvent, type OverlayFigure, type OverlayTemplate, type Point } from 'klinecharts';
+import { isActiveChart } from './liveTag';
 
 /**
  * Extra drawing tools for the KLineChart Pro toolbar, TradingView-style:
@@ -286,7 +287,7 @@ export function installDrawingTools(container: HTMLElement): () => void {
   };
 
   const onKey = (e: KeyboardEvent) => {
-    if (!container.isConnected || isTyping(e.target)) return;
+    if (!container.isConnected || !isActiveChart(container) || isTyping(e.target)) return;
     if (e.altKey && e.code === 'KeyJ') {
       e.preventDefault();
       start(TOOLS[0]);

@@ -1,7 +1,7 @@
 import { DomPosition, registerOverlay, type Chart, type Overlay, type OverlayFigure, type OverlayTemplate } from 'klinecharts';
 import { activeAlerts, useAlerts } from '../../store/alerts';
 import { armAlertSound } from '../alerts/alertSignals';
-import { innerChart } from './liveTag';
+import { innerChart, isActiveChart } from './liveTag';
 
 /**
  * TradingView-style price alerts on the chart: a dashed line at the level
@@ -293,7 +293,7 @@ export function installPriceAlerts(container: HTMLElement, symbol: () => string)
   };
   const isTyping = (t: EventTarget | null) => t instanceof HTMLElement && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName));
   const onKey = (e: KeyboardEvent) => {
-    if (!container.isConnected || isTyping(e.target)) return;
+    if (!container.isConnected || !isActiveChart(container) || isTyping(e.target)) return;
     if (e.key === 'Escape' && !menu.hidden) closeMenu();
     if (!e.altKey || (e.code !== 'KeyA' && e.code !== 'KeyH')) return;
     const price = cursorPrice ?? lastPrice();

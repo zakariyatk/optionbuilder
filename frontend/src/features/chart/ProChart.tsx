@@ -46,6 +46,8 @@ interface FeedHooks {
   current: () => { symbol: ProSymbol; period: Period } | null;
   /** Makes the chart load its current symbol / period again. */
   reload: () => void;
+  /** The chart finished loading this symbol (it may have been picked in the chart's own search). */
+  onLoaded: (ticker: string) => void;
 }
 
 /**
@@ -99,6 +101,7 @@ function upstoxDatafeed(symbols: () => SymbolInfo[], hooks: FeedHooks): Datafeed
         window.clearTimeout(retry);
         if (!showing(symbol, period)) hooks.reload();
         else if (failed) retry = window.setTimeout(() => !disposed && showing(symbol, period) && hooks.reload(), HISTORY_RETRY_MS);
+        else hooks.onLoaded(symbol.ticker);
       }, 0);
       const first = all[0]?.timestamp ?? 0;
       return to < first ? [] : all.filter((c) => c.timestamp <= to);
@@ -189,6 +192,7 @@ export function ProChart({
   brokerConnected,
   compact = false,
   actionsRef,
+  onSymbolChange,
 }: {
   symbol: string;
   symbolInfo: SymbolInfo[];
@@ -197,11 +201,17 @@ export function ProChart({
   /** Phone layout: no built-in period bar or drawing rail; a parent toolbar drives them through `actionsRef`. */
   compact?: boolean;
   actionsRef?: RefObject<ProChartActions | null>;
+  /** The chart switched symbol on its own (its search box). */
+  onSymbolChange?: (symbol: string) => void;
 }) {
   const host = useRef<HTMLDivElement>(null);
   const chart = useRef<KLineChartPro | null>(null);
   const symbolsRef = useRef(symbolInfo);
   symbolsRef.current = symbolInfo;
+  const symbolRef = useRef(symbol);
+  symbolRef.current = symbol;
+  const onSymbolChangeRef = useRef(onSymbolChange);
+  onSymbolChangeRef.current = onSymbolChange;
   const compactRef = useRef(compact);
   compactRef.current = compact;
   const scaleRef = useRef<ReturnType<typeof installScaleButtons> | null>(null);
@@ -246,6 +256,9 @@ export function ProChart({
         const c = chart.current;
         if (c) c.setSymbol({ ...c.getSymbol() });
       },
+      onLoaded: (ticker) => {
+        if (ticker !== symbolRef.current) onSymbolChangeRef.current?.(ticker);
+      },
     });
     chart.current = new KLineChartPro({
       container: el,
@@ -268,6 +281,9 @@ export function ProChart({
     const pro = chart.current;
     const alerts = installPriceAlerts(el, () => pro.getSymbol().ticker);
     const scale = installScaleButtons(el);
+    // Pro only resizes with the window; a chart in a multi-chart layout also changes size when the layout does.
+    const resize = new ResizeObserver(() => innerChart(el)?.resize());
+    resize.observe(el);
     scaleRef.current = scale;
 
     // Live price + candle countdown on the price axis, once the inner chart exists.
@@ -285,6 +301,7 @@ export function ProChart({
       removeTools();
       alerts.dispose();
       scale.dispose();
+      resize.disconnect();
       scaleRef.current = null;
       cancelAnimationFrame(frame);
       tag?.dispose();
