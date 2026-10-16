@@ -77,6 +77,13 @@ export function TransactionDialog({
   const [usPicked, setUsPicked] = useState<UsSearchResult | null>(null);
   const [fx, setFx] = useState(e0?.fx ? String(e0.fx) : '');
   const [fxTouched, setFxTouched] = useState(!!e0?.fx);
+  /** The rate is locked to the market close until it's double-clicked. */
+  const [fxEditing, setFxEditing] = useState(false);
+  const fxInput = useRef<HTMLInputElement>(null);
+  const unlockFx = () => {
+    setFxEditing(true);
+    requestAnimationFrame(() => fxInput.current?.select());
+  };
   const [fxSeries, setFxSeries] = useState<[number, number][] | null>(null);
   const [date, setDate] = useState(() => e0?.date ?? today());
   const [qty, setQty] = useState(e0 ? String(e0.qty) : initial.qty ? String(initial.qty) : '');
@@ -326,12 +333,34 @@ export function TransactionDialog({
 
           <div className="grid grid-cols-2 gap-2">
             <label className="text-[11px] text-[var(--text-secondary)]">
-              {kind === 'FUT' ? `Lots${lotSize ? ` (× ${lotSize})` : ''}` : 'Quantity'}
-              <input className={field} type="number" inputMode="numeric" min={1} step={1} value={qty} onChange={(e) => { setQty(e.target.value); setError(null); }} required />
+              {kind === 'FUT' ? `Lots${lotSize ? ` (× ${lotSize})` : ''}` : us ? 'Quantity (fractions OK)' : 'Quantity'}
+              <input
+                className={field}
+                type="number"
+                inputMode={us ? 'decimal' : 'numeric'}
+                min={us ? 0.000001 : 1}
+                step={us ? 'any' : 1}
+                placeholder={us ? '0.5' : undefined}
+                value={qty}
+                onChange={(e) => { setQty(e.target.value); setError(null); }}
+                required
+              />
             </label>
             <label className="text-[11px] text-[var(--text-secondary)]">
               Date
-              <input className={field} type="date" value={date} max={today()} onChange={(e) => setDate(e.target.value)} required />
+              <input
+                className={field}
+                type="date"
+                value={date}
+                max={today()}
+                onChange={(e) => {
+                  setDate(e.target.value);
+                  // A new date means that day's market rate, even if the old one was changed by hand.
+                  setFxTouched(false);
+                  setFxEditing(false);
+                }}
+                required
+              />
             </label>
             <label className="text-[11px] text-[var(--text-secondary)]">
               <span className="flex items-center justify-between">
@@ -355,25 +384,56 @@ export function TransactionDialog({
               <span className="flex items-center justify-between">
                 USD/INR on that date
                 {fxTouched && fxOnDate && (
-                  <button type="button" className="text-[var(--series-blue)] hover:underline" onClick={() => { setFxTouched(false); setFx(fxOnDate.toFixed(4)); }}>
+                  <button type="button" className="text-[var(--series-blue)] hover:underline" onClick={() => { setFxTouched(false); setFxEditing(false); setFx(fxOnDate.toFixed(4)); }}>
                     Use {fxOnDate.toFixed(2)} (market close)
                   </button>
                 )}
               </span>
-              <input
-                className={field}
-                type="number"
-                inputMode="decimal"
-                min={10}
-                step="0.0001"
-                value={fx}
-                onChange={(e) => { setFx(e.target.value); setFxTouched(true); setError(null); }}
-                placeholder={fxSeries === null ? 'Loading…' : '88.50'}
-                required
-              />
-              <span className="text-[var(--text-muted)]">
-                {fxTouched ? 'Your rate — use what your bank or broker charged.' : fxOnDate ? 'Filled from the market close; change it to the rate you were charged.' : 'Rupees per dollar you paid.'}
-              </span>
+              {(() => {
+                // Locked while it shows the market close; editable once double-clicked, or when there's no market rate to show.
+                const locked = !fxEditing && !fxTouched && (fxSeries === null || fxOnDate !== null);
+                return (
+                  <>
+                    <input
+                      ref={fxInput}
+                      className={`${field} ${locked ? 'cursor-pointer bg-[var(--surface-sunken)] text-[var(--text-secondary)]' : ''}`}
+                      type="number"
+                      inputMode="decimal"
+                      min={10}
+                      step="0.0001"
+                      value={fx}
+                      readOnly={locked}
+                      aria-readonly={locked}
+                      title={locked ? 'Double-click (or press Enter) to change the rate' : undefined}
+                      onDoubleClick={() => locked && unlockFx()}
+                      onKeyDown={(e) => {
+                        if (locked && e.key === 'Enter') {
+                          e.preventDefault();
+                          unlockFx();
+                        }
+                      }}
+                      onChange={(e) => {
+                        setFx(e.target.value);
+                        setFxTouched(true);
+                        setError(null);
+                      }}
+                      placeholder={fxSeries === null ? 'Loading…' : '88.50'}
+                      required
+                    />
+                    <span className="text-[var(--text-muted)]">
+                      {locked
+                        ? fxOnDate
+                          ? `Market close for ${formatExpiry(date)} · double-click to change`
+                          : 'Loading the market rate…'
+                        : fxTouched
+                          ? 'Your rate — e.g. what your bank or broker charged.'
+                          : fxOnDate
+                            ? 'Type the rate you were charged.'
+                            : 'No market rate for this date — enter the rupees per dollar you paid.'}
+                    </span>
+                  </>
+                );
+              })()}
             </label>
           )}
 

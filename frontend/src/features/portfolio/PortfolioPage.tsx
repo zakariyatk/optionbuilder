@@ -97,6 +97,8 @@ const totalReturn = (s: SeriesPoint[]) => (s.length > 1 ? (s[s.length - 1].value
 
 const pnlColor = (v: number) => (v > 0 ? 'var(--good-text)' : v < 0 ? 'var(--critical)' : 'var(--text-secondary)');
 const pct = (v: number | null, d = 2) => (v === null ? '—' : `${v >= 0 ? '+' : '−'}${Math.abs(v).toFixed(d)}%`);
+/** Share counts: whole for NSE, up to 6 decimals for fractional US shares. */
+const fmtQty = (q: number) => q.toLocaleString('en-IN', { maximumFractionDigits: 6 });
 /** A price in the symbol's own currency. */
 const px = (symbol: string, v: number) => (isUs(symbol) ? `$${num(v)}` : num(v));
 /** ₹17,35,877 → ₹17.36L, for chips and the donut's centre. */
@@ -756,7 +758,7 @@ export function PortfolioPage({ brokerConnected, symbols }: { brokerConnected: b
                               </span>
                             </span>
                           </td>
-                          <td className={td}>{h.qty.toLocaleString('en-IN')}</td>
+                          <td className={td}>{fmtQty(h.qty)}</td>
                           <td className={td} title={h.currency === 'USD' ? `₹${num(h.avgCostInr)} a share at the rates you paid` : undefined}>
                             {px(h.symbol, h.avgCost)}
                           </td>
@@ -934,7 +936,7 @@ function TxnList({ txns, onDelete, onEdit }: { txns: PortfolioTxn[]; onDelete: (
               {t.kind === 'FUT' && ` FUT ${formatExpiry(t.expiry ?? '')}`}
             </span>
             <span className="text-[var(--text-secondary)]">
-              {t.qty.toLocaleString('en-IN')} {t.kind === 'FUT' ? `lot${t.qty === 1 ? '' : 's'}` : 'sh'} @ {px(t.symbol, t.price)}
+              {fmtQty(t.qty)} {t.kind === 'FUT' ? `lot${t.qty === 1 ? '' : 's'}` : 'sh'} @ {px(t.symbol, t.price)}
             </span>
             <span className="text-[var(--text-muted)]">
               {isUs(t.symbol) ? `$${num(units * t.price)} at ₹${num(t.fx ?? 0)} = ${inr(units * t.price * (t.fx ?? 0))}` : inr(units * t.price)}

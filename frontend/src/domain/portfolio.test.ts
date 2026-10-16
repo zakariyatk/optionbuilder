@@ -261,3 +261,32 @@ describe('US stocks (₹ totals, purchase-date USD/INR)', () => {
     expect(s[1].value).toBeCloseTo(1.05);
   });
 });
+
+describe('fractional US shares', () => {
+  const us = (p: Partial<PortfolioTxn>) => txn({ symbol: 'US:AAPL', price: 200, fx: 85, ...p });
+
+  it('accepts fractions for US stocks only', () => {
+    expect(validateTxn([], us({ qty: 0.2 }))).toBeNull();
+    expect(validateTxn([], txn({ qty: 0.5 }))).toMatch(/whole numbers/);
+    expect(validateTxn([], txn({ kind: 'FUT', symbol: 'NIFTY', qty: 0.5, lotSize: 65, expiry: '2026-12-29' }))).toMatch(/whole number/);
+    expect(validateTxn([], us({ qty: 0.1234567 }))).toMatch(/6 decimal/);
+  });
+
+  it('adds and sells fractions without float dust', () => {
+    const buys = [us({ qty: 0.1 }), us({ qty: 0.2, date: '2026-01-06' })];
+    const h = buildBook(buys).stocks[0];
+    expect(h.qty).toBe(0.3);
+    // Selling exactly what's held is allowed and closes the position.
+    const sell = us({ side: 'SELL', qty: 0.3, date: '2026-01-07' });
+    expect(validateTxn(buys, sell)).toBeNull();
+    expect(buildBook([...buys, sell]).stocks[0].qty).toBe(0);
+    expect(validateTxn(buys, us({ side: 'SELL', qty: 0.31, date: '2026-01-07' }))).toMatch(/held only 0.3/);
+  });
+
+  it('values fractional holdings', () => {
+    const book = buildBook([us({ qty: 0.5, price: 200, fx: 80 })]);
+    const v = valueBook(book, { 'US:AAPL': { price: 220, previousClose: 220 }, USDINR: { price: 80, previousClose: 80 } }, {}, '2026-10-10');
+    expect(v.currentValue).toBeCloseTo(0.5 * 220 * 80);
+    expect(v.totalPnl).toBeCloseTo(0.5 * 20 * 80);
+  });
+});

@@ -17,6 +17,12 @@ import { isUs } from '../lib/markets';
 /** Live USD/INR is quoted under this key alongside the stock quotes. */
 export const FX_KEY = 'USDINR';
 
+/** Share counts, rounded so fractional US shares (0.1 + 0.2) don't leave float dust like 0.30000000000000004. */
+const roundQty = (q: number) => Math.round(q * 1e6) / 1e6;
+
+/** US stocks trade in fractions of a share; NSE shares and futures lots are whole. */
+export const allowsFractional = (t: Pick<PortfolioTxn, 'kind' | 'symbol'>) => t.kind === 'STOCK' && isUs(t.symbol);
+
 /** Rupees per unit of the transaction's currency — 1 for Indian stocks. */
 const txnFx = (t: PortfolioTxn) => (isUs(t.symbol) ? (t.fx ?? 0) : 1);
 
@@ -99,7 +105,7 @@ export function buildBook(txns: PortfolioTxn[]): Book {
         const cost = t.qty * t.price + t.fees;
         h.avgCost = (h.qty * h.avgCost + cost) / (h.qty + t.qty);
         h.invested += cost * fx;
-        h.qty += t.qty;
+        h.qty = roundQty(h.qty + t.qty);
         h.avgCostInr = h.invested / h.qty;
       } else {
         // Overselling is rejected at entry; clamp so a bad import can't go negative.
@@ -107,7 +113,7 @@ export function buildBook(txns: PortfolioTxn[]): Book {
         const pnl = (sold * t.price - t.fees) * fx - sold * h.avgCostInr;
         h.realized += pnl;
         realized += pnl;
-        h.qty -= sold;
+        h.qty = roundQty(h.qty - sold);
         h.invested = h.qty > 0 ? h.qty * h.avgCostInr : 0;
         if (h.qty === 0) {
           h.avgCost = 0;
@@ -176,7 +182,7 @@ export function findOversell(txns: PortfolioTxn[]): string | null {
   const held = new Map<string, number>();
   for (const t of sortTxns(txns)) {
     if (t.kind !== 'STOCK') continue;
-    const qty = (held.get(t.symbol) ?? 0) + (t.side === 'BUY' ? t.qty : -t.qty);
+    const qty = roundQty((held.get(t.symbol) ?? 0) + (t.side === 'BUY' ? t.qty : -t.qty));
     if (qty < 0) return `The ${t.symbol} sell on ${t.date} would sell more shares than you held then.`;
     held.set(t.symbol, qty);
   }
@@ -192,7 +198,10 @@ export const replaceTxn = (txns: PortfolioTxn[], txn: PortfolioTxn) => txns.map(
  */
 export function validateTxn(existing: PortfolioTxn[], txn: PortfolioTxn): string | null {
   if (!txn.symbol) return 'Enter a symbol.';
-  if (!(txn.qty > 0) || !Number.isInteger(txn.qty)) return txn.kind === 'FUT' ? 'Lots must be a whole number above 0.' : 'Quantity must be a whole number above 0.';
+  if (!(txn.qty > 0)) return txn.kind === 'FUT' ? 'Lots must be above 0.' : 'Quantity must be above 0.';
+  if (!allowsFractional(txn) && !Number.isInteger(txn.qty))
+    return txn.kind === 'FUT' ? 'Lots must be a whole number.' : 'NSE shares are whole numbers — fractions are for US stocks only.';
+  if (allowsFractional(txn) && roundQty(txn.qty) !== txn.qty) return 'Use at most 6 decimal places for the quantity.';
   if (!(txn.price > 0)) return 'Enter a price above 0.';
   if (txn.fees < 0) return 'Fees can’t be negative.';
   if (!/^\d{4}-\d{2}-\d{2}$/.test(txn.date)) return 'Enter a valid date.';
@@ -207,7 +216,7 @@ export function validateTxn(existing: PortfolioTxn[], txn: PortfolioTxn): string
     // Holdings as of the sell date — selling shares bought later isn't possible.
     const before = existing.filter((t) => t.kind === 'STOCK' && t.symbol === txn.symbol && t.date <= txn.date);
     const held = buildBook(before).stocks.find((s) => s.symbol === txn.symbol)?.qty ?? 0;
-    if (txn.qty > held) return held === 0 ? `You held no ${txn.symbol} on ${txn.date}.` : `You held only ${held} ${txn.symbol} on ${txn.date}.`;
+    if (roundQty(txn.qty - held) > 0) return held === 0 ? `You held no ${txn.symbol} on ${txn.date}.` : `You held only ${held} ${txn.symbol} on ${txn.date}.`;
   }
   // It mustn't make any other sell impossible — e.g. a later sell after a
   // backdated one, or every sell after an edited-down or renamed buy.

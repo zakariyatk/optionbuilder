@@ -69,12 +69,18 @@ function ob_portfolio_txn(mixed $in): array
     if ($date === null || $date > gmdate('Y-m-d', time() + 86400)) {
         throw new InvalidArgumentException('Transaction date must be a valid date, not in the future');
     }
-    $qty = ob_num($in['qty'] ?? null, 1, 1e9);
+    // US brokers sell fractional shares (0.2 of a share); NSE shares and futures lots are whole.
+    $fractional = $kind === 'STOCK' && ob_is_us($symbol);
+    $qty = ob_num($in['qty'] ?? null, $fractional ? 0.000001 : 1, 1e9);
     $price = ob_num($in['price'] ?? null, 0.01, 1e8);
     $fees = ob_num($in['fees'] ?? 0, 0, 1e8);
     if ($qty === null || $price === null || $fees === null) {
         throw new InvalidArgumentException('Transaction quantity, price or fees is invalid');
     }
+    if (!$fractional && floor($qty) !== $qty) {
+        throw new InvalidArgumentException('Quantity must be a whole number for NSE stocks and futures');
+    }
+    $qty = $fractional ? round($qty, 6) : (int) $qty;
     $id = (string) ($in['id'] ?? '');
     if (!preg_match('/^[A-Za-z0-9\-]{8,64}$/', $id)) {
         $id = bin2hex(random_bytes(8));
@@ -86,8 +92,8 @@ function ob_portfolio_txn(mixed $in): array
         'side' => $side,
         'symbol' => $symbol,
         'date' => $date,
-        // Shares for a stock, lots for a future.
-        'qty' => (int) $qty,
+        // Shares for a stock (fractional for US stocks), lots for a future.
+        'qty' => $qty,
         'price' => $price,
         'fees' => $fees,
     ];
