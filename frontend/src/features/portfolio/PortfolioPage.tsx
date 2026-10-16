@@ -231,6 +231,8 @@ export function PortfolioPage({ brokerConnected, symbols }: { brokerConnected: b
   const [showTxns, setShowTxns] = useState(false);
   const [showAllTxns, setShowAllTxns] = useState(false);
   const [allocView, setAllocView] = useState<AllocView>('all');
+  /** Which market the holdings table shows; futures are NSE, so they count as India. */
+  const [holdView, setHoldView] = useState<AllocView>('all');
   const [actionError, setActionError] = useState<string | null>(null);
   const [demoBusy, setDemoBusy] = useState(false);
 
@@ -448,6 +450,21 @@ export function PortfolioPage({ brokerConnected, symbols }: { brokerConnected: b
         : [fx ? `≈ ${lakhs(sumOf(usa, (x) => x.value))} at ₹${fx.toFixed(2)}` : 'Waiting for USD/INR', `P&L ${signedInr(sumOf(usa, (x) => x.pnl))}`];
 
   const periodLabel = settings.period === 'All' ? 'Since start' : settings.period;
+
+  // Holdings table, narrowed to the chosen market.
+  const showStock = (h: StockHolding) => holdView === 'all' || (holdView === 'US') === (h.currency === 'USD');
+  const tableStocks = openStocks.filter(showStock);
+  const tableFutures = holdView === 'US' ? [] : openFutures;
+  const tableClosedStocks = closedStocks.filter(showStock);
+  const tableClosedFutures = holdView === 'US' ? [] : closedFutures;
+  const tableValue = tableStocks.reduce((s, h) => s + values.get(h.symbol)!.value, 0);
+  const tableInvested = tableStocks.reduce((s, h) => s + h.invested, 0);
+  const futMtm = (f: (typeof openFutures)[number]) => {
+    const p = futurePrice(f, futQuotes.data ?? {}, live);
+    return p === null ? 0 : f.lots * f.lotSize * (p - f.avgEntry);
+  };
+  const tablePnl = tableStocks.reduce((s, h) => s + values.get(h.symbol)!.pnl, 0) + tableFutures.reduce((s, f) => s + futMtm(f), 0);
+  const tableDay = tableStocks.reduce((s, h) => s + values.get(h.symbol)!.dayPnl, 0);
 
   return (
     <div className="flex flex-col gap-3">
@@ -711,7 +728,17 @@ export function PortfolioPage({ brokerConnected, symbols }: { brokerConnected: b
           <Panel
             title="Holdings & P&L"
             right={
-              <span className="flex gap-2">
+              <span className="flex flex-wrap items-center gap-2">
+                <Segmented
+                  label="Holdings market"
+                  value={holdView}
+                  onChange={setHoldView}
+                  options={[
+                    { v: 'all', label: 'All' },
+                    { v: 'IN', label: 'India' },
+                    { v: 'US', label: 'US' },
+                  ]}
+                />
                 <Button variant="primary" onClick={() => setDialog({ kind: 'STOCK', side: 'BUY' })}>
                   <Plus size={14} aria-hidden="true" /> Add transaction
                 </Button>
@@ -739,7 +766,7 @@ export function PortfolioPage({ brokerConnected, symbols }: { brokerConnected: b
                   </tr>
                 </thead>
                 <tbody>
-                  {openStocks.map((h) => {
+                  {tableStocks.map((h) => {
                     const q = live[h.symbol];
                     const hv = values.get(h.symbol)!;
                     const open = expanded.has(h.symbol);
@@ -781,7 +808,7 @@ export function PortfolioPage({ brokerConnected, symbols }: { brokerConnected: b
                               '—'
                             )}
                           </td>
-                          <td className={td}>{stockTotal > 0 ? `${((hv.value / stockTotal) * 100).toFixed(1)}%` : '—'}</td>
+                          <td className={td}>{tableValue > 0 ? `${((hv.value / tableValue) * 100).toFixed(1)}%` : '—'}</td>
                           <td className="px-3 py-2.5 text-right" onClick={(e) => e.stopPropagation()}>
                             <span className="inline-flex gap-1">
                               <Button size="xs" onClick={() => setDialog({ kind: 'STOCK', side: 'BUY', symbol: h.symbol })}>
@@ -809,7 +836,7 @@ export function PortfolioPage({ brokerConnected, symbols }: { brokerConnected: b
                     );
                   })}
 
-                  {openFutures.map((f) => {
+                  {tableFutures.map((f) => {
                     const own = f.instrumentKey ? futQuotes.data?.[f.instrumentKey] : undefined;
                     const price = futurePrice(f, futQuotes.data ?? {}, live);
                     const mtm = price === null ? null : f.lots * f.lotSize * (price - f.avgEntry);
@@ -862,18 +889,45 @@ export function PortfolioPage({ brokerConnected, symbols }: { brokerConnected: b
                       </Fragment>
                     );
                   })}
+                  {tableStocks.length === 0 && tableFutures.length === 0 && (
+                    <tr>
+                      <td colSpan={9} className="px-4 py-6 text-center text-sm text-[var(--text-muted)]">
+                        No {holdView === 'US' ? 'US' : 'Indian'} holdings.
+                      </td>
+                    </tr>
+                  )}
                 </tbody>
+                {(tableStocks.length > 0 || tableFutures.length > 0) && (
+                  <tfoot>
+                    <tr className="border-t-2 border-[var(--border-strong)] font-semibold">
+                      <td className="px-3 py-2.5 text-left text-xs uppercase tracking-[0.08em] text-[var(--text-muted)]">
+                        {holdView === 'all' ? 'Total' : holdView === 'US' ? 'US total' : 'India total'}
+                      </td>
+                      <td colSpan={3} />
+                      <td className={td} style={{ color: pnlColor(tableDay) }} title="Today's P&L of these stocks">
+                        {signedInr(tableDay)}
+                      </td>
+                      <td className={td}>{inr(tableValue)}</td>
+                      <td className={td} style={{ color: pnlColor(tablePnl) }}>
+                        {signedInr(tablePnl)}{' '}
+                        <span className="text-xs text-[var(--text-muted)]">{pct(tableInvested > 0 ? ((tablePnl - tableFutures.reduce((s, f) => s + futMtm(f), 0)) / tableInvested) * 100 : null, 1)}</span>
+                      </td>
+                      <td className={td}>{tableValue > 0 ? '100%' : '—'}</td>
+                      <td />
+                    </tr>
+                  </tfoot>
+                )}
               </table>
             </div>
-            {(closedStocks.length > 0 || closedFutures.length > 0) && (
+            {(tableClosedStocks.length > 0 || tableClosedFutures.length > 0) && (
               <div className="border-t border-[var(--border)] px-4 py-2 text-[11px] text-[var(--text-muted)] tabular">
                 Closed:{' '}
-                {closedStocks.map((s) => (
+                {tableClosedStocks.map((s) => (
                   <span key={s.symbol} className="mr-3">
                     {displaySymbol(s.symbol)} <span style={{ color: pnlColor(s.realized) }}>{signedInr(s.realized)}</span>
                   </span>
                 ))}
-                {closedFutures.map((f) => (
+                {tableClosedFutures.map((f) => (
                   <span key={f.key} className="mr-3">
                     {f.symbol} FUT {formatExpiry(f.expiry)} <span style={{ color: pnlColor(f.realized) }}>{signedInr(f.realized)}</span>
                   </span>
