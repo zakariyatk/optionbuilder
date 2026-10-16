@@ -399,6 +399,30 @@ input[type='number']::-webkit-inner-spin-button {
   font-size: 14px;
 }
 
+/* Bar replay's watermark, drawn behind the candles (features/chart/replay.ts). */
+.ob-replay-watermark {
+  --ob-replay-watermark-cut: var(--surface-card);
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3em;
+  pointer-events: none;
+  color: color-mix(in srgb, var(--text-primary) 9%, transparent);
+  font-family: -apple-system, BlinkMacSystemFont, 'Trebuchet MS', Roboto, Ubuntu, sans-serif;
+  font-weight: 400;
+  line-height: 1;
+  letter-spacing: -0.01em;
+  user-select: none;
+}
+.ob-replay-watermark svg {
+  width: 0.92em;
+  height: 0.92em;
+  flex: none;
+}
+
 /* Bar replay's "select bar" cursor (features/chart/replay.ts). */
 .ob-replay-line,
 .ob-replay-shade,

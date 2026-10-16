@@ -76,7 +76,29 @@ export function installReplay(
   const set = (patch: Partial<ReplayState>) => {
     state = { ...state, ...patch };
     listeners.forEach((fn) => fn());
+    placeWatermark();
   };
+
+  // ------------------------------------------------ "Replay" watermark
+  // TradingView marks a chart in replay with a large faint "⏪ Replay" behind the candles.
+  const watermark = document.createElement('div');
+  watermark.className = 'ob-replay-watermark';
+  watermark.setAttribute('aria-hidden', 'true');
+  watermark.innerHTML =
+    '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="12" fill="currentColor"/><path d="M13.6 7.2 8.2 12l5.4 4.8V7.2Z" fill="var(--ob-replay-watermark-cut)"/><rect x="14.4" y="7.2" width="1.8" height="9.6" fill="var(--ob-replay-watermark-cut)"/></svg><span>Replay</span>';
+  function placeWatermark() {
+    const main = mainDom();
+    if (state.mode === 'off' || !main) {
+      watermark.remove();
+      return;
+    }
+    // Inside the price pane, before its canvases, so the candles paint over it.
+    if (watermark.parentElement !== main) main.prepend(watermark);
+    const r = main.getBoundingClientRect();
+    watermark.style.fontSize = `${Math.round(Math.max(28, Math.min(r.height * 0.26, r.width * 0.13)))}px`;
+  }
+  const watermarkResize = new ResizeObserver(() => placeWatermark());
+  watermarkResize.observe(container);
 
   // ------------------------------------------------ "select bar" cursor
   const line = document.createElement('div');
@@ -253,6 +275,8 @@ export function installReplay(
       container.removeEventListener('click', onClick, true);
       window.removeEventListener('keydown', onKey);
       line.remove();
+      watermark.remove();
+      watermarkResize.disconnect();
       shade.remove();
       tag.remove();
       listeners.clear();
