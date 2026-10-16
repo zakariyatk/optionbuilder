@@ -13,6 +13,8 @@ export interface TxnDraft {
   symbol?: string;
   expiry?: string;
   qty?: number;
+  /** Set when editing: the transaction being changed (kept under the same id). */
+  edit?: PortfolioTxn;
 }
 
 const field = `${inputClass} h-9 w-full text-sm`;
@@ -41,7 +43,10 @@ function Toggle<T extends string>({ value, options, onChange, label }: { value: 
   );
 }
 
-/** Modal form for one buy or sell. Validates against the portfolio before saving. */
+/**
+ * Modal form for one buy or sell, new or edited. Validates against the rest of
+ * the portfolio before saving; `existing` must exclude the transaction being edited.
+ */
 export function TransactionDialog({
   initial,
   existing,
@@ -57,17 +62,20 @@ export function TransactionDialog({
   onSave: (txn: PortfolioTxn) => Promise<void>;
   onClose: () => void;
 }) {
-  const [kind, setKind] = useState(initial.kind);
-  const [side, setSide] = useState(initial.side);
-  const [symbol, setSymbol] = useState(initial.symbol ?? '');
-  const [date, setDate] = useState(today);
-  const [qty, setQty] = useState(initial.qty ? String(initial.qty) : '');
-  const [price, setPrice] = useState('');
-  const [fees, setFees] = useState('');
-  const [note, setNote] = useState('');
+  const e0 = initial.edit;
+  const [kind, setKind] = useState(e0?.kind ?? initial.kind);
+  const [side, setSide] = useState(e0?.side ?? initial.side);
+  const [symbol, setSymbol] = useState(e0?.symbol ?? initial.symbol ?? '');
+  const [date, setDate] = useState(() => e0?.date ?? today());
+  const [qty, setQty] = useState(e0 ? String(e0.qty) : initial.qty ? String(initial.qty) : '');
+  const [price, setPrice] = useState(e0 ? String(e0.price) : '');
+  const [fees, setFees] = useState(e0?.fees ? String(e0.fees) : '');
+  const [note, setNote] = useState(e0?.note ?? '');
   const [contracts, setContracts] = useState<FutureContract[] | null>(null);
   const [contractError, setContractError] = useState<string | null>(null);
-  const [expiry, setExpiry] = useState(initial.expiry ?? '');
+  /** A contract already held (Exit) or being edited — kept selectable even after it expires. */
+  const heldExpiry = e0?.expiry ?? initial.expiry;
+  const [expiry, setExpiry] = useState(heldExpiry ?? '');
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const box = useRef<HTMLDivElement>(null);
@@ -75,7 +83,7 @@ export function TransactionDialog({
   const sym = symbol.trim().toUpperCase();
   const contract = contracts?.find((c) => c.expiry === expiry) ?? null;
   // An existing position (e.g. "Exit") keeps its own expiry and lot size even if the contract has expired.
-  const existingFut = existing.find((t) => t.kind === 'FUT' && t.symbol === sym && t.expiry === expiry);
+  const existingFut = [...existing, ...(e0 ? [e0] : [])].find((t) => t.kind === 'FUT' && t.symbol === sym && t.expiry === expiry);
   const lotSize = contract?.lotSize ?? existingFut?.lotSize ?? 0;
 
   useEffect(() => {
@@ -96,7 +104,7 @@ export function TransactionDialog({
         .then((r) => {
           if (cancelled) return;
           setContracts(r.contracts);
-          setExpiry((e) => (e && (r.contracts.some((c) => c.expiry === e) || initial.expiry === e) ? e : (r.contracts[0]?.expiry ?? '')));
+          setExpiry((e) => (e && (r.contracts.some((c) => c.expiry === e) || heldExpiry === e) ? e : (r.contracts[0]?.expiry ?? '')));
         })
         .catch((e) => !cancelled && setContractError(errorMessage(e)));
     }, 300);
@@ -104,7 +112,7 @@ export function TransactionDialog({
       cancelled = true;
       window.clearTimeout(t);
     };
-  }, [kind, sym, initial.expiry]);
+  }, [kind, sym, heldExpiry]);
 
   const ltp = sym ? livePrice(sym) : null;
   const total = (Number(qty) || 0) * (kind === 'FUT' ? lotSize : 1) * (Number(price) || 0);
@@ -112,7 +120,7 @@ export function TransactionDialog({
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     const txn: PortfolioTxn = {
-      id: crypto.randomUUID(),
+      id: e0?.id ?? crypto.randomUUID(),
       kind,
       side,
       symbol: sym,
@@ -152,7 +160,7 @@ export function TransactionDialog({
       >
         <div className="mb-3 flex items-center justify-between">
           <h2 id="txn-title" className="text-base font-semibold">
-            Add transaction
+            {e0 ? 'Edit transaction' : 'Add transaction'}
           </h2>
           <button type="button" onClick={onClose} aria-label="Close" className="rounded p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)]">
             <X size={18} />
@@ -190,8 +198,8 @@ export function TransactionDialog({
             <label className="text-[11px] text-[var(--text-secondary)]">
               Contract
               <select className={field} value={expiry} onChange={(e) => setExpiry(e.target.value)} disabled={!contracts && !existingFut}>
-                {initial.expiry && existingFut && !contracts?.some((c) => c.expiry === initial.expiry) && (
-                  <option value={initial.expiry}>{formatExpiry(initial.expiry)} (held)</option>
+                {heldExpiry && existingFut && !contracts?.some((c) => c.expiry === heldExpiry) && (
+                  <option value={heldExpiry}>{formatExpiry(heldExpiry)} (held)</option>
                 )}
                 {(contracts ?? []).map((c) => (
                   <option key={c.expiry} value={c.expiry}>

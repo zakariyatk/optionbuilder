@@ -137,7 +137,28 @@ export function buildBook(txns: PortfolioTxn[]): Book {
   };
 }
 
-/** Why a new transaction can't be added, or null when it's fine. */
+/**
+ * The first stock sell that would sell more shares than were held at the
+ * time, as an error message — or null when the whole history is consistent.
+ */
+export function findOversell(txns: PortfolioTxn[]): string | null {
+  const held = new Map<string, number>();
+  for (const t of sortTxns(txns)) {
+    if (t.kind !== 'STOCK') continue;
+    const qty = (held.get(t.symbol) ?? 0) + (t.side === 'BUY' ? t.qty : -t.qty);
+    if (qty < 0) return `The ${t.symbol} sell on ${t.date} would sell more shares than you held then.`;
+    held.set(t.symbol, qty);
+  }
+  return null;
+}
+
+/** Swaps the transaction with `txn.id` for `txn`. */
+export const replaceTxn = (txns: PortfolioTxn[], txn: PortfolioTxn) => txns.map((t) => (t.id === txn.id ? txn : t));
+
+/**
+ * Why a transaction can't be saved, or null when it's fine. `existing` is
+ * the portfolio without it — for an edit, everything except the original.
+ */
 export function validateTxn(existing: PortfolioTxn[], txn: PortfolioTxn): string | null {
   if (!txn.symbol) return 'Enter a symbol.';
   if (!(txn.qty > 0) || !Number.isInteger(txn.qty)) return txn.kind === 'FUT' ? 'Lots must be a whole number above 0.' : 'Quantity must be a whole number above 0.';
@@ -151,16 +172,11 @@ export function validateTxn(existing: PortfolioTxn[], txn: PortfolioTxn): string
     const before = existing.filter((t) => t.kind === 'STOCK' && t.symbol === txn.symbol && t.date <= txn.date);
     const held = buildBook(before).stocks.find((s) => s.symbol === txn.symbol)?.qty ?? 0;
     if (txn.qty > held) return held === 0 ? `You held no ${txn.symbol} on ${txn.date}.` : `You held only ${held} ${txn.symbol} on ${txn.date}.`;
-    // …and it mustn't make a later sell impossible.
-    const after = sortTxns([...existing, txn]);
-    let qty = 0;
-    for (const t of after) {
-      if (t.kind !== 'STOCK' || t.symbol !== txn.symbol) continue;
-      qty += t.side === 'BUY' ? t.qty : -t.qty;
-      if (qty < 0) return `That would leave a later ${txn.symbol} sell (${t.date}) with too few shares.`;
-    }
   }
-  return null;
+  // It mustn't make any other sell impossible — e.g. a later sell after a
+  // backdated one, or every sell after an edited-down or renamed buy.
+  const problem = findOversell([...existing, txn]);
+  return problem && `That change doesn’t fit your history: ${problem.charAt(0).toLowerCase()}${problem.slice(1)}`;
 }
 
 // ------------------------------------------------------------- valuation

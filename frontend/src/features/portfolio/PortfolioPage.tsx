@@ -8,13 +8,14 @@ import {
   benchmarkSeries,
   betaAlpha,
   buildBook,
+  findOversell,
   futurePrice,
   istDate,
   monthlyReturns,
   portfolioSeries,
   rebase,
+  replaceTxn,
   seriesStats,
-  sortTxns,
   tradingCalendar,
   valueBook,
   type PricePoints,
@@ -233,15 +234,12 @@ export function PortfolioPage({ brokerConnected, symbols }: { brokerConnected: b
       if (!ok) return;
       const rest = txns.filter((x) => x.id !== t.id);
       // Removing a buy can strand a later sell; refuse rather than corrupt the book.
-      let qty = 0;
-      for (const x of sortTxns(rest)) {
-        if (x.kind !== 'STOCK' || x.symbol !== t.symbol) continue;
-        qty += x.side === 'BUY' ? x.qty : -x.qty;
-        if (qty < 0) throw new Error(`Delete the later ${t.symbol} sell first — it would sell more shares than you’d hold.`);
-      }
+      const problem = findOversell(rest);
+      if (problem) throw new Error(`Can’t delete that buy: ${problem.charAt(0).toLowerCase()}${problem.slice(1)} Delete or edit that sell first.`);
       await store.saveTxns(portfolio.id, rest);
     });
 
+  const editTxn = (t: PortfolioTxn) => setDialog({ kind: t.kind, side: t.side, edit: t });
   const livePrice = (s: string) => live[s]?.price ?? null;
 
   // ----- render
@@ -551,7 +549,7 @@ export function PortfolioPage({ brokerConnected, symbols }: { brokerConnected: b
                           {open && (
                             <tr className="bg-[var(--surface-sunken)]">
                               <td colSpan={9} className="px-4 py-2">
-                                <TxnList txns={h.txns} onDelete={deleteTxn} />
+                                <TxnList txns={h.txns} onDelete={deleteTxn} onEdit={editTxn} />
                                 {h.realized !== 0 && (
                                   <div className="mt-1 text-[11px] text-[var(--text-muted)]">
                                     Realised on sells: <span style={{ color: pnlColor(h.realized) }}>{signedInr(h.realized)}</span>
@@ -662,7 +660,7 @@ export function PortfolioPage({ brokerConnected, symbols }: { brokerConnected: b
           <Card>
             <CardHeader title={`Transactions (${txns.length})`} />
             <div className="px-3 py-2">
-              <TxnList txns={showAllTxns ? sortedTxns : sortedTxns.slice(0, 10)} onDelete={deleteTxn} />
+              <TxnList txns={showAllTxns ? sortedTxns : sortedTxns.slice(0, 10)} onDelete={deleteTxn} onEdit={editTxn} />
               {sortedTxns.length > 10 && (
                 <Button variant="ghost" className="mt-1" onClick={() => setShowAllTxns((s) => !s)}>
                   {showAllTxns ? 'Show fewer' : `Show all ${sortedTxns.length}`}
@@ -676,18 +674,18 @@ export function PortfolioPage({ brokerConnected, symbols }: { brokerConnected: b
       {dialog && (
         <TransactionDialog
           initial={dialog}
-          existing={txns}
+          existing={dialog.edit ? txns.filter((t) => t.id !== dialog.edit!.id) : txns}
           symbols={symbols}
           livePrice={livePrice}
           onClose={() => setDialog(null)}
-          onSave={(t) => store.saveTxns(portfolio.id, [...txns, t])}
+          onSave={(t) => store.saveTxns(portfolio.id, dialog.edit ? replaceTxn(txns, t) : [...txns, t])}
         />
       )}
     </div>
   );
 }
 
-function TxnList({ txns, onDelete }: { txns: PortfolioTxn[]; onDelete: (t: PortfolioTxn) => void }) {
+function TxnList({ txns, onDelete, onEdit }: { txns: PortfolioTxn[]; onDelete: (t: PortfolioTxn) => void; onEdit: (t: PortfolioTxn) => void }) {
   const sorted = [...txns].sort((a, b) => b.date.localeCompare(a.date));
   return (
     <ul className="flex flex-col divide-y divide-[var(--gridline)] text-xs">
@@ -711,7 +709,10 @@ function TxnList({ txns, onDelete }: { txns: PortfolioTxn[]; onDelete: (t: Portf
               {t.fees > 0 && ` + ${inr(t.fees)} fees`}
             </span>
             {t.note && <span className="truncate text-[var(--text-muted)] italic">{t.note}</span>}
-            <button type="button" onClick={() => onDelete(t)} className="ml-auto rounded p-1 text-[var(--text-muted)] hover:bg-[var(--critical-fill)] hover:text-[var(--critical)]" aria-label={`Delete ${t.side.toLowerCase()} ${t.symbol} on ${t.date}`} title="Delete transaction">
+            <button type="button" onClick={() => onEdit(t)} className="ml-auto rounded p-1 text-[var(--text-muted)] hover:bg-[var(--surface-raised)] hover:text-[var(--text-primary)]" aria-label={`Edit ${t.side.toLowerCase()} ${t.symbol} on ${t.date}`} title="Edit transaction">
+              <Pencil size={13} />
+            </button>
+            <button type="button" onClick={() => onDelete(t)} className="rounded p-1 text-[var(--text-muted)] hover:bg-[var(--critical-fill)] hover:text-[var(--critical)]" aria-label={`Delete ${t.side.toLowerCase()} ${t.symbol} on ${t.date}`} title="Delete transaction">
               <Trash2 size={13} />
             </button>
           </li>

@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import type { PortfolioTxn } from '../api/types';
 import {
   benchmarkSeries,
+  findOversell,
+  replaceTxn,
   betaAlpha,
   buildBook,
   monthlyReturns,
@@ -90,7 +92,25 @@ describe('validateTxn', () => {
 
   it('rejects a backdated sell that breaks a later one', () => {
     const book = [...held, txn({ side: 'SELL', qty: 8, date: '2026-03-01' })];
-    expect(validateTxn(book, txn({ side: 'SELL', qty: 5, date: '2026-02-01' }))).toMatch(/later INFY sell/);
+    expect(validateTxn(book, txn({ side: 'SELL', qty: 5, date: '2026-02-01' }))).toMatch(/INFY sell on 2026-03-01/);
+  });
+
+  it('rejects an edit that lowers a buy below a later sell', () => {
+    const buy = txn({ qty: 10, date: '2026-01-05' });
+    const book = [buy, txn({ side: 'SELL', qty: 8, date: '2026-03-01' })];
+    const edited = { ...buy, qty: 5 };
+    expect(validateTxn(book.filter((t) => t.id !== buy.id), edited)).toMatch(/INFY sell on 2026-03-01/);
+    expect(validateTxn(book.filter((t) => t.id !== buy.id), { ...buy, qty: 8 })).toBeNull();
+    // Renaming the buy to another stock strands the sell too.
+    expect(validateTxn(book.filter((t) => t.id !== buy.id), { ...buy, symbol: 'TCS' })).toMatch(/INFY sell/);
+  });
+
+  it('replaces a transaction in place and finds oversells', () => {
+    const a = txn({ qty: 10 });
+    const b = txn({ side: 'SELL', qty: 4, date: '2026-02-01' });
+    expect(replaceTxn([a, b], { ...a, price: 99 })[0].price).toBe(99);
+    expect(findOversell([a, b])).toBeNull();
+    expect(findOversell([{ ...a, qty: 3 }, b])).toMatch(/INFY sell on 2026-02-01/);
   });
 
   it('checks basic fields', () => {
