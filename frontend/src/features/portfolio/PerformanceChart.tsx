@@ -33,7 +33,8 @@ const shortDate = (d: string, withYear: boolean) =>
  * aligned on the union of their dates; a line with no point on a date simply
  * isn't drawn there.
  */
-export function PerformanceChart({ lines }: { lines: ChartLine[] }) {
+/** `callout` labels the portfolio's latest point, e.g. "1Y +31.5%". */
+export function PerformanceChart({ lines, callout }: { lines: ChartLine[]; callout?: string }) {
   const svgRef = useRef<SVGSVGElement>(null);
   const [hover, setHover] = useState<number | null>(null);
 
@@ -81,6 +82,18 @@ export function PerformanceChart({ lines }: { lines: ChartLine[] }) {
     return d;
   };
 
+  // The portfolio's own line: where it starts and ends, for its area fill and end marker.
+  const primaryIndex = lines.findIndex((l) => l.primary);
+  const pv = primaryIndex >= 0 ? values[primaryIndex] : [];
+  const primaryFirst = pv.findIndex((v) => v !== null);
+  const fromEnd = [...pv].reverse().findIndex((v) => v !== null);
+  const primaryLast = fromEnd < 0 ? -1 : pv.length - 1 - fromEnd;
+  const areaPath = () =>
+    pv
+      .slice(primaryFirst, primaryLast + 1)
+      .map((v, k) => (v === null ? '' : `${k === 0 ? 'M' : 'L'}${x(primaryFirst + k).toFixed(1)} ${y(v).toFixed(1)}`))
+      .join(' ');
+
   const onMove = (e: PointerEvent<SVGSVGElement>) => {
     const box = svgRef.current?.getBoundingClientRect();
     if (!box || box.width === 0) return;
@@ -120,17 +133,44 @@ export function PerformanceChart({ lines }: { lines: ChartLine[] }) {
             {shortDate(dates[i], spanYears > 0.9)}
           </text>
         ))}
+        <defs>
+          <linearGradient id="perf-area" x1="0" x2="0" y1="0" y2="1">
+            <stop offset="0" stopColor="var(--series-blue)" stopOpacity={0.24} />
+            <stop offset="1" stopColor="var(--series-blue)" stopOpacity={0} />
+          </linearGradient>
+        </defs>
+        {/* Soft fill under the portfolio's line, down to the axis. */}
+        {primaryIndex >= 0 && primaryLast >= 0 && (
+          <path
+            d={`${areaPath()} L${x(primaryLast).toFixed(1)} ${BOTTOM} L${x(primaryFirst).toFixed(1)} ${BOTTOM} Z`}
+            fill="url(#perf-area)"
+          />
+        )}
         {order.map(({ l, i }) => (
           <path
             key={l.key}
             d={path(values[i])}
             fill="none"
             stroke={l.color}
-            strokeWidth={l.primary ? 2.4 : 1.5}
+            strokeWidth={l.primary ? 2.4 : 1.4}
+            strokeDasharray={l.primary ? undefined : '5 4'}
             strokeLinejoin="round"
-            opacity={l.primary ? 1 : 0.9}
           />
         ))}
+        {/* The latest value, ringed, with a callout — as a dashboard headlines it. */}
+        {primaryIndex >= 0 && primaryLast >= 0 && hover === null && (
+          <g pointerEvents="none">
+            <circle cx={x(primaryLast)} cy={y(values[primaryIndex][primaryLast]!)} r={5} fill="var(--surface-card)" stroke={lines[primaryIndex].color} strokeWidth={2} />
+            {callout && (
+              <g transform={`translate(${Math.min(x(primaryLast), RIGHT - 46)} ${Math.max(y(values[primaryIndex][primaryLast]!) - 24, TOP + 2)})`}>
+                <rect x={-44} y={-11} width={88} height={18} rx={3} fill="var(--surface-card)" stroke={lines[primaryIndex].color} />
+                <text x={0} y={2} textAnchor="middle" fontSize={10.5} fontWeight={700} fill={lines[primaryIndex].color}>
+                  {callout}
+                </text>
+              </g>
+            )}
+          </g>
+        )}
         {hover !== null && (
           <g pointerEvents="none">
             <line x1={x(hover)} x2={x(hover)} y1={TOP} y2={BOTTOM} stroke="var(--text-muted)" strokeWidth={0.8} />
