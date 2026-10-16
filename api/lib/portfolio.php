@@ -92,6 +92,15 @@ function ob_portfolio_txn(mixed $in): array
         'fees' => $fees,
     ];
 
+    // A US stock is priced in dollars; its rupee cost is fixed at that date's rate.
+    if (ob_is_us($symbol)) {
+        $fx = ob_num($in['fx'] ?? null, 10, 1000);
+        if ($fx === null) {
+            throw new InvalidArgumentException('A US transaction needs the USD/INR rate of its date');
+        }
+        $txn['fx'] = $fx;
+    }
+
     if ($kind === 'FUT') {
         $lotSize = ob_num($in['lotSize'] ?? null, 1, 1e7);
         $expiry = ob_date_or_null($in['expiry'] ?? null);

@@ -220,6 +220,8 @@ export interface PortfolioTxn {
   qty: number;
   price: number;
   fees: number;
+  /** US stocks only: rupees per dollar on the transaction date. Price and fees are in dollars. */
+  fx?: number;
   /** Futures only. */
   lotSize?: number;
   expiry?: string;

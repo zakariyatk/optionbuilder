@@ -1,4 +1,5 @@
 import type { PortfolioTxn } from '../api/types';
+import { isUs } from '../lib/markets';
 
 /**
  * Portfolio accounting: holdings from transactions, live valuation, and a
@@ -6,19 +7,33 @@ import type { PortfolioTxn } from '../api/types';
  *
  * Everything is derived from the raw transaction list, so editing or deleting
  * a transaction recomputes the whole book consistently.
+ *
+ * Totals are in rupees. A US stock's prices and fees are in dollars and each
+ * of its transactions carries the USD/INR rate of its date (`fx`), so its cost
+ * in rupees is fixed at what was actually paid and a later move in the rupee
+ * shows up as currency gain.
  */
+
+/** Live USD/INR is quoted under this key alongside the stock quotes. */
+export const FX_KEY = 'USDINR';
+
+/** Rupees per unit of the transaction's currency — 1 for Indian stocks. */
+const txnFx = (t: PortfolioTxn) => (isUs(t.symbol) ? (t.fx ?? 0) : 1);
 
 // ------------------------------------------------------------------ book
 
 export interface StockHolding {
   symbol: string;
+  currency: 'INR' | 'USD';
   /** Shares held now. */
   qty: number;
-  /** Average cost per share, fees included (Indian average-cost convention). */
+  /** Average cost per share in the stock's own currency, fees included (average-cost convention). */
   avgCost: number;
-  /** Cost basis of the shares still held. */
+  /** Average cost per share in rupees, at the exchange rates actually paid. */
+  avgCostInr: number;
+  /** Cost basis of the shares still held, in rupees. */
   invested: number;
-  /** P&L booked by sells, net of fees. */
+  /** P&L booked by sells, net of fees, in rupees. */
   realized: number;
   firstDate: string;
   txns: PortfolioTxn[];
@@ -67,21 +82,37 @@ export function buildBook(txns: PortfolioTxn[]): Book {
     if (t.kind === 'STOCK') {
       const h =
         stocks.get(t.symbol) ??
-        ({ symbol: t.symbol, qty: 0, avgCost: 0, invested: 0, realized: 0, firstDate: t.date, txns: [] } as StockHolding);
+        ({
+          symbol: t.symbol,
+          currency: isUs(t.symbol) ? 'USD' : 'INR',
+          qty: 0,
+          avgCost: 0,
+          avgCostInr: 0,
+          invested: 0,
+          realized: 0,
+          firstDate: t.date,
+          txns: [],
+        } as StockHolding);
       h.txns.push(t);
+      const fx = txnFx(t);
       if (t.side === 'BUY') {
-        h.invested += t.qty * t.price + t.fees;
+        const cost = t.qty * t.price + t.fees;
+        h.avgCost = (h.qty * h.avgCost + cost) / (h.qty + t.qty);
+        h.invested += cost * fx;
         h.qty += t.qty;
-        h.avgCost = h.invested / h.qty;
+        h.avgCostInr = h.invested / h.qty;
       } else {
         // Overselling is rejected at entry; clamp so a bad import can't go negative.
         const sold = Math.min(t.qty, h.qty);
-        const pnl = sold * (t.price - h.avgCost) - t.fees;
+        const pnl = (sold * t.price - t.fees) * fx - sold * h.avgCostInr;
         h.realized += pnl;
         realized += pnl;
         h.qty -= sold;
-        h.invested = h.qty > 0 ? h.qty * h.avgCost : 0;
-        if (h.qty === 0) h.avgCost = 0;
+        h.invested = h.qty > 0 ? h.qty * h.avgCostInr : 0;
+        if (h.qty === 0) {
+          h.avgCost = 0;
+          h.avgCostInr = 0;
+        }
       }
       stocks.set(t.symbol, h);
       continue;
@@ -166,6 +197,11 @@ export function validateTxn(existing: PortfolioTxn[], txn: PortfolioTxn): string
   if (txn.fees < 0) return 'Fees can’t be negative.';
   if (!/^\d{4}-\d{2}-\d{2}$/.test(txn.date)) return 'Enter a valid date.';
   if (txn.kind === 'FUT' && (!txn.expiry || !(txn.lotSize && txn.lotSize > 0))) return 'Pick a contract expiry.';
+  if (isUs(txn.symbol)) {
+    if (txn.kind === 'FUT') return 'Futures are NSE only.';
+    if (!(txn.fx && txn.fx > 0)) return 'Enter the USD/INR rate for that date.';
+    if (txn.fx < 10 || txn.fx > 1000) return 'That USD/INR rate looks wrong — it should be around 80–90.';
+  }
 
   if (txn.kind === 'STOCK' && txn.side === 'SELL') {
     // Holdings as of the sell date — selling shares bought later isn't possible.
@@ -201,6 +237,8 @@ export interface Valuation {
   totalPnlPct: number | null;
   dayPnl: number;
   dayPnlPct: number | null;
+  /** Part of the stocks' unrealised P&L that comes from USD/INR moves (US stocks only). */
+  currencyGain: number;
   /** Symbols with no live price yet — valued at cost meanwhile. */
   unpriced: string[];
 }
@@ -222,25 +260,21 @@ export function valueBook(
   let dayPnl = 0;
   let prevValue = 0;
   let unrealizedFutures = 0;
+  let currencyGain = 0;
   const unpriced: string[] = [];
 
   for (const h of book.stocks) {
     if (h.qty === 0) continue;
-    const q = quotes[h.symbol];
+    const hv = holdingValue(h, quotes, today);
     invested += h.invested;
-    if (!q) {
+    currentValue += hv.value;
+    if (!hv.priced) {
       unpriced.push(h.symbol);
-      currentValue += h.invested;
       continue;
     }
-    currentValue += h.qty * q.price;
-    // Shares bought today gain from their purchase price, not yesterday's close.
-    const boughtToday = h.txns.filter((t) => t.side === 'BUY' && t.date === today);
-    const newQty = Math.min(h.qty, boughtToday.reduce((s, t) => s + t.qty, 0));
-    const oldQty = h.qty - newQty;
-    const newCost = newQty > 0 ? boughtToday.reduce((s, t) => s + t.qty * t.price, 0) * (newQty / boughtToday.reduce((s, t) => s + t.qty, 0)) : 0;
-    dayPnl += oldQty * (q.price - q.previousClose) + (newQty * q.price - newCost);
-    prevValue += oldQty * q.previousClose + newCost;
+    dayPnl += hv.dayPnl;
+    prevValue += hv.prevValue;
+    currencyGain += hv.fxGain;
   }
 
   for (const f of book.futures) {
@@ -268,7 +302,61 @@ export function valueBook(
     totalPnlPct: invested > EPS ? (totalPnl / invested) * 100 : null,
     dayPnl,
     dayPnlPct: prevValue > EPS ? (dayPnl / prevValue) * 100 : null,
+    currencyGain,
     unpriced,
+  };
+}
+
+export interface HoldingValue {
+  /** False until both the stock's price and (for US stocks) USD/INR are known; values are at cost meanwhile. */
+  priced: boolean;
+  /** Current market value in rupees. */
+  value: number;
+  /** Unrealised P&L in rupees… */
+  pnl: number;
+  /** …of which from the stock's own price move (at today's rate)… */
+  stockGain: number;
+  /** …and from the rupee's move since purchase. Always 0 for Indian stocks. */
+  fxGain: number;
+  /** Today's P&L in rupees, including today's USD/INR move for US stocks. */
+  dayPnl: number;
+  /** Value at yesterday's close (or today's purchase price), for the day %. */
+  prevValue: number;
+  /** Today's % move of the stock in its own currency. */
+  dayPct: number | null;
+}
+
+/** One holding valued at live prices, in rupees. */
+export function holdingValue(h: StockHolding, quotes: Record<string, LiveQuote>, today = istDate(Math.floor(Date.now() / 1000))): HoldingValue {
+  const q = quotes[h.symbol];
+  const fxq = h.currency === 'USD' ? quotes[FX_KEY] : undefined;
+  const fxNow = h.currency === 'USD' ? fxq?.price : 1;
+  const fxPrev = h.currency === 'USD' ? (fxq?.previousClose || fxq?.price) : 1;
+  if (!q || !fxNow || !fxPrev) {
+    return { priced: false, value: h.invested, pnl: 0, stockGain: 0, fxGain: 0, dayPnl: 0, prevValue: 0, dayPct: null };
+  }
+
+  const value = h.qty * q.price * fxNow;
+  const pnl = value - h.invested;
+  const stockGain = h.qty * (q.price - h.avgCost) * fxNow;
+
+  // Shares bought today gain from their purchase price, not yesterday's close.
+  const boughtToday = h.txns.filter((t) => t.side === 'BUY' && t.date === today);
+  const boughtQty = boughtToday.reduce((s, t) => s + t.qty, 0);
+  const newQty = Math.min(h.qty, boughtQty);
+  const oldQty = h.qty - newQty;
+  const newCost = newQty > 0 ? boughtToday.reduce((s, t) => s + t.qty * t.price * txnFx(t), 0) * (newQty / boughtQty) : 0;
+  const prevValue = oldQty * q.previousClose * fxPrev + newCost;
+
+  return {
+    priced: true,
+    value,
+    pnl,
+    stockGain,
+    fxGain: pnl - stockGain,
+    dayPnl: value - prevValue,
+    prevValue,
+    dayPct: q.previousClose ? ((q.price - q.previousClose) / q.previousClose) * 100 : null,
   };
 }
 
@@ -325,8 +413,14 @@ export function portfolioSeries(txns: PortfolioTxn[], history: Record<string, Pr
   const symbols = new Set(sorted.map((t) => t.symbol));
   const close: Record<string, (d: string) => number | null> = {};
   for (const s of symbols) close[s] = filler(history[s]);
+  // US stocks are valued in rupees at each day's USD/INR close.
+  const fxClose = filler(history[FX_KEY]);
   // Prime the fillers with any closes before the first day.
-  for (const d of calendar.filter((x) => x < start)) for (const s of symbols) close[s](d);
+  for (const d of calendar.filter((x) => x < start)) {
+    fxClose(d);
+    for (const s of symbols) close[s](d);
+  }
+  let lastFx: number | null = null;
 
   const shares = new Map<string, number>();
   const lastPrice = new Map<string, number>();
@@ -338,8 +432,13 @@ export function portfolioSeries(txns: PortfolioTxn[], history: Record<string, Pr
   const out: SeriesPoint[] = [];
 
   for (const day of days) {
+    const fxDay = fxClose(day) ?? lastFx;
     const today: Record<string, number | null> = {};
-    for (const s of symbols) today[s] = close[s](day);
+    for (const s of symbols) {
+      const c = close[s](day);
+      // In rupees; a US close with no exchange rate yet is treated as missing.
+      today[s] = c == null ? null : isUs(s) ? (fxDay == null ? null : c * fxDay) : c;
+    }
 
     // Futures P&L on lots held overnight, at the underlying's close-to-close move.
     let fut = 0;
@@ -356,8 +455,10 @@ export function portfolioSeries(txns: PortfolioTxn[], history: Record<string, Pr
       if (t.kind === 'STOCK') {
         const q = t.side === 'BUY' ? t.qty : -t.qty;
         shares.set(t.symbol, (shares.get(t.symbol) ?? 0) + q);
-        lastPrice.set(t.symbol, t.price);
-        flow += t.side === 'BUY' ? t.qty * t.price + t.fees : -(t.qty * t.price - t.fees);
+        const fx = txnFx(t);
+        if (isUs(t.symbol) && fx > 0) lastFx ??= fx;
+        lastPrice.set(t.symbol, t.price * fx);
+        flow += (t.side === 'BUY' ? t.qty * t.price + t.fees : -(t.qty * t.price - t.fees)) * fx;
       } else {
         const k = futureKey(t.symbol, t.expiry ?? '');
         const f = futUnits.get(k) ?? { symbol: t.symbol, expiry: t.expiry ?? '', units: 0 };

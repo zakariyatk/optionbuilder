@@ -3,6 +3,7 @@ import type { PortfolioTxn } from '../api/types';
 import {
   benchmarkSeries,
   findOversell,
+  holdingValue,
   replaceTxn,
   betaAlpha,
   buildBook,
@@ -198,5 +199,65 @@ describe('performance', () => {
     const port = days.map((date, i) => ({ date, value: (p *= 1 + 2 * (i % 2 ? 0.01 : -0.008)) }));
     expect(betaAlpha(port, bench)!.beta).toBeCloseTo(2, 1);
     expect(monthlyReturns(port).map((m) => m.month)).toEqual(['2026-01', '2026-02']);
+  });
+});
+
+describe('US stocks (₹ totals, purchase-date USD/INR)', () => {
+  const us = (p: Partial<PortfolioTxn>) => txn({ symbol: 'US:AAPL', price: 200, qty: 10, fx: 80, ...p });
+
+  it('fixes rupee cost at each purchase’s rate and keeps the dollar average separately', () => {
+    const book = buildBook([us({ qty: 10, price: 200, fx: 80 }), us({ qty: 10, price: 220, fx: 85, date: '2026-02-01' })]);
+    const h = book.stocks[0];
+    expect(h.currency).toBe('USD');
+    expect(h.avgCost).toBeCloseTo(210);
+    expect(h.invested).toBeCloseTo(10 * 200 * 80 + 10 * 220 * 85);
+    expect(h.avgCostInr).toBeCloseTo((160000 + 187000) / 20);
+  });
+
+  it('books realised P&L in rupees at the sale’s rate', () => {
+    const book = buildBook([us({ qty: 10, price: 200, fx: 80 }), us({ side: 'SELL', qty: 5, price: 250, fx: 84, date: '2026-03-01' })]);
+    // proceeds 5×250×84 = 105,000; cost 5×200×80 = 80,000
+    expect(book.realized).toBeCloseTo(25000);
+    expect(book.stocks[0].invested).toBeCloseTo(80000);
+  });
+
+  it('splits unrealised P&L into stock gain and currency gain', () => {
+    const book = buildBook([us({ qty: 10, price: 200, fx: 80 })]);
+    const quotes = { 'US:AAPL': { price: 220, previousClose: 210 }, USDINR: { price: 88, previousClose: 87 } };
+    const hv = holdingValue(book.stocks[0], quotes, '2026-10-10');
+    expect(hv.value).toBeCloseTo(10 * 220 * 88);
+    expect(hv.pnl).toBeCloseTo(193600 - 160000);
+    expect(hv.stockGain).toBeCloseTo(10 * 20 * 88);
+    expect(hv.fxGain).toBeCloseTo(10 * 200 * 8);
+    // Today: price 210→220 and rupee 87→88, both count.
+    expect(hv.dayPnl).toBeCloseTo(10 * 220 * 88 - 10 * 210 * 87);
+
+    const v = valueBook(book, quotes, {}, '2026-10-10');
+    expect(v.currentValue).toBeCloseTo(193600);
+    expect(v.currencyGain).toBeCloseTo(16000);
+  });
+
+  it('waits for USD/INR before valuing a US holding', () => {
+    const book = buildBook([us({})]);
+    const v = valueBook(book, { 'US:AAPL': { price: 220, previousClose: 210 } }, {}, '2026-10-10');
+    expect(v.unpriced).toEqual(['US:AAPL']);
+    expect(v.currentValue).toBeCloseTo(160000);
+  });
+
+  it('requires a sane exchange rate and rejects US futures', () => {
+    expect(validateTxn([], us({ fx: undefined }))).toMatch(/USD\/INR rate/);
+    expect(validateTxn([], us({ fx: 0.012 }))).toMatch(/looks wrong/);
+    expect(validateTxn([], us({ kind: 'FUT', expiry: '2026-12-31', lotSize: 1 }))).toMatch(/NSE only/);
+    expect(validateTxn([], us({}))).toBeNull();
+  });
+
+  it('measures performance in rupees, so a falling rupee adds to the return', () => {
+    const cal = ['2026-01-05', '2026-01-06'];
+    const history = {
+      'US:AAPL': pts([['2026-01-05', 200], ['2026-01-06', 200]]),
+      USDINR: pts([['2026-01-05', 80], ['2026-01-06', 84]]),
+    };
+    const s = portfolioSeries([us({ qty: 10, price: 200, fx: 80 })], history, cal);
+    expect(s[1].value).toBeCloseTo(1.05);
   });
 });

@@ -159,7 +159,19 @@ const HISTORY_SPEC: Record<string, { end: number; mu: number; vol: number; curre
   ICICIBANK: { end: 1402.3, mu: 0.2, vol: 0.22 },
   TATAMOTORS: { end: 688.4, mu: 0.12, vol: 0.34 },
   TCS: { end: 3410.8, mu: 0.06, vol: 0.2 },
+  'US:AAPL': { end: 342, mu: 0.2, vol: 0.27, currency: 'USD' },
+  'US:MSFT': { end: 520, mu: 0.18, vol: 0.24, currency: 'USD' },
+  'US:NVDA': { end: 185, mu: 0.45, vol: 0.5, currency: 'USD' },
+  'US:VOO': { end: 615, mu: 0.13, vol: 0.16, currency: 'USD' },
 };
+
+/** What the mock /api/search knows about. */
+const US_LISTINGS = [
+  { symbol: 'US:AAPL', ticker: 'AAPL', name: 'Apple Inc.', exchange: 'NASDAQ', type: 'EQUITY' },
+  { symbol: 'US:MSFT', ticker: 'MSFT', name: 'Microsoft Corporation', exchange: 'NASDAQ', type: 'EQUITY' },
+  { symbol: 'US:NVDA', ticker: 'NVDA', name: 'NVIDIA Corporation', exchange: 'NASDAQ', type: 'EQUITY' },
+  { symbol: 'US:VOO', ticker: 'VOO', name: 'Vanguard S&P 500 ETF', exchange: 'NYSE Arca', type: 'ETF' },
+];
 
 function seededRandom(seed: string) {
   let h = 2166136261;
@@ -199,6 +211,7 @@ function seedPortfolio(): Record<string, unknown> {
     return Math.round(p[1] * 20) / 20;
   };
   const stock = (symbol: string, side: 'BUY' | 'SELL', days: number, qty: number) => ({
+    ...(symbol.startsWith('US:') ? { fx: close('USDINR', days) } : {}),
     id: `seed-${symbol}-${days}`,
     kind: 'STOCK',
     side,
@@ -226,6 +239,8 @@ function seedPortfolio(): Record<string, unknown> {
       stock('TATAMOTORS', 'BUY', 250, 150),
       stock('INFY', 'SELL', 120, 30),
       stock('RELIANCE', 'BUY', 45, 20),
+      stock('US:AAPL', 'BUY', 330, 15),
+      stock('US:NVDA', 'BUY', 200, 40),
       { id: 'seed-fut-1', kind: 'FUT', side: 'BUY', symbol: 'NIFTY', date: ago(9), qty: 2, price: close('NIFTY', 9) + 40, fees: 120, lotSize: 65, expiry: nextMonthEnd, instrumentKey: 'NSE_FO|MOCKNIFTYFUT' },
     ],
   };
@@ -344,6 +359,10 @@ export function mockApi(base: string): Plugin {
             }
             return send({ series });
           }
+          case '/search': {
+            const q = (url.searchParams.get('q') ?? '').toLowerCase();
+            return send({ results: US_LISTINGS.filter((l) => l.ticker.toLowerCase().startsWith(q) || l.name.toLowerCase().includes(q)) });
+          }
           case '/futures': {
             const symbol = url.searchParams.get('symbol') ?? '';
             return send({ symbol, contracts: mockFutures(symbol) });
@@ -373,13 +392,13 @@ export function mockApi(base: string): Plugin {
           case '/candles': {
             const symbol = url.searchParams.get('symbol') ?? 'NIFTY';
             const tf = url.searchParams.get('tf') ?? '15m';
-            const last: Record<string, number> = { NIFTY: 24175.65, BANKNIFTY: 51234.5, FINNIFTY: 23410.2, MIDCPNIFTY: 12890.4, RELIANCE: 1172.3, TCS: 3410.8, HDFCBANK: 1650.25, INFY: 1520.6, ICICIBANK: 1402.3, TATAMOTORS: 688.4, SBIN: 812.5, ITC: 405.2 };
+            const last: Record<string, number> = { NIFTY: 24175.65, BANKNIFTY: 51234.5, FINNIFTY: 23410.2, MIDCPNIFTY: 12890.4, RELIANCE: 1172.3, TCS: 3410.8, HDFCBANK: 1650.25, INFY: 1520.6, ICICIBANK: 1402.3, TATAMOTORS: 688.4, SBIN: 812.5, ITC: 405.2, USDINR: 88.7, 'US:AAPL': 342, 'US:MSFT': 520, 'US:NVDA': 185, 'US:VOO': 615 };
             const isIndex = ['NIFTY', 'BANKNIFTY', 'FINNIFTY', 'MIDCPNIFTY'].includes(symbol);
             return send({ symbol, tf, candles: mockCandles(symbol, tf, last[symbol] ?? 1000, !isIndex) });
           }
           case '/watch': {
             const spot = fixture('spot') as { price: number; previousClose: number };
-            const bases: Record<string, number> = { INDIAVIX: 14.1, NIFTY: spot.price, BANKNIFTY: 51234.5, FINNIFTY: 23410.2, MIDCPNIFTY: 12890.4, RELIANCE: 1172.3, TCS: 3410.8, HDFCBANK: 1650.25, INFY: 1520.6, ICICIBANK: 1402.3, TATAMOTORS: 688.4, SBIN: 812.5, ITC: 405.2 };
+            const bases: Record<string, number> = { INDIAVIX: 14.1, NIFTY: spot.price, BANKNIFTY: 51234.5, FINNIFTY: 23410.2, MIDCPNIFTY: 12890.4, RELIANCE: 1172.3, TCS: 3410.8, HDFCBANK: 1650.25, INFY: 1520.6, ICICIBANK: 1402.3, TATAMOTORS: 688.4, SBIN: 812.5, ITC: 405.2, USDINR: 88.7, 'US:AAPL': 342, 'US:MSFT': 520, 'US:NVDA': 185, 'US:VOO': 615 };
             const quotes = (url.searchParams.get('symbols') ?? '')
               .split(',')
               .filter(Boolean)

@@ -8,8 +8,10 @@ import {
   benchmarkSeries,
   betaAlpha,
   buildBook,
+  FX_KEY,
   findOversell,
   futurePrice,
+  holdingValue,
   istDate,
   monthlyReturns,
   portfolioSeries,
@@ -22,6 +24,7 @@ import {
 } from '../../domain/portfolio';
 import { confirmDialog, promptDialog } from '../../lib/dialog';
 import { inr, num, signedInr } from '../../lib/format';
+import { displaySymbol, isUs } from '../../lib/markets';
 import { PerformanceChart, type ChartLine } from './PerformanceChart';
 import { TransactionDialog, type TxnDraft } from './TransactionDialog';
 import { useFuturesQuotes, useLiveQuotes, usePortfolios, usePriceHistory } from './usePortfolios';
@@ -87,6 +90,16 @@ function periodStart(period: Period, last: string, first: string): string {
 const pnlColor = (v: number) => (v > 0 ? 'var(--good-text)' : v < 0 ? 'var(--critical)' : 'var(--text-secondary)');
 const signedPctOrDash = (v: number | null, d = 2) => (v === null ? '—' : `${v >= 0 ? '+' : '−'}${Math.abs(v).toFixed(d)}%`);
 const th = 'px-2 py-2 text-right text-[11px] font-normal text-[var(--text-muted)]';
+/** A price in the symbol's own currency. */
+const px = (symbol: string, v: number) => (isUs(symbol) ? `$${num(v)}` : num(v));
+
+function MarketTag({ symbol }: { symbol: string }) {
+  return isUs(symbol) ? (
+    <span className="rounded border border-[var(--border)] px-1 text-[9px] font-semibold tracking-wide text-[var(--text-muted)]" title="US stock — priced in dollars, valued in rupees">
+      US
+    </span>
+  ) : null;
+}
 const td = 'px-2 py-2 text-right tabular';
 
 function SummaryTile({ label, value, sub, color }: { label: string; value: string; sub?: string; color?: string }) {
@@ -128,10 +141,18 @@ export function PortfolioPage({ brokerConnected, symbols }: { brokerConnected: b
   const [dialog, setDialog] = useState<TxnDraft | null>(null);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [showAllTxns, setShowAllTxns] = useState(false);
+  const [allocBy, setAllocBy] = useState<'stock' | 'market'>('stock');
   const [actionError, setActionError] = useState<string | null>(null);
 
   // ----- live prices
-  const quoteSymbols = useMemo(() => [...book.stocks.filter((s) => s.qty > 0).map((s) => s.symbol), ...book.futures.filter((f) => f.lots !== 0).map((f) => f.symbol)], [book]);
+  const quoteSymbols = useMemo(() => {
+    const held = book.stocks.filter((s) => s.qty > 0);
+    return [
+      ...held.map((s) => s.symbol),
+      ...book.futures.filter((f) => f.lots !== 0).map((f) => f.symbol),
+      ...(held.some((s) => s.currency === 'USD') ? [FX_KEY] : []),
+    ];
+  }, [book]);
   const quotes = useLiveQuotes(quoteSymbols);
   const futKeys = useMemo(() => book.futures.filter((f) => f.lots !== 0 && f.instrumentKey).map((f) => f.instrumentKey!), [book]);
   const futQuotes = useFuturesQuotes(futKeys, brokerConnected);
@@ -228,7 +249,7 @@ export function PortfolioPage({ brokerConnected, symbols }: { brokerConnected: b
       if (!portfolio) return;
       const ok = await confirmDialog({
         title: 'Delete this transaction?',
-        message: `${t.side === 'BUY' ? 'Buy' : 'Sell'} ${t.qty} ${t.kind === 'FUT' ? `lot${t.qty === 1 ? '' : 's'} ${t.symbol} ${formatExpiry(t.expiry ?? '')} FUT` : t.symbol} @ ${num(t.price)} on ${t.date}`,
+        message: `${t.side === 'BUY' ? 'Buy' : 'Sell'} ${t.qty} ${t.kind === 'FUT' ? `lot${t.qty === 1 ? '' : 's'} ${t.symbol} ${formatExpiry(t.expiry ?? '')} FUT` : displaySymbol(t.symbol)} @ ${px(t.symbol, t.price)} on ${t.date}`,
         confirmLabel: 'Delete',
       });
       if (!ok) return;
@@ -276,9 +297,14 @@ export function PortfolioPage({ brokerConnected, symbols }: { brokerConnected: b
   const openFutures = book.futures.filter((f) => f.lots !== 0);
   const closedFutures = book.futures.filter((f) => f.lots === 0);
   const today = istDate(Math.floor(Date.now() / 1000));
-  const allocation = openStocks
-    .map((s) => ({ symbol: s.symbol, value: s.qty * (live[s.symbol]?.price ?? s.avgCost) }))
-    .sort((a, b) => b.value - a.value);
+  const values = new Map(openStocks.map((h) => [h.symbol, holdingValue(h, live, today)]));
+  const byStock = openStocks.map((h) => ({ symbol: displaySymbol(h.symbol), value: values.get(h.symbol)!.value }));
+  const byMarket = [
+    { symbol: 'India', value: openStocks.filter((h) => h.currency === 'INR').reduce((t, h) => t + values.get(h.symbol)!.value, 0) },
+    { symbol: 'US', value: openStocks.filter((h) => h.currency === 'USD').reduce((t, h) => t + values.get(h.symbol)!.value, 0) },
+  ].filter((a) => a.value > 0);
+  const hasUs = openStocks.some((h) => h.currency === 'USD');
+  const allocation = (allocBy === 'market' && hasUs ? byMarket : byStock).sort((a, b) => b.value - a.value);
   const allocTotal = allocation.reduce((s, a) => s + a.value, 0);
   const allocShown = allocation.length > 7 ? [...allocation.slice(0, 6), { symbol: 'Other', value: allocation.slice(6).reduce((s, a) => s + a.value, 0) }] : allocation;
   const sortedTxns = [...txns].sort((a, b) => b.date.localeCompare(a.date));
@@ -330,7 +356,7 @@ export function PortfolioPage({ brokerConnected, symbols }: { brokerConnected: b
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
             <SummaryTile label="Current value" value={inr(v.currentValue)} sub={openFutures.length ? `+ ${openFutures.length} open future${openFutures.length === 1 ? '' : 's'}` : undefined} />
             <SummaryTile label="Invested" value={inr(v.invested)} sub={v.realized !== 0 ? `Realised ${signedInr(v.realized)}` : undefined} />
-            <SummaryTile label="Total P&L" value={signedInr(v.totalPnl)} sub={signedPctOrDash(v.totalPnlPct)} color={pnlColor(v.totalPnl)} />
+            <SummaryTile label="Total P&L" value={signedInr(v.totalPnl)} sub={`${signedPctOrDash(v.totalPnlPct)}${Math.abs(v.currencyGain) >= 1 ? ` · ${signedInr(v.currencyGain)} from USD/INR` : ''}`} color={pnlColor(v.totalPnl)} />
             <SummaryTile label="Today’s P&L" value={signedInr(v.dayPnl)} sub={signedPctOrDash(v.dayPnlPct)} color={pnlColor(v.dayPnl)} />
           </div>
 
@@ -464,7 +490,24 @@ export function PortfolioPage({ brokerConnected, symbols }: { brokerConnected: b
             <Card className="p-3">
               <div className="mb-2 flex items-baseline justify-between">
                 <h2 className="text-sm font-semibold">Allocation</h2>
-                <span className="text-[11px] text-[var(--text-muted)]">Stocks by current value</span>
+                {hasUs ? (
+                  <span className="flex gap-1 text-[11px]" role="radiogroup" aria-label="Group allocation by">
+                    {(['stock', 'market'] as const).map((k) => (
+                      <button
+                        key={k}
+                        type="button"
+                        role="radio"
+                        aria-checked={allocBy === k}
+                        onClick={() => setAllocBy(k)}
+                        className={`rounded px-1.5 py-0.5 ${allocBy === k ? 'bg-[var(--surface-sunken)] font-medium text-[var(--text-primary)]' : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'}`}
+                      >
+                        {k === 'stock' ? 'By stock' : 'India vs US'}
+                      </button>
+                    ))}
+                  </span>
+                ) : (
+                  <span className="text-[11px] text-[var(--text-muted)]">Stocks by current value</span>
+                )}
               </div>
               <div className="flex h-3 gap-0.5 overflow-hidden rounded-full" role="img" aria-label={allocShown.map((a) => `${a.symbol} ${((a.value / allocTotal) * 100).toFixed(0)}%`).join(', ')}>
                 {allocShown.map((a, i) => (
@@ -509,9 +552,10 @@ export function PortfolioPage({ brokerConnected, symbols }: { brokerConnected: b
                   <tbody>
                     {openStocks.map((h) => {
                       const q = live[h.symbol];
-                      const value = h.qty * (q?.price ?? h.avgCost);
-                      const pnl = value - h.invested;
-                      const day = q && q.previousClose ? ((q.price - q.previousClose) / q.previousClose) * 100 : null;
+                      const hv = values.get(h.symbol)!;
+                      const value = hv.value;
+                      const pnl = hv.pnl;
+                      const day = hv.dayPct;
                       const open = expanded.has(h.symbol);
                       return (
                         <Fragment key={h.symbol}>
@@ -519,20 +563,28 @@ export function PortfolioPage({ brokerConnected, symbols }: { brokerConnected: b
                             <td className="px-2 py-2 text-left">
                               <span className="inline-flex items-center gap-1 font-semibold">
                                 {open ? <ChevronDown size={14} aria-hidden="true" /> : <ChevronRight size={14} aria-hidden="true" />}
-                                {h.symbol}
+                                {displaySymbol(h.symbol)}
+                                <MarketTag symbol={h.symbol} />
                               </span>
                               <div className="pl-5 text-[11px] text-[var(--text-muted)]">{symbols.find((s) => s.symbol === h.symbol)?.label ?? `since ${formatExpiry(h.firstDate)}`}</div>
                             </td>
                             <td className={td}>{h.qty.toLocaleString('en-IN')}</td>
-                            <td className={td}>{num(h.avgCost)}</td>
-                            <td className={td}>{q ? num(q.price) : '—'}</td>
+                            <td className={td} title={h.currency === 'USD' ? `₹${num(h.avgCostInr)} a share at the rates you paid` : undefined}>
+                              {px(h.symbol, h.avgCost)}
+                            </td>
+                            <td className={td}>{q ? px(h.symbol, q.price) : '—'}</td>
                             <td className={td} style={{ color: day === null ? undefined : pnlColor(day) }}>
                               {signedPctOrDash(day)}
                             </td>
                             <td className={td}>{inr(value)}</td>
                             <td className={td} style={{ color: pnlColor(pnl) }}>
-                              {signedInr(pnl)}
-                              <div className="text-[11px]">{signedPctOrDash(h.invested > 0 ? (pnl / h.invested) * 100 : null)}</div>
+                              {hv.priced ? signedInr(pnl) : '—'}
+                              <div className="text-[11px]">{hv.priced ? signedPctOrDash(h.invested > 0 ? (pnl / h.invested) * 100 : null) : ''}</div>
+                              {h.currency === 'USD' && hv.priced && (
+                                <div className="whitespace-nowrap text-[10px] text-[var(--text-muted)]" title="Stock’s own move at today’s rate, and the effect of USD/INR since you bought">
+                                  stock {signedInr(hv.stockGain)} · FX {signedInr(hv.fxGain)}
+                                </div>
+                              )}
                             </td>
                             <td className={td}>{allocTotal > 0 ? `${((value / allocTotal) * 100).toFixed(1)}%` : '—'}</td>
                             <td className="px-2 py-2 text-right" onClick={(e) => e.stopPropagation()}>
@@ -568,7 +620,7 @@ export function PortfolioPage({ brokerConnected, symbols }: { brokerConnected: b
                 <div className="border-t border-[var(--border)] px-3 py-2 text-[11px] text-[var(--text-muted)]">
                   Fully sold: {closedStocks.map((s) => (
                     <span key={s.symbol} className="mr-3 tabular">
-                      {s.symbol} <span style={{ color: pnlColor(s.realized) }}>{signedInr(s.realized)}</span>
+                      {displaySymbol(s.symbol)} <span style={{ color: pnlColor(s.realized) }}>{signedInr(s.realized)}</span>
                     </span>
                   ))}
                 </div>
@@ -698,15 +750,15 @@ function TxnList({ txns, onDelete, onEdit }: { txns: PortfolioTxn[]; onDelete: (
               {t.side === 'BUY' ? 'Buy' : 'Sell'}
             </span>
             <span className="min-w-28 font-medium">
-              {t.symbol}
+              {displaySymbol(t.symbol)}
               {t.kind === 'FUT' && ` FUT ${formatExpiry(t.expiry ?? '')}`}
             </span>
             <span className="text-[var(--text-secondary)]">
-              {t.qty.toLocaleString('en-IN')} {t.kind === 'FUT' ? `lot${t.qty === 1 ? '' : 's'}` : 'sh'} @ {num(t.price)}
+              {t.qty.toLocaleString('en-IN')} {t.kind === 'FUT' ? `lot${t.qty === 1 ? '' : 's'}` : 'sh'} @ {px(t.symbol, t.price)}
             </span>
             <span className="text-[var(--text-muted)]">
-              {inr(units * t.price)}
-              {t.fees > 0 && ` + ${inr(t.fees)} fees`}
+              {isUs(t.symbol) ? `$${num(units * t.price)} at ₹${num(t.fx ?? 0)} = ${inr(units * t.price * (t.fx ?? 0))}` : inr(units * t.price)}
+              {t.fees > 0 && ` + ${isUs(t.symbol) ? `$${num(t.fees)}` : inr(t.fees)} fees`}
             </span>
             {t.note && <span className="truncate text-[var(--text-muted)] italic">{t.note}</span>}
             <button type="button" onClick={() => onEdit(t)} className="ml-auto rounded p-1 text-[var(--text-muted)] hover:bg-[var(--surface-raised)] hover:text-[var(--text-primary)]" aria-label={`Edit ${t.side.toLowerCase()} ${t.symbol} on ${t.date}`} title="Edit transaction">

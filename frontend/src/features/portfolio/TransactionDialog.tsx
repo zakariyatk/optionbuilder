@@ -1,11 +1,14 @@
-import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from 'react';
 import { X } from 'lucide-react';
 import { api, errorMessage } from '../../api/client';
-import type { FutureContract, PortfolioTxn, SymbolInfo } from '../../api/types';
+import type { FutureContract, PortfolioTxn, SymbolInfo, UsSearchResult } from '../../api/types';
 import { Button, inputClass } from '../../components/ui';
 import { formatExpiry } from '../../domain/dates';
 import { istDate, validateTxn } from '../../domain/portfolio';
 import { inr } from '../../lib/format';
+import { US_PREFIX, displaySymbol, isUs } from '../../lib/markets';
+
+const usd = (v: number) => `$${v.toLocaleString('en-US', { maximumFractionDigits: 2 })}`;
 
 export interface TxnDraft {
   kind: 'STOCK' | 'FUT';
@@ -65,7 +68,15 @@ export function TransactionDialog({
   const e0 = initial.edit;
   const [kind, setKind] = useState(e0?.kind ?? initial.kind);
   const [side, setSide] = useState(e0?.side ?? initial.side);
-  const [symbol, setSymbol] = useState(e0?.symbol ?? initial.symbol ?? '');
+  const startSymbol = e0?.symbol ?? initial.symbol ?? '';
+  const [market, setMarket] = useState<'IN' | 'US'>(isUs(startSymbol) ? 'US' : 'IN');
+  /** What's typed: the ticker without the US: prefix (or a company name while searching). */
+  const [symbol, setSymbol] = useState(displaySymbol(startSymbol));
+  const [usResults, setUsResults] = useState<UsSearchResult[]>([]);
+  const [usPicked, setUsPicked] = useState<UsSearchResult | null>(null);
+  const [fx, setFx] = useState(e0?.fx ? String(e0.fx) : '');
+  const [fxTouched, setFxTouched] = useState(!!e0?.fx);
+  const [fxSeries, setFxSeries] = useState<[number, number][] | null>(null);
   const [date, setDate] = useState(() => e0?.date ?? today());
   const [qty, setQty] = useState(e0 ? String(e0.qty) : initial.qty ? String(initial.qty) : '');
   const [price, setPrice] = useState(e0 ? String(e0.price) : '');
@@ -80,7 +91,9 @@ export function TransactionDialog({
   const [saving, setSaving] = useState(false);
   const box = useRef<HTMLDivElement>(null);
 
-  const sym = symbol.trim().toUpperCase();
+  const us = market === 'US' && kind === 'STOCK';
+  const ticker = symbol.trim().toUpperCase();
+  const sym = us ? US_PREFIX + ticker : ticker;
   const contract = contracts?.find((c) => c.expiry === expiry) ?? null;
   // An existing position (e.g. "Exit") keeps its own expiry and lot size even if the contract has expired.
   const existingFut = [...existing, ...(e0 ? [e0] : [])].find((t) => t.kind === 'FUT' && t.symbol === sym && t.expiry === expiry);
@@ -114,8 +127,54 @@ export function TransactionDialog({
     };
   }, [kind, sym, heldExpiry]);
 
+  // US: suggest matching stocks and ETFs as the ticker or name is typed.
+  useEffect(() => {
+    if (!us || ticker.length < 1 || usPicked) {
+      setUsResults([]);
+      return;
+    }
+    let cancelled = false;
+    const t = window.setTimeout(() => {
+      api
+        .searchUs(symbol.trim())
+        .then((r) => !cancelled && setUsResults(r.results))
+        .catch(() => !cancelled && setUsResults([]));
+    }, 250);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(t);
+    };
+  }, [us, ticker, symbol, usPicked]);
+
+  // US: the USD/INR close on the transaction date, filled in until the user types their own.
+  useEffect(() => {
+    if (!us || fxSeries) return;
+    let cancelled = false;
+    api
+      .history(['USDINR'], 'max')
+      .then((r) => !cancelled && setFxSeries(r.series.USDINR?.points ?? []))
+      .catch(() => !cancelled && setFxSeries([]));
+    return () => {
+      cancelled = true;
+    };
+  }, [us, fxSeries]);
+  const fxOnDate = useMemo(() => {
+    if (!fxSeries?.length) return null;
+    let v: number | null = null;
+    for (const [t, c] of fxSeries) {
+      if (istDate(t) > date) break;
+      v = c;
+    }
+    return v;
+  }, [fxSeries, date]);
+  useEffect(() => {
+    if (us && !fxTouched && fxOnDate) setFx(fxOnDate.toFixed(4));
+  }, [us, fxTouched, fxOnDate]);
+
   const ltp = sym ? livePrice(sym) : null;
   const total = (Number(qty) || 0) * (kind === 'FUT' ? lotSize : 1) * (Number(price) || 0);
+  const totalLabel =
+    total <= 0 ? '' : us ? `Total ${usd(total)}${Number(fx) > 0 ? ` ≈ ${inr(total * Number(fx))}` : ''}` : `${kind === 'FUT' ? 'Notional' : 'Total'} ${inr(total)}`;
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
@@ -128,6 +187,7 @@ export function TransactionDialog({
       qty: Number(qty),
       price: Number(price),
       fees: fees === '' ? 0 : Number(fees),
+      ...(us ? { fx: Number(fx) } : {}),
       ...(kind === 'FUT' ? { expiry, lotSize, instrumentKey: contract?.instrumentKey ?? existingFut?.instrumentKey ?? null } : {}),
       ...(note.trim() ? { note: note.trim() } : {}),
     };
@@ -172,19 +232,66 @@ export function TransactionDialog({
             <Toggle label="Side" value={side} onChange={setSide} options={[{ v: 'BUY', label: 'Buy', tone: 'var(--good-text)' }, { v: 'SELL', label: 'Sell', tone: 'var(--critical)' }]} />
             <Toggle label="Instrument" value={kind} onChange={(k) => { setKind(k); setError(null); }} options={[{ v: 'STOCK', label: 'Stock' }, { v: 'FUT', label: 'Future' }]} />
           </div>
+          {kind === 'STOCK' && (
+            <Toggle
+              label="Market"
+              value={market}
+              onChange={(m) => {
+                setMarket(m);
+                setSymbol('');
+                setUsPicked(null);
+                setError(null);
+              }}
+              options={[{ v: 'IN', label: 'India (NSE)' }, { v: 'US', label: 'US (NASDAQ / NYSE)' }]}
+            />
+          )}
 
-          <label className="text-[11px] text-[var(--text-secondary)]">
-            {kind === 'FUT' ? 'Underlying' : 'Symbol (NSE)'}
+          <label className="relative text-[11px] text-[var(--text-secondary)]">
+            {kind === 'FUT' ? 'Underlying' : us ? 'Ticker or company (US)' : 'Symbol (NSE)'}
             <input
               className={field}
               value={symbol}
-              onChange={(e) => { setSymbol(e.target.value.toUpperCase()); setError(null); }}
-              list="portfolio-symbols"
-              placeholder={kind === 'FUT' ? 'NIFTY' : 'HDFCBANK'}
+              onChange={(e) => {
+                setSymbol(us ? e.target.value : e.target.value.toUpperCase());
+                setUsPicked(null);
+                setError(null);
+              }}
+              list={us ? undefined : 'portfolio-symbols'}
+              placeholder={kind === 'FUT' ? 'NIFTY' : us ? 'AAPL or Apple' : 'HDFCBANK'}
               autoCapitalize="characters"
               spellCheck={false}
               required
             />
+            {us && usPicked && (
+              <span className="mt-0.5 block text-[var(--text-muted)]">
+                {usPicked.name} · {usPicked.exchange}
+                {usPicked.type === 'ETF' ? ' · ETF' : ''}
+              </span>
+            )}
+            {us && usResults.length > 0 && (
+              <ul aria-label="Matching US stocks" className="absolute inset-x-0 top-full z-10 mt-1 max-h-60 overflow-auto rounded-md border border-[var(--border-strong)] bg-[var(--surface-raised)] py-1 shadow-xl">
+                {usResults.map((r) => (
+                  <li key={r.symbol}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSymbol(displaySymbol(r.symbol));
+                        setUsPicked(r);
+                        setUsResults([]);
+                      }}
+                      className="flex w-full items-baseline gap-2 px-3 py-1.5 text-left text-xs hover:bg-[var(--surface-sunken)]"
+                    >
+                      <span className="w-16 shrink-0 font-semibold text-[var(--text-primary)]">{displaySymbol(r.symbol)}</span>
+                      <span className="flex-1 truncate">{r.name}</span>
+                      <span className="shrink-0 text-[10px] text-[var(--text-muted)]">
+                        {r.exchange}
+                        {r.type === 'ETF' ? ' · ETF' : ''}
+                      </span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
             <datalist id="portfolio-symbols">
               {symbols.map((s) => (
                 <option key={s.symbol} value={s.symbol}>
@@ -223,7 +330,7 @@ export function TransactionDialog({
             </label>
             <label className="text-[11px] text-[var(--text-secondary)]">
               <span className="flex items-center justify-between">
-                Price
+                {us ? 'Price ($)' : 'Price'}
                 {ltp !== null && (
                   <button type="button" className="text-[var(--series-blue)] hover:underline" onClick={() => setPrice(String(ltp))}>
                     Use {kind === 'FUT' ? 'spot' : 'LTP'} {ltp.toLocaleString('en-IN')}
@@ -233,10 +340,37 @@ export function TransactionDialog({
               <input className={field} type="number" inputMode="decimal" min={0} step="0.05" value={price} onChange={(e) => { setPrice(e.target.value); setError(null); }} required />
             </label>
             <label className="text-[11px] text-[var(--text-secondary)]">
-              Fees and taxes (optional)
+              {us ? 'Fees ($, optional)' : 'Fees and taxes (optional)'}
               <input className={field} type="number" inputMode="decimal" min={0} step="0.01" value={fees} onChange={(e) => setFees(e.target.value)} placeholder="0" />
             </label>
           </div>
+
+          {us && (
+            <label className="text-[11px] text-[var(--text-secondary)]">
+              <span className="flex items-center justify-between">
+                USD/INR on that date
+                {fxTouched && fxOnDate && (
+                  <button type="button" className="text-[var(--series-blue)] hover:underline" onClick={() => { setFxTouched(false); setFx(fxOnDate.toFixed(4)); }}>
+                    Use {fxOnDate.toFixed(2)} (market close)
+                  </button>
+                )}
+              </span>
+              <input
+                className={field}
+                type="number"
+                inputMode="decimal"
+                min={10}
+                step="0.0001"
+                value={fx}
+                onChange={(e) => { setFx(e.target.value); setFxTouched(true); setError(null); }}
+                placeholder={fxSeries === null ? 'Loading…' : '88.50'}
+                required
+              />
+              <span className="text-[var(--text-muted)]">
+                {fxTouched ? 'Your rate — use what your bank or broker charged.' : fxOnDate ? 'Filled from the market close; change it to the rate you were charged.' : 'Rupees per dollar you paid.'}
+              </span>
+            </label>
+          )}
 
           <label className="text-[11px] text-[var(--text-secondary)]">
             Note (optional)
@@ -250,7 +384,7 @@ export function TransactionDialog({
           )}
 
           <div className="flex items-center justify-between gap-2 pt-1">
-            <span className="text-xs text-[var(--text-muted)] tabular">{total > 0 ? `${kind === 'FUT' ? 'Notional' : 'Total'} ${inr(total)}` : ''}</span>
+            <span className="text-xs text-[var(--text-muted)] tabular">{totalLabel}</span>
             <div className="flex gap-2">
               <Button onClick={onClose}>Cancel</Button>
               <Button type="submit" variant="primary" disabled={saving} className="min-w-20">

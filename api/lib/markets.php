@@ -16,6 +16,8 @@ const OB_YAHOO_TICKER = [
     'FINNIFTY' => 'NIFTY_FIN_SERVICE.NS',
     'MIDCPNIFTY' => 'NIFTY_MID_SELECT.NS',
     'INDIAVIX' => '^INDIAVIX',
+    // Live rupees per dollar, for valuing US holdings.
+    'USDINR' => 'INR=X',
 ];
 
 function ob_yahoo_chart_url(string $ticker): string
