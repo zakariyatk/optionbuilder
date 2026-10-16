@@ -95,7 +95,7 @@ export function installReplay(
     // Inside the price pane, before its canvases, so the candles paint over it.
     if (watermark.parentElement !== main) main.prepend(watermark);
     const r = main.getBoundingClientRect();
-    watermark.style.fontSize = `${Math.round(Math.max(28, Math.min(r.height * 0.26, r.width * 0.13)))}px`;
+    watermark.style.fontSize = `${Math.round(Math.max(20, Math.min(r.height * 0.15, r.width * 0.075)))}px`;
   }
   const watermarkResize = new ResizeObserver(() => placeWatermark());
   watermarkResize.observe(container);
