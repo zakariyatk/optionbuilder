@@ -24,6 +24,7 @@ import { DraftMonitor } from './features/drafts/DraftMonitor';
 import { DraftsPage } from './features/drafts/DraftsPage';
 import { OpenInterestPage } from './features/oi/OpenInterestPage';
 import { PositionsPage } from './features/positions/PositionsPage';
+import { PortfolioPage } from './features/portfolio/PortfolioPage';
 import { DailyReport } from './features/report/DailyReport';
 import { useBrokerMargin, useBrokerStatus, useOptionChain, useSpot, useSymbols } from './hooks/market';
 import { useAsync } from './hooks/useAsync';
@@ -367,6 +368,12 @@ function Workspace({ showLogout, onLogout }: { showLogout: boolean; onLogout: ()
         {route.page === 'positions' && (
           <ErrorBoundary label="positions">
             <PositionsPage brokerConnected={brokerConnected} brokerConfigured={!!broker?.configured} />
+          </ErrorBoundary>
+        )}
+
+        {route.page === 'portfolio' && (
+          <ErrorBoundary label="the portfolio">
+            <PortfolioPage brokerConnected={brokerConnected} symbols={symbols} />
           </ErrorBoundary>
         )}
 

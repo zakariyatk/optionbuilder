@@ -141,10 +141,111 @@ const readBody = (req: NodeJS.ReadableStream): Promise<Record<string, unknown>> 
     });
   });
 
+// ---------------------------------------------------------- portfolio mocks
+
+/** Where each synthetic history ends, its yearly drift and volatility, and currency. */
+const HISTORY_SPEC: Record<string, { end: number; mu: number; vol: number; currency?: string }> = {
+  NIFTY: { end: 24175.65, mu: 0.11, vol: 0.13 },
+  BANKNIFTY: { end: 51234.5, mu: 0.1, vol: 0.17 },
+  SENSEX: { end: 79540, mu: 0.11, vol: 0.13 },
+  SP500: { end: 6710, mu: 0.13, vol: 0.16, currency: 'USD' },
+  QQQ: { end: 598, mu: 0.18, vol: 0.22, currency: 'USD' },
+  DOW: { end: 46300, mu: 0.09, vol: 0.15, currency: 'USD' },
+  GOLD: { end: 3980, mu: 0.14, vol: 0.15, currency: 'USD' },
+  USDINR: { end: 88.7, mu: 0.03, vol: 0.04 },
+  HDFCBANK: { end: 1650.25, mu: 0.08, vol: 0.2 },
+  INFY: { end: 1520.6, mu: 0.1, vol: 0.24 },
+  RELIANCE: { end: 1172.3, mu: 0.07, vol: 0.22 },
+  ICICIBANK: { end: 1402.3, mu: 0.2, vol: 0.22 },
+  TATAMOTORS: { end: 688.4, mu: 0.12, vol: 0.34 },
+  TCS: { end: 3410.8, mu: 0.06, vol: 0.2 },
+};
+
+function seededRandom(seed: string) {
+  let h = 2166136261;
+  for (const c of seed) h = Math.imul(h ^ c.charCodeAt(0), 16777619);
+  let s = h >>> 0 || 1;
+  return () => ((s = Math.imul(s, 1103515245) + 12345) >>> 0) / 4294967296;
+}
+
+/** Six years of weekday closes, deterministic per symbol, ending at its current mock price. */
+function mockHistory(key: string): { currency: string; points: [number, number][] } | null {
+  const spec = HISTORY_SPEC[key];
+  if (!spec) return null;
+  const rand = seededRandom(key);
+  const days: number[] = [];
+  const end = new Date();
+  end.setUTCHours(10, 0, 0, 0);
+  for (let d = new Date(end.getTime() - 6 * 365 * 864e5); d < end; d = new Date(d.getTime() + 864e5)) {
+    if (d.getUTCDay() !== 0 && d.getUTCDay() !== 6) days.push(d.getTime() / 1000);
+  }
+  let x = 1;
+  const raw = days.map(() => {
+    const z = (rand() + rand() + rand() + rand() - 2) * 1.7;
+    x *= 1 + spec.mu / 252 + (spec.vol / Math.sqrt(252)) * z;
+    return x;
+  });
+  const scale = spec.end / raw[raw.length - 1];
+  return { currency: spec.currency ?? 'INR', points: days.map((t, i) => [t, Math.round(raw[i] * scale * 100) / 100]) };
+}
+
+/** A sample portfolio so the page has something to show on first run. */
+function seedPortfolio(): Record<string, unknown> {
+  const ago = (days: number) => new Date(Date.now() - days * 864e5).toISOString().slice(0, 10);
+  const close = (sym: string, days: number) => {
+    const h = mockHistory(sym)!;
+    const target = Date.now() / 1000 - days * 86400;
+    const p = [...h.points].reverse().find(([t]) => t <= target) ?? h.points[0];
+    return Math.round(p[1] * 20) / 20;
+  };
+  const stock = (symbol: string, side: 'BUY' | 'SELL', days: number, qty: number) => ({
+    id: `seed-${symbol}-${days}`,
+    kind: 'STOCK',
+    side,
+    symbol,
+    date: ago(days),
+    qty,
+    price: close(symbol, days),
+    fees: Math.round(qty * close(symbol, days) * 0.001),
+  });
+  const nextMonthEnd = (() => {
+    const d = new Date();
+    d.setUTCMonth(d.getUTCMonth() + 1, 0);
+    return d.toISOString().slice(0, 10);
+  })();
+  return {
+    id: 'seed-main',
+    name: 'Long-term',
+    createdAt: Date.now() - 700 * 864e5,
+    transactions: [
+      stock('HDFCBANK', 'BUY', 690, 80),
+      stock('INFY', 'BUY', 610, 90),
+      stock('RELIANCE', 'BUY', 540, 100),
+      stock('HDFCBANK', 'BUY', 400, 40),
+      stock('ICICIBANK', 'BUY', 360, 65),
+      stock('TATAMOTORS', 'BUY', 250, 150),
+      stock('INFY', 'SELL', 120, 30),
+      stock('RELIANCE', 'BUY', 45, 20),
+      { id: 'seed-fut-1', kind: 'FUT', side: 'BUY', symbol: 'NIFTY', date: ago(9), qty: 2, price: close('NIFTY', 9) + 40, fees: 120, lotSize: 65, expiry: nextMonthEnd, instrumentKey: 'NSE_FO|MOCKNIFTYFUT' },
+    ],
+  };
+}
+
+function mockFutures(symbol: string) {
+  const lots: Record<string, number> = { NIFTY: 65, BANKNIFTY: 30, FINNIFTY: 60, MIDCPNIFTY: 120, RELIANCE: 500, HDFCBANK: 550, INFY: 400, TCS: 175, ICICIBANK: 700 };
+  if (!lots[symbol]) return [];
+  return [0, 1, 2].map((m) => {
+    const d = new Date();
+    d.setUTCMonth(d.getUTCMonth() + m + 1, 0); // last day of the month as a stand-in expiry
+    return { expiry: d.toISOString().slice(0, 10), instrumentKey: `NSE_FO|MOCK${symbol}FUT${m}`, lotSize: lots[symbol] };
+  });
+}
+
 export function mockApi(base: string): Plugin {
   let loggedIn = false;
   /** Draft portfolios live in memory for the life of the dev server. */
   let drafts: Record<string, unknown>[] = [];
+  let portfolios: Record<string, unknown>[] = [seedPortfolio()];
   const prefix = `${base.replace(/\/$/, '')}/api`;
 
   return {
@@ -211,7 +312,42 @@ export function mockApi(base: string): Plugin {
           });
           return;
         }
+        if (route.startsWith('/portfolios') && req.method === 'POST') {
+          void readBody(req).then((body) => {
+            if (route === '/portfolios') {
+              const portfolio = { id: Math.random().toString(16).slice(2, 18), name: String(body.name ?? '').trim() || 'Untitled', createdAt: Date.now(), transactions: [] };
+              portfolios = [...portfolios, portfolio];
+              return send({ portfolio }, 201);
+            }
+            const i = portfolios.findIndex((p) => p.id === body.id);
+            if (i < 0) return send({ error: 'Portfolio not found' }, 404);
+            if (route === '/portfolios/delete') {
+              portfolios = portfolios.filter((p) => p.id !== body.id);
+              return send({ ok: true });
+            }
+            const p = { ...portfolios[i] };
+            if (typeof body.name === 'string') p.name = body.name.trim();
+            if (Array.isArray(body.transactions)) p.transactions = body.transactions;
+            portfolios[i] = p;
+            return send({ portfolio: p });
+          });
+          return;
+        }
         switch (route) {
+          case '/portfolios':
+            return send({ portfolios });
+          case '/history': {
+            const series: Record<string, unknown> = {};
+            for (const k of (url.searchParams.get('symbols') ?? '').split(',')) {
+              const h = mockHistory(k);
+              if (h) series[k] = h;
+            }
+            return send({ series });
+          }
+          case '/futures': {
+            const symbol = url.searchParams.get('symbol') ?? '';
+            return send({ symbol, contracts: mockFutures(symbol) });
+          }
           case '/oi-intraday': {
             const chain = freshChain() as { expiry: string; underlyingValue: number; rows: { strike: number; call: { oi: number; oiChange: number } | null; put: { oi: number; oiChange: number } | null }[] };
             const min = Number(url.searchParams.get('min'));
@@ -237,13 +373,13 @@ export function mockApi(base: string): Plugin {
           case '/candles': {
             const symbol = url.searchParams.get('symbol') ?? 'NIFTY';
             const tf = url.searchParams.get('tf') ?? '15m';
-            const last: Record<string, number> = { NIFTY: 24175.65, BANKNIFTY: 51234.5, FINNIFTY: 23410.2, MIDCPNIFTY: 12890.4, RELIANCE: 1172.3, TCS: 3410.8, HDFCBANK: 1650.25, INFY: 1520.6 };
+            const last: Record<string, number> = { NIFTY: 24175.65, BANKNIFTY: 51234.5, FINNIFTY: 23410.2, MIDCPNIFTY: 12890.4, RELIANCE: 1172.3, TCS: 3410.8, HDFCBANK: 1650.25, INFY: 1520.6, ICICIBANK: 1402.3, TATAMOTORS: 688.4, SBIN: 812.5, ITC: 405.2 };
             const isIndex = ['NIFTY', 'BANKNIFTY', 'FINNIFTY', 'MIDCPNIFTY'].includes(symbol);
             return send({ symbol, tf, candles: mockCandles(symbol, tf, last[symbol] ?? 1000, !isIndex) });
           }
           case '/watch': {
             const spot = fixture('spot') as { price: number; previousClose: number };
-            const bases: Record<string, number> = { INDIAVIX: 14.1, NIFTY: spot.price, BANKNIFTY: 51234.5, FINNIFTY: 23410.2, MIDCPNIFTY: 12890.4, RELIANCE: 1172.3, TCS: 3410.8, HDFCBANK: 1650.25, INFY: 1520.6 };
+            const bases: Record<string, number> = { INDIAVIX: 14.1, NIFTY: spot.price, BANKNIFTY: 51234.5, FINNIFTY: 23410.2, MIDCPNIFTY: 12890.4, RELIANCE: 1172.3, TCS: 3410.8, HDFCBANK: 1650.25, INFY: 1520.6, ICICIBANK: 1402.3, TATAMOTORS: 688.4, SBIN: 812.5, ITC: 405.2 };
             const quotes = (url.searchParams.get('symbols') ?? '')
               .split(',')
               .filter(Boolean)

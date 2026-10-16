@@ -20,6 +20,7 @@ require_once __DIR__ . '/lib/report.php';
 require_once __DIR__ . '/lib/drafts.php';
 require_once __DIR__ . '/lib/candles.php';
 require_once __DIR__ . '/lib/oi.php';
+require_once __DIR__ . '/lib/portfolio.php';
 
 // Errors must never leak into a JSON body as HTML.
 ini_set('display_errors', '0');
@@ -404,6 +405,107 @@ try {
         }
         ob_drafts_write($left);
         ob_json(['ok' => true]);
+    }
+
+    // ----------------------------------------------------------- portfolios
+    if ($path === '/api/portfolios' && $method === 'GET') {
+        ob_json(['portfolios' => ob_portfolios_read()]);
+    }
+
+    if ($path === '/api/portfolios' && $method === 'POST') {
+        try {
+            $portfolio = ob_portfolio_create(ob_body());
+        } catch (InvalidArgumentException $e) {
+            ob_error($e->getMessage(), 400);
+        }
+        $portfolios = ob_portfolios_read();
+        if (count($portfolios) >= OB_MAX_PORTFOLIOS) {
+            ob_error('Portfolio limit reached (' . OB_MAX_PORTFOLIOS . ').', 409);
+        }
+        $portfolios[] = $portfolio;
+        ob_portfolios_write($portfolios);
+        ob_json(['portfolio' => $portfolio], 201);
+    }
+
+    if ($path === '/api/portfolios/update' && $method === 'POST') {
+        $body = ob_body();
+        $id = (string) ($body['id'] ?? '');
+        $portfolios = ob_portfolios_read();
+        foreach ($portfolios as $i => $p) {
+            if (($p['id'] ?? '') === $id) {
+                try {
+                    $portfolios[$i] = ob_portfolio_patch($p, $body);
+                } catch (InvalidArgumentException $e) {
+                    ob_error($e->getMessage(), 400);
+                }
+                ob_portfolios_write($portfolios);
+                ob_json(['portfolio' => $portfolios[$i]]);
+            }
+        }
+        ob_error('Portfolio not found', 404);
+    }
+
+    if ($path === '/api/portfolios/delete' && $method === 'POST') {
+        $id = (string) (ob_body()['id'] ?? '');
+        $portfolios = ob_portfolios_read();
+        $left = array_values(array_filter($portfolios, static fn(array $p): bool => ($p['id'] ?? '') !== $id));
+        if (count($left) === count($portfolios)) {
+            ob_error('Portfolio not found', 404);
+        }
+        ob_portfolios_write($left);
+        ob_json(['ok' => true]);
+    }
+
+    // Daily closes for holdings and benchmarks, for the performance chart.
+    if ($path === '/api/history') {
+        $keys = array_values(array_unique(array_filter(
+            array_map(static fn(string $v): string => strtoupper(trim($v)), explode(',', ob_query('symbols') ?? '')),
+            static fn(string $v): bool => (bool) preg_match('/^[A-Z0-9&_\-]{1,20}$/', $v)
+        )));
+        $range = ob_query('range') ?? '5y';
+        if (!$keys || count($keys) > 40 || !in_array($range, ['1y', '2y', '5y', '10y', 'max'], true)) {
+            ob_error('symbols must list 1–40 symbols and range must be 1y, 2y, 5y, 10y or max', 400);
+        }
+        $series = [];
+        $missing = [];
+        foreach ($keys as $key) {
+            // A day's closes don't change intraday enough to matter here; 6h keeps Yahoo calls rare.
+            $hit = ob_cache_get("history:$key:$range", 6 * 3600);
+            if ($hit !== null) {
+                $series[$key] = $hit;
+            } else {
+                $missing[] = $key;
+            }
+        }
+        if ($missing) {
+            $fetched = ob_price_history($missing, $range);
+            foreach ($missing as $key) {
+                if (isset($fetched[$key])) {
+                    ob_cache_put("history:$key:$range", $fetched[$key]);
+                    $series[$key] = $fetched[$key];
+                } elseif (($stale = ob_cache_get("history:$key:$range", 7 * 86400)) !== null) {
+                    $series[$key] = $stale;
+                }
+            }
+        }
+        ob_json(['series' => (object) $series]);
+    }
+
+    if ($path === '/api/futures') {
+        $symbol = strtoupper(ob_query('symbol') ?? '');
+        if (!preg_match('/^[A-Z0-9&_\-]{1,20}$/', $symbol)) {
+            ob_error('symbol query param is required', 400);
+        }
+        try {
+            $today = gmdate('Y-m-d', time() + 19800);
+            $contracts = array_values(array_filter(
+                ob_futures_index()[$symbol] ?? [],
+                static fn(array $c): bool => $c['expiry'] >= $today
+            ));
+            ob_json(['symbol' => $symbol, 'contracts' => $contracts]);
+        } catch (Throwable $e) {
+            ob_error('Failed to load futures contracts', 502, $e->getMessage());
+        }
     }
 
     // ------------------------------------------------------- daily report

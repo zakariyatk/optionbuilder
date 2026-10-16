@@ -208,3 +208,40 @@ export interface Draft {
 }
 
 export type NewDraft = Pick<Draft, 'name' | 'symbol' | 'legs' | 'entrySpot'>;
+
+export interface PortfolioTxn {
+  id: string;
+  kind: 'STOCK' | 'FUT';
+  side: 'BUY' | 'SELL';
+  symbol: string;
+  /** YYYY-MM-DD */
+  date: string;
+  /** Shares for a stock, lots for a future. */
+  qty: number;
+  price: number;
+  fees: number;
+  /** Futures only. */
+  lotSize?: number;
+  expiry?: string;
+  instrumentKey?: string | null;
+  note?: string;
+}
+
+export interface Portfolio {
+  id: string;
+  name: string;
+  createdAt: number;
+  transactions: PortfolioTxn[];
+}
+
+export interface HistorySeries {
+  currency: string;
+  /** [unix seconds, close] oldest first. */
+  points: [number, number][];
+}
+
+export interface FutureContract {
+  expiry: string;
+  instrumentKey: string;
+  lotSize: number;
+}

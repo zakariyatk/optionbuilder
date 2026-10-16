@@ -6,11 +6,15 @@ import type {
   Draft,
   DraftLeg,
   FiiDiiRow,
+  FutureContract,
   GlobalMarkets,
+  HistorySeries,
   MaxOiReport,
   NewDraft,
   NewsItem,
   OptionChain,
+  Portfolio,
+  PortfolioTxn,
   Quotes,
   Session,
   SpotQuote,
@@ -136,6 +140,19 @@ export const api = {
     post<{ draft: Draft }>('/api/drafts/update', { id, adjust: { legs, trade, spot } }),
   reopenDraft: (id: string) => post<{ draft: Draft }>('/api/drafts/update', { id, reopen: true }),
   deleteDraft: (id: string) => post<{ ok: true }>('/api/drafts/delete', { id }),
+
+  portfolios: () => get<{ portfolios: Portfolio[] }>('/api/portfolios'),
+  createPortfolio: (name: string) => post<{ portfolio: Portfolio }>('/api/portfolios', { name }),
+  renamePortfolio: (id: string, name: string) => post<{ portfolio: Portfolio }>('/api/portfolios/update', { id, name }),
+  /** Saves the whole transaction list — the server keeps no derived state. */
+  savePortfolioTxns: (id: string, transactions: PortfolioTxn[]) =>
+    post<{ portfolio: Portfolio }>('/api/portfolios/update', { id, transactions }),
+  deletePortfolio: (id: string) => post<{ ok: true }>('/api/portfolios/delete', { id }),
+  /** Daily closes (Yahoo) for stocks and benchmark keys such as NIFTY, SP500, QQQ, USDINR. */
+  history: (symbols: string[], range = '5y') =>
+    get<{ series: Record<string, HistorySeries> }>(`/api/history?symbols=${encodeURIComponent(symbols.join(','))}&range=${range}`),
+  futures: (symbol: string) =>
+    get<{ symbol: string; contracts: FutureContract[] }>(`/api/futures?symbol=${encodeURIComponent(symbol)}`),
 
   maxOi: (symbol: string) => get<MaxOiReport>(`/api/report/max-oi?symbol=${encodeURIComponent(symbol)}`),
   fiiDii: () => get<{ data: FiiDiiRow[] }>('/api/report/fii-dii'),
