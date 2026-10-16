@@ -219,13 +219,13 @@ export function TransactionDialog({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 sm:items-center" onClick={onClose} onKeyDown={onKeyDown}>
+    // A click outside does nothing: a half-filled form is only closed with Cancel, ✕ or Save (or Esc).
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 sm:items-center" onKeyDown={onKeyDown}>
       <div
         ref={box}
         role="dialog"
         aria-modal="true"
         aria-labelledby="txn-title"
-        onClick={(e) => e.stopPropagation()}
         className="max-h-[92vh] w-full overflow-auto rounded-t-xl border border-[var(--border-strong)] bg-[var(--surface-raised)] p-4 shadow-2xl sm:max-w-md sm:rounded-xl"
       >
         <div className="mb-3 flex items-center justify-between">
