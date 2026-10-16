@@ -246,7 +246,7 @@ export function SymbolSearch({
         </div>
 
         <div className="px-5 max-sm:px-3">
-          <div className="flex items-center gap-2 rounded-lg border border-[var(--border-strong)] px-3 focus-within:border-[var(--series-blue)]">
+          <div className="flex items-center gap-2 rounded-lg border border-[var(--border-strong)] px-3 focus-within:border-[var(--series-blue)] focus-within:ring-1 focus-within:ring-[var(--series-blue)]">
             <Search size={18} className="shrink-0 text-[var(--text-muted)]" aria-hidden="true" />
             <input
               ref={input}
@@ -257,7 +257,7 @@ export function SymbolSearch({
               aria-controls="symbol-search-results"
               spellCheck={false}
               autoComplete="off"
-              className="h-11 min-w-0 flex-1 bg-transparent text-base outline-none"
+              className="ob-bare-input h-11 min-w-0 flex-1 bg-transparent text-base outline-none"
             />
             {query && (
               <button type="button" onClick={() => { setQuery(''); input.current?.focus(); }} aria-label="Clear search" className="text-[var(--text-muted)] hover:text-[var(--text-primary)]">

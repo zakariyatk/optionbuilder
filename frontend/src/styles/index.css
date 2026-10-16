@@ -180,6 +180,10 @@ label,
   outline: 2px solid var(--focus);
   outline-offset: 1px;
 }
+/* A field inside a box that shows focus itself (via :focus-within) — no second ring. */
+.ob-bare-input:focus-visible {
+  outline: none;
+}
 
 /* Native <option> lists don't inherit the dark surface on Windows. */
 select option {
