@@ -213,18 +213,36 @@ function innerChart(widget: HTMLElement): Chart | null {
   }
 }
 
+/** The drawing the user last clicked, from klinecharts' internal overlay store (not in its public API). */
+function selectedOverlay(chart: Chart): Overlay | null {
+  const store = (chart as Chart & { getChartStore?: () => { getOverlayStore(): { getClickInstanceInfo(): { instance: Overlay | null } } } })
+    .getChartStore?.()
+    .getOverlayStore();
+  return store?.getClickInstanceInfo().instance ?? null;
+}
+
+/** Keys typed into a field are the field's, not the chart's. */
+const isTyping = (t: EventTarget | null) =>
+  t instanceof HTMLElement && (t.isContentEditable || t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT');
+
 /**
  * Adds the tools to the Pro chart's drawing bar inside `container`, and keeps
- * them there if the bar re-renders. Returns a cleanup.
+ * them there if the bar re-renders. Delete (or Backspace) removes the
+ * selected drawing, any drawing tool included. Returns a cleanup.
  */
 export function installDrawingTools(container: HTMLElement): () => void {
   registerTools();
   let chart: Chart | null = null;
   const buttons: HTMLElement[] = [];
 
-  const start = (tool: (typeof TOOLS)[number]) => {
+  const getChart = () => {
     const widget = container.querySelector<HTMLElement>('.klinecharts-pro-widget');
     chart ??= widget ? innerChart(widget) : null;
+    return chart;
+  };
+
+  const start = (tool: (typeof TOOLS)[number]) => {
+    const chart = getChart();
     if (!chart) return;
     const icon = buttons.find((b) => b.dataset.tool === tool.name)?.querySelector('.icon-overlay');
     buttons.forEach((b) => b.querySelector('.icon-overlay')?.classList.remove('selected'));
@@ -268,9 +286,17 @@ export function installDrawingTools(container: HTMLElement): () => void {
   };
 
   const onKey = (e: KeyboardEvent) => {
-    if (e.altKey && e.code === 'KeyJ' && container.isConnected) {
+    if (!container.isConnected || isTyping(e.target)) return;
+    if (e.altKey && e.code === 'KeyJ') {
       e.preventDefault();
       start(TOOLS[0]);
+    } else if ((e.key === 'Delete' || e.key === 'Backspace') && !e.altKey && !e.ctrlKey && !e.metaKey) {
+      const chart = getChart();
+      const overlay = chart && selectedOverlay(chart);
+      // A locked drawing stays put, as it does against dragging.
+      if (!chart || !overlay || overlay.lock || !chart.getOverlayById(overlay.id)) return;
+      e.preventDefault();
+      chart.removeOverlay(overlay.id);
     }
   };
 
