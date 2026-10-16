@@ -1,9 +1,10 @@
 import { ActionType, DomPosition, init, LineType, type Chart, type DeepPartial, type Styles } from 'klinecharts';
 import type { Period } from '@klinecharts/pro';
 import { candleCloseMs, fmtLeft } from '../../lib/nse';
+import { TV_DOWN, TV_UP } from './tvStyle';
 
-const UP = '#2DC08E';
-const DOWN = '#F92855';
+const UP = TV_UP;
+const DOWN = TV_DOWN;
 const CANDLE_PANE = 'candle_pane';
 
 /** Dotted last-price line; its axis label is replaced by the live tag. Re-apply after a theme change. */

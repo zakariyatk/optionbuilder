@@ -47,8 +47,8 @@ export function LayoutMenu({ layoutId, onChange }: { layoutId: string; onChange:
         aria-expanded={open}
         aria-label={`Layout setup: ${current.label}`}
         title="Layout setup"
-        className={`flex h-8 w-9 items-center justify-center rounded-md text-[var(--text-secondary)] hover:bg-[var(--surface-sunken)] hover:text-[var(--text-primary)] ${
-          open ? 'bg-[var(--surface-sunken)] text-[var(--text-primary)]' : ''
+        className={`flex h-[30px] w-[34px] items-center justify-center rounded text-[var(--text-primary)] hover:bg-[color-mix(in_srgb,var(--text-primary)_8%,transparent)] ${
+          open ? 'bg-[color-mix(in_srgb,var(--text-primary)_12%,transparent)]' : ''
         }`}
       >
         <LayoutIcon layout={current} />
@@ -57,7 +57,7 @@ export function LayoutMenu({ layoutId, onChange }: { layoutId: string; onChange:
         <div
           role="menu"
           aria-label="Layout setup"
-          className="absolute left-0 top-full z-30 mt-1 rounded-lg border border-[var(--border-strong)] bg-[var(--surface-raised)] py-1 shadow-xl"
+          className="fixed z-50 mt-1 rounded-lg border border-[var(--border-strong)] bg-[var(--surface-raised)] py-1 shadow-xl"
         >
           {GROUPS.map(({ n, layouts }, gi) => (
             <div key={n} className={`flex items-center gap-1 px-3 py-1.5 ${gi > 0 ? 'border-t border-[var(--border)]' : ''}`}>

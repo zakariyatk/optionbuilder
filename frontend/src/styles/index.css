@@ -347,6 +347,58 @@ input[type='number']::-webkit-inner-spin-button {
   position: relative;
 }
 
+/*
+ * TradingView look for the Chart page (desktop): its font everywhere on the
+ * page, the page's own toolbar instead of the library's period bar, a slimmer
+ * drawing rail with 28px icons, and TradingView's blue for selections.
+ */
+.ob-tv,
+.ob-tv .klinecharts-pro {
+  font-family: -apple-system, BlinkMacSystemFont, 'Trebuchet MS', Roboto, Ubuntu, sans-serif;
+}
+.ob-tv .klinecharts-pro {
+  --klinecharts-pro-primary-color: #2962ff;
+  --klinecharts-pro-hover-background-color: rgba(41, 98, 255, 0.12);
+  --klinecharts-pro-selected-color: rgba(41, 98, 255, 0.16);
+  --klinecharts-pro-background-color: var(--surface-card);
+  --klinecharts-pro-popover-background-color: var(--surface-raised);
+  --klinecharts-pro-text-color: var(--text-primary);
+  --klinecharts-pro-text-second-color: var(--text-secondary);
+  --klinecharts-pro-border-color: var(--border);
+}
+.ob-pro-external .klinecharts-pro-period-bar {
+  display: none;
+}
+.ob-pro-external .klinecharts-pro-content {
+  height: 100%;
+}
+.ob-tv .klinecharts-pro-drawing-bar {
+  width: 46px;
+  padding-top: 2px;
+}
+.ob-tv .klinecharts-pro-widget {
+  width: calc(100% - 46px);
+}
+.ob-tv .klinecharts-pro-drawing-bar .item {
+  margin-top: 4px;
+}
+.ob-tv .klinecharts-pro-drawing-bar .item > span,
+.ob-tv .klinecharts-pro-drawing-bar .item .icon-overlay {
+  width: 28px !important;
+  height: 28px !important;
+  border-radius: 4px;
+}
+.ob-tv .klinecharts-pro-drawing-bar .item .icon-overlay {
+  stroke-width: 0.9;
+}
+.ob-tv .klinecharts-pro-drawing-bar .split-line {
+  width: 30px;
+  margin: 6px auto 0;
+}
+.ob-tv .klinecharts-pro-drawing-bar .item .list {
+  font-size: 14px;
+}
+
 /* Bar replay's "select bar" cursor (features/chart/replay.ts). */
 .ob-replay-line,
 .ob-replay-shade,

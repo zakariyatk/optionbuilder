@@ -1,5 +1,21 @@
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
-import { Activity, Camera, ChevronDown, Globe, Layers, Maximize, MoreHorizontal, PencilLine, Plus, Rewind, Settings } from 'lucide-react';
+import { useCallback, useEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
+import {
+  Activity,
+  AlarmClockPlus,
+  Camera,
+  ChartCandlestick,
+  ChevronDown,
+  Globe,
+  Layers,
+  Maximize,
+  Minimize,
+  MoreHorizontal,
+  PencilLine,
+  Plus,
+  Rewind,
+  Search,
+  Settings,
+} from 'lucide-react';
 import { api } from '../../api/client';
 import type { SymbolInfo } from '../../api/types';
 import { BottomSheet } from '../../components/BottomSheet';
@@ -55,7 +71,7 @@ export function ChartPage({
   const theme = usePageTheme();
   const phone = useMediaQuery(PHONE_QUERY);
   // The charts have their own symbols, so browsing the watchlist never touches the strategy being built.
-  const { layoutId, symbols: chartSymbols, active, setLayout, setActive, setSymbol } = useChartLayout();
+  const { layoutId, symbols: chartSymbols, periods: chartPeriods, active, setLayout, setActive, setSymbol, setPeriod } = useChartLayout();
   // The first chart opens on the builder's underlying, as the single chart always did.
   useEffect(() => useChartLayout.getState().setSymbol(symbol, 0), [symbol]);
   // Each chart's bar-replay controls; the toolbar and replay bar drive the selected chart's.
@@ -71,6 +87,16 @@ export function ChartPage({
       }),
     [],
   );
+  // Each chart's imperative handle; the toolbar drives the selected chart's.
+  const actions = useRef<RefObject<ProChartActions | null>[]>([]);
+  const actionsFor = (i: number) => (actions.current[i] ??= { current: null });
+  const panel = useRef<HTMLDivElement>(null);
+  const [fullscreen, setFullscreen] = useState(false);
+  useEffect(() => {
+    const onChange = () => setFullscreen(document.fullscreenElement === panel.current && panel.current !== null);
+    document.addEventListener('fullscreenchange', onChange);
+    return () => document.removeEventListener('fullscreenchange', onChange);
+  }, []);
 
   if (phone) {
     return (
@@ -88,27 +114,60 @@ export function ChartPage({
   const panelHeight = 'max(520px, calc(100dvh - 7rem))';
   const layout = layoutById(layoutId);
   const count = chartCount(layout);
+  const act = () => actionsFor(active).current;
+  const tf = chartPeriods[active] ?? '15m';
+  const toggleFullscreen = () => {
+    if (document.fullscreenElement) void document.exitFullscreen();
+    else void panel.current?.requestFullscreen();
+  };
   return (
-    <div className="grid grid-cols-1 gap-3 lg:grid-cols-[minmax(0,1fr)_320px]">
-      <div className="flex flex-col overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--surface-card)]" style={{ height: panelHeight }}>
-        {/* Above the charts, whose own labels and panels use z-index, so the layout menu opens over them. */}
-        <div className="relative z-40 flex items-center gap-2 border-b border-[var(--border)] px-2 py-1">
+    <div className="ob-tv grid grid-cols-1 gap-3 lg:grid-cols-[minmax(0,1fr)_320px]">
+      <div
+        ref={panel}
+        className="ob-tv-panel flex flex-col overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--surface-card)]"
+        style={{ height: fullscreen ? '100vh' : panelHeight }}
+      >
+        {/* TradingView's top toolbar, for the selected chart. Above the charts (their labels use z-index) so its menus open over them. */}
+        <div role="toolbar" aria-label="Chart" className="relative z-40 flex h-[38px] shrink-0 items-center gap-0.5 overflow-x-auto border-b border-[var(--border)] px-1">
+          <TvButton label="Symbol search" onClick={() => act()?.openSymbolSearch()}>
+            <Search size={16} strokeWidth={1.75} aria-hidden="true" />
+            <span className="font-semibold">{chartSymbols[active]}</span>
+          </TvButton>
+          <TvSep />
+          {PERIODS.map((p) => (
+            <TvButton key={p.tf} label={`Interval ${p.text}`} active={p.tf === tf} onClick={() => setPeriod(p.tf)} narrow>
+              {p.text}
+            </TvButton>
+          ))}
+          <TvSep />
+          <TvButton label="Indicators" onClick={() => act()?.openTool('Indicator')}>
+            <ChartCandlestick size={17} strokeWidth={1.6} aria-hidden="true" />
+            Indicators
+          </TvButton>
+          <TvSep />
           <LayoutMenu layoutId={layout.id} onChange={setLayout} />
-          <span aria-hidden="true" className="h-5 w-px bg-[var(--border-strong)]" />
-          <button
-            type="button"
-            disabled={!activeReplay}
-            aria-pressed={replayOn}
-            title="Bar replay"
-            onClick={() => (replayOn ? activeReplay?.exit() : activeReplay?.selectBar())}
-            className={`flex h-8 items-center gap-1.5 rounded-md px-2.5 text-sm font-medium disabled:opacity-40 ${
-              replayOn ? 'bg-[var(--text-primary)] text-[var(--surface-page)]' : 'text-[var(--text-primary)] hover:bg-[var(--surface-sunken)]'
-            }`}
-          >
-            <Rewind size={16} aria-hidden="true" />
+          <TvSep />
+          <TvButton label="Create alert" onClick={() => act()?.addAlert()}>
+            <AlarmClockPlus size={17} strokeWidth={1.6} aria-hidden="true" />
+            Alert
+          </TvButton>
+          <TvButton label="Bar replay" active={replayOn} disabled={!activeReplay} onClick={() => (replayOn ? activeReplay?.exit() : activeReplay?.selectBar())}>
+            <Rewind size={17} strokeWidth={1.6} aria-hidden="true" />
             Replay
-          </button>
-          {count > 1 && <span className="truncate text-xs text-[var(--text-muted)]">Click a chart to select it; the watchlist changes the selected chart.</span>}
+          </TvButton>
+          <span className="flex-1" />
+          <TvButton label="Timezone" onClick={() => act()?.openTool('Timezone')} icon>
+            <Globe size={17} strokeWidth={1.6} aria-hidden="true" />
+          </TvButton>
+          <TvButton label="Chart settings" onClick={() => act()?.openTool('Setting')} icon>
+            <Settings size={17} strokeWidth={1.6} aria-hidden="true" />
+          </TvButton>
+          <TvButton label="Take a snapshot" onClick={() => act()?.openTool('Screenshot')} icon>
+            <Camera size={17} strokeWidth={1.6} aria-hidden="true" />
+          </TvButton>
+          <TvButton label={fullscreen ? 'Exit full screen' : 'Full screen'} onClick={toggleFullscreen} icon>
+            {fullscreen ? <Minimize size={17} strokeWidth={1.6} aria-hidden="true" /> : <Maximize size={17} strokeWidth={1.6} aria-hidden="true" />}
+          </TvButton>
         </div>
         <div className="grid min-h-0 flex-1 gap-px bg-[var(--border)]" style={gridStyle(layout)}>
           {CELL_NAMES.slice(0, count).map((area, i) => (
@@ -125,6 +184,9 @@ export function ChartPage({
                 symbolInfo={symbolInfo}
                 theme={theme}
                 brokerConnected={brokerConnected}
+                externalToolbar
+                period={chartPeriods[i]}
+                actionsRef={actionsFor(i)}
                 onSymbolChange={(s) => setSymbol(s, i)}
                 onReplay={registerReplay(i)}
               />
@@ -140,6 +202,47 @@ export function ChartPage({
     </div>
   );
 }
+
+/** A TradingView toolbar button: 14px text, 30px tall, subtle hover and a filled active state. */
+function TvButton({
+  label,
+  onClick,
+  active,
+  disabled,
+  narrow,
+  icon,
+  children,
+}: {
+  label: string;
+  onClick: () => void;
+  active?: boolean;
+  disabled?: boolean;
+  narrow?: boolean;
+  icon?: boolean;
+  children: ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      title={label}
+      aria-label={icon ? label : undefined}
+      aria-pressed={active}
+      className={`flex h-[30px] shrink-0 items-center justify-center gap-1.5 rounded text-[14px] leading-none whitespace-nowrap disabled:opacity-40 ${
+        icon ? 'w-[30px]' : narrow ? 'min-w-[30px] px-1.5' : 'px-2'
+      } ${
+        active
+          ? 'bg-[color-mix(in_srgb,var(--text-primary)_12%,transparent)] text-[var(--text-primary)]'
+          : 'text-[var(--text-primary)] hover:bg-[color-mix(in_srgb,var(--text-primary)_8%,transparent)]'
+      }`}
+    >
+      {children}
+    </button>
+  );
+}
+
+const TvSep = () => <span aria-hidden="true" className="mx-1 h-5 w-px shrink-0 bg-[var(--border-strong)]" />;
 
 const QUOTE_POLL_MS = 15_000;
 const changeColor = (v: number) => (v > 0 ? 'var(--good-text)' : v < 0 ? 'var(--critical)' : 'var(--text-secondary)');

@@ -6,6 +6,7 @@ import { TooltipShowRule, type KLineData } from 'klinecharts';
 import { api, UPSTOX_LOGIN_URL } from '../../api/client';
 import { nseOpen } from '../../lib/nse';
 import { attachLiveTag, innerChart, LIVE_TAG_STYLES } from './liveTag';
+import { tvChartStyles } from './tvStyle';
 import { PERIODS, periodMs } from './periods';
 import type { SymbolInfo } from '../../api/types';
 import { installDrawingTools } from './drawingTools';
@@ -32,7 +33,6 @@ const toProSymbol = (s: SymbolInfo | { symbol: string; label?: string }): ProSym
   market: 'stocks',
   pricePrecision: 2,
   volumePrecision: 0,
-  priceCurrency: 'inr',
 });
 
 async function loadCandles(symbol: string, period: Period): Promise<KLineData[]> {
@@ -182,6 +182,10 @@ export interface ProChartActions {
   openTool: (tool: ProTool) => void;
   /** Shows / hides the drawing-tools rail. */
   toggleDrawing: () => void;
+  /** Opens the chart's symbol search. */
+  openSymbolSearch: () => void;
+  /** Starts placing a price alert (the bell tool). */
+  addAlert: () => void;
 }
 
 /**
@@ -194,6 +198,8 @@ export function ProChart({
   theme,
   brokerConnected,
   compact = false,
+  externalToolbar = false,
+  period = '15m',
   actionsRef,
   onSymbolChange,
   onReplay,
@@ -204,6 +210,10 @@ export function ProChart({
   brokerConnected: boolean;
   /** Phone layout: no built-in period bar or drawing rail; a parent toolbar drives them through `actionsRef`. */
   compact?: boolean;
+  /** Desktop: the page's TradingView-style toolbar replaces the chart's own period bar (driven through `actionsRef`). */
+  externalToolbar?: boolean;
+  /** Timeframe, e.g. "15m" (see periods.ts). */
+  period?: string;
   actionsRef?: RefObject<ProChartActions | null>;
   /** The chart switched symbol on its own (its search box). */
   onSymbolChange?: (symbol: string) => void;
@@ -222,7 +232,12 @@ export function ProChart({
   onReplayRef.current = onReplay;
   const compactRef = useRef(compact);
   compactRef.current = compact;
+  const periodRef = useRef(period);
+  periodRef.current = period;
+  const themeRef = useRef(theme);
+  themeRef.current = theme;
   const scaleRef = useRef<ReturnType<typeof installScaleButtons> | null>(null);
+  const legendTitleRef = useRef<() => string>(() => '');
 
   useEffect(() => {
     if (!actionsRef) return;
@@ -239,6 +254,9 @@ export function ProChart({
         // The library listens on the icon itself, not its wrapper.
         host.current?.querySelector('.klinecharts-pro-period-bar .menu-container svg')?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
       },
+      // The period bar may be hidden; its controls still answer clicks.
+      openSymbolSearch: () => host.current?.querySelector<HTMLElement>('.klinecharts-pro-period-bar .symbol')?.click(),
+      addAlert: () => host.current?.querySelector<HTMLElement>('[data-alert-tool]')?.click(),
     };
     return () => {
       actionsRef.current = null;
@@ -254,6 +272,12 @@ export function ProChart({
     el.replaceChildren();
     const info = symbolsRef.current.find((s) => s.symbol === symbol);
     let replay: ReplayController | null = null;
+    // "NIFTY 50 · 15m · NSE", as TradingView titles its legend.
+    const legendTitle = () => {
+      const c = chart.current;
+      return c ? `${c.getSymbol().name ?? c.getSymbol().ticker} · ${c.getPeriod().text} · NSE` : '';
+    };
+    legendTitleRef.current = legendTitle;
     const feed = upstoxDatafeed(() => symbolsRef.current, {
       onTick: () => {
         tag?.refresh();
@@ -280,7 +304,7 @@ export function ProChart({
       watermark: document.createElement('span'),
       timezone: 'Asia/Kolkata',
       symbol: toProSymbol(info ?? { symbol }),
-      period: PERIODS[3],
+      period: PERIODS.find((p) => p.tf === periodRef.current) ?? PERIODS[3],
       periods: PERIODS,
       // Phones: no drawing rail until asked for, and the OHLC legend only while the crosshair is on a candle (as in mobile TradingView).
       drawingBarVisible: !compactRef.current,
@@ -309,8 +333,12 @@ export function ProChart({
     let frame = 0;
     const attach = () => {
       const inner = innerChart(el);
-      if (inner) tag = attachLiveTag(el, inner, () => pro.getPeriod());
-      else frame = requestAnimationFrame(attach);
+      if (!inner) {
+        frame = requestAnimationFrame(attach);
+        return;
+      }
+      pro.setStyles(tvChartStyles(themeRef.current, legendTitle));
+      tag = attachLiveTag(el, inner, () => pro.getPeriod());
     };
     attach();
 
@@ -339,8 +367,15 @@ export function ProChart({
   }, [symbol]);
 
   useEffect(() => {
+    const c = chart.current;
+    const p = PERIODS.find((x) => x.tf === period);
+    if (c && p && (c.getPeriod().multiplier !== p.multiplier || c.getPeriod().timespan !== p.timespan)) c.setPeriod(p);
+  }, [period]);
+
+  useEffect(() => {
     chart.current?.setTheme(theme);
-    // A theme swap resets the chart styles, including the live tag's.
+    // A theme swap resets the chart styles: put back the TradingView look and the live tag.
+    chart.current?.setStyles(tvChartStyles(theme, () => legendTitleRef.current()));
     chart.current?.setStyles(LIVE_TAG_STYLES);
     scaleRef.current?.reapply();
   }, [theme]);
@@ -356,5 +391,5 @@ export function ProChart({
       </div>
     );
   }
-  return <div ref={host} className={`ob-pro-chart h-full w-full ${compact ? 'ob-pro-compact' : ''}`} />;
+  return <div ref={host} className={`ob-pro-chart h-full w-full ${compact ? 'ob-pro-compact' : ''} ${externalToolbar ? 'ob-pro-external' : ''}`} />;
 }
