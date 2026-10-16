@@ -9,11 +9,17 @@ import { attachLiveTag, innerChart, LIVE_TAG_STYLES } from './liveTag';
 import { PERIODS, periodMs } from './periods';
 import type { SymbolInfo } from '../../api/types';
 import { installDrawingTools } from './drawingTools';
+import { installPriceAlerts } from './priceAlerts';
+import { installScaleButtons } from './scaleButtons';
+import { useAlerts } from '../../store/alerts';
+import { signalAlerts } from '../alerts/alertSignals';
 
 const INTRADAY_POLL_MS = 15_000;
 const DAILY_POLL_MS = 60_000;
 /** Live quote → forming candle. The server caches quotes for 5s, so this stays cheap. */
 const QUOTE_TICK_MS = 2_000;
+/** After a failed history load, try the same symbol again this soon. */
+const HISTORY_RETRY_MS = 3_000;
 
 const tfOf = (p: Period) => PERIODS.find((x) => x.multiplier === p.multiplier && x.timespan === p.timespan)?.tf ?? '15m';
 
@@ -33,16 +39,43 @@ async function loadCandles(symbol: string, period: Period): Promise<KLineData[]>
   return res.candles.map(([t, open, high, low, close, volume]) => ({ timestamp: t * 1000, open, high, low, close, volume }));
 }
 
+interface FeedHooks {
+  /** A bar reached the chart. */
+  onTick: () => void;
+  /** The symbol and period the chart is showing now. */
+  current: () => { symbol: ProSymbol; period: Period } | null;
+  /** Makes the chart load its current symbol / period again. */
+  reload: () => void;
+}
+
 /**
  * Upstox as the chart's datafeed: the whole candle history Upstox gives for a
  * timeframe on first load, then the latest bars re-polled, and in between the
  * live quote moves the forming candle (and opens the next one on time) so the
  * chart ticks like TradingView.
+ *
+ * KLineChart Pro ignores symbol / period changes while a history load is in
+ * flight, and if a load throws it never clears that state, so the chart stops
+ * following the watchlist for good. So history loads never throw, and once
+ * one settles the feed reloads whatever the chart is on now if that isn't
+ * what was loaded (or retries a load that failed).
  */
-function upstoxDatafeed(symbols: () => SymbolInfo[], onTick: () => void): Datafeed {
-  const timers = new Map<string, number[]>();
-  const stop = (k: string) => timers.get(k)?.forEach((t) => window.clearInterval(t));
+function upstoxDatafeed(symbols: () => SymbolInfo[], hooks: FeedHooks): Datafeed & { dispose: () => void } {
+  const subs = new Map<string, { timers: number[]; alive: boolean }>();
+  const stop = (k: string) => {
+    const sub = subs.get(k);
+    if (!sub) return;
+    sub.alive = false;
+    sub.timers.forEach((t) => window.clearInterval(t));
+    subs.delete(k);
+  };
   const key = (s: ProSymbol, p: Period) => `${s.ticker}|${p.multiplier}${p.timespan}`;
+  const showing = (s: ProSymbol, p: Period) => {
+    const c = hooks.current();
+    return !c || key(c.symbol, c.period) === key(s, p);
+  };
+  let disposed = false;
+  let retry = 0;
   return {
     async searchSymbols(search = '') {
       const q = search.trim().toUpperCase();
@@ -53,20 +86,39 @@ function upstoxDatafeed(symbols: () => SymbolInfo[], onTick: () => void): Datafe
     },
     async getHistoryKLineData(symbol, period, _from, to) {
       // One request returns everything Upstox has for this timeframe, so scrolling back pages in nothing older.
-      const all = await loadCandles(symbol.ticker, period);
+      let all: KLineData[] = [];
+      let failed = false;
+      try {
+        all = await loadCandles(symbol.ticker, period);
+      } catch {
+        failed = true;
+      }
+      // Pro finishes this load right after we return; then catch up with any change it ignored meanwhile.
+      window.setTimeout(() => {
+        if (disposed) return;
+        window.clearTimeout(retry);
+        if (!showing(symbol, period)) hooks.reload();
+        else if (failed) retry = window.setTimeout(() => !disposed && showing(symbol, period) && hooks.reload(), HISTORY_RETRY_MS);
+      }, 0);
       const first = all[0]?.timestamp ?? 0;
       return to < first ? [] : all.filter((c) => c.timestamp <= to);
     },
     subscribe(symbol, period, callback) {
+      // A load that finishes after the chart was torn down still subscribes; don't start polling for a chart that's gone.
+      if (disposed) return;
       const k = key(symbol, period);
       stop(k);
+      const sub = { timers: [] as number[], alive: true };
+      subs.set(k, sub);
       let last = 0;
       /** The forming bar, as last sent to the chart. */
       let bar: KLineData | null = null;
       const send = (b: KLineData) => {
+        // A request that was in flight when the chart moved on must not paint the old symbol's bars.
+        if (!sub.alive) return;
         bar = b;
         callback(b);
-        onTick();
+        hooks.onTick();
       };
       const tick = async () => {
         if (document.visibilityState !== 'visible') return;
@@ -84,6 +136,8 @@ function upstoxDatafeed(symbols: () => SymbolInfo[], onTick: () => void): Datafe
           const q = (await api.watch([symbol.ticker])).quotes[0];
           if (!bar || !q || 'error' in q || !(q.price > 0)) return;
           const price = q.price;
+          // The chart's own 2s quote also checks this symbol's alerts, so they fire without waiting for the app-wide monitor.
+          signalAlerts(useAlerts.getState().observe(symbol.ticker, price));
           const span = periodMs(period);
           const now = Date.now();
           if (span !== null && now >= bar.timestamp + span) {
@@ -98,12 +152,16 @@ function upstoxDatafeed(symbols: () => SymbolInfo[], onTick: () => void): Datafe
       };
       const intraday = period.timespan === 'minute' || period.timespan === 'hour';
       void tick();
-      timers.set(k, [window.setInterval(tick, intraday ? INTRADAY_POLL_MS : DAILY_POLL_MS), window.setInterval(quoteTick, QUOTE_TICK_MS)]);
+      sub.timers = [window.setInterval(tick, intraday ? INTRADAY_POLL_MS : DAILY_POLL_MS), window.setInterval(quoteTick, QUOTE_TICK_MS)];
     },
     unsubscribe(symbol, period) {
-      const k = key(symbol, period);
-      stop(k);
-      timers.delete(k);
+      stop(key(symbol, period));
+    },
+    /** Pro never unsubscribes when the chart is torn down; stop every poll. */
+    dispose() {
+      disposed = true;
+      window.clearTimeout(retry);
+      for (const k of [...subs.keys()]) stop(k);
     },
   };
 }
@@ -146,6 +204,7 @@ export function ProChart({
   symbolsRef.current = symbolInfo;
   const compactRef = useRef(compact);
   compactRef.current = compact;
+  const scaleRef = useRef<ReturnType<typeof installScaleButtons> | null>(null);
 
   useEffect(() => {
     if (!actionsRef) return;
@@ -176,6 +235,18 @@ export function ProChart({
     if (!el || !brokerConnected) return;
     el.replaceChildren();
     const info = symbolsRef.current.find((s) => s.symbol === symbol);
+    const feed = upstoxDatafeed(() => symbolsRef.current, {
+      onTick: () => {
+        tag?.refresh();
+        alerts.sync();
+      },
+      current: () => (chart.current ? { symbol: chart.current.getSymbol(), period: chart.current.getPeriod() } : null),
+      // A fresh symbol object makes Pro run its load again for whatever symbol and period it is on.
+      reload: () => {
+        const c = chart.current;
+        if (c) c.setSymbol({ ...c.getSymbol() });
+      },
+    });
     chart.current = new KLineChartPro({
       container: el,
       theme,
@@ -191,13 +262,13 @@ export function ProChart({
       styles: { candle: { tooltip: { showRule: compactRef.current ? TooltipShowRule.FollowCross : TooltipShowRule.Always } } },
       mainIndicators: ['MA'],
       subIndicators: ['VOL'],
-      datafeed: upstoxDatafeed(
-        () => symbolsRef.current,
-        () => tag?.refresh(),
-      ),
+      datafeed: feed,
     });
     const removeTools = installDrawingTools(el);
     const pro = chart.current;
+    const alerts = installPriceAlerts(el, () => pro.getSymbol().ticker);
+    const scale = installScaleButtons(el);
+    scaleRef.current = scale;
 
     // Live price + candle countdown on the price axis, once the inner chart exists.
     let tag: ReturnType<typeof attachLiveTag> | null = null;
@@ -210,7 +281,11 @@ export function ProChart({
     attach();
 
     return () => {
+      feed.dispose();
       removeTools();
+      alerts.dispose();
+      scale.dispose();
+      scaleRef.current = null;
       cancelAnimationFrame(frame);
       tag?.dispose();
       el.replaceChildren();
@@ -230,6 +305,7 @@ export function ProChart({
     chart.current?.setTheme(theme);
     // A theme swap resets the chart styles, including the live tag's.
     chart.current?.setStyles(LIVE_TAG_STYLES);
+    scaleRef.current?.reapply();
   }, [theme]);
 
   if (!brokerConnected) {

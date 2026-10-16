@@ -19,6 +19,7 @@ import { legToDraftLeg } from './domain/drafts';
 import { strategyGreeks, strategyMetrics } from './domain/payoff';
 import { buildFromTemplate, type StrategyTemplate } from './domain/templates';
 import type { LegAction } from './domain/types';
+import { AlertMonitor } from './features/alerts/AlertMonitor';
 import { DraftMonitor } from './features/drafts/DraftMonitor';
 import { DraftsPage } from './features/drafts/DraftsPage';
 import { OpenInterestPage } from './features/oi/OpenInterestPage';
@@ -306,6 +307,7 @@ function Workspace({ showLogout, onLogout }: { showLogout: boolean; onLogout: ()
   return (
     <>
       <AppHeader route={route} onNavigate={navigate} broker={broker} onLogout={onLogout} showLogout={showLogout} />
+      <AlertMonitor />
 
       <main className="safe-x w-full pt-4 md:py-5" style={{ paddingBottom: 'calc(var(--tabbar-h) + 1.25rem)' }}>
         {marketPage && (
