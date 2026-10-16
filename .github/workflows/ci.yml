@@ -116,7 +116,8 @@ jobs:
       - name: Upload
         if: steps.check.outputs.ready == 'true'
         env:
-          FTPS_PIN: ${{ vars.DEPLOY_FTPS_PIN || 'sha256//iD1qTPTlmilSMjmnGtuhIjGlRZY9GF4YIhDr8P0WXNw=' }}
+          # Hostinger's *.hstgr.io key since its 12 Oct 2026 Let's Encrypt renewal.
+          FTPS_PIN: ${{ vars.DEPLOY_FTPS_PIN || 'sha256//BUI7x6sidmqoGBG2e99anTr7ngx3LqcbmtP1Riv2OB8=' }}
         run: |
           set -euo pipefail
           if [ "$PROTOCOL" != "ftps" ] && [ -n "$PROTOCOL" ]; then
