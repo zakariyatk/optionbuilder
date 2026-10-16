@@ -25,6 +25,7 @@ import {
 import { confirmDialog, promptDialog } from '../../lib/dialog';
 import { inr, num, signedInr } from '../../lib/format';
 import { displaySymbol, isUs } from '../../lib/markets';
+import { nameOf } from '../../lib/symbolNames';
 import { marketOpen, NSE_SESSION, US_SESSION } from '../../lib/nse';
 import { buildDemoTransactions } from './demo';
 import { PerformanceChart, type ChartLine } from './PerformanceChart';
@@ -751,7 +752,7 @@ export function PortfolioPage({ brokerConnected, symbols }: { brokerConnected: b
                               <span className="font-bold">{displaySymbol(h.symbol)}</span>
                               <span className="text-xs text-[var(--text-muted)]">
                                 {isUs(h.symbol) ? 'US · ' : ''}
-                                {symbols.find((s) => s.symbol === h.symbol)?.label ?? `since ${formatExpiry(h.firstDate)}`}
+                                {symbols.find((s) => s.symbol === h.symbol)?.label ?? nameOf(h.symbol) ?? `since ${formatExpiry(h.firstDate)}`}
                               </span>
                             </span>
                           </td>

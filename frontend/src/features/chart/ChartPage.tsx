@@ -23,6 +23,7 @@ import { useAsync } from '../../hooks/useAsync';
 import { PHONE_QUERY, useMediaQuery } from '../../hooks/useMediaQuery';
 import { num } from '../../lib/format';
 import { displaySymbol, isUs } from '../../lib/markets';
+import { nameOf } from '../../lib/symbolNames';
 import { useChartLayout } from '../../store/chartLayout';
 import { CELL_NAMES, chartCount, gridStyle, layoutById } from './layouts';
 import { LayoutMenu } from './LayoutMenu';
@@ -311,7 +312,7 @@ function PhoneChart({
   const quote = q && !('error' in q) ? q : null;
   const chg = quote ? quote.price - quote.previousClose : null;
   const pct = quote && quote.previousClose ? (chg! / quote.previousClose) * 100 : null;
-  const label = symbolInfo.find((s) => s.symbol === symbol)?.label ?? displaySymbol(symbol);
+  const label = symbolInfo.find((s) => s.symbol === symbol)?.label ?? nameOf(symbol) ?? displaySymbol(symbol);
   const period = PERIODS.find((p) => p.tf === tf);
 
   const tool = (t: ProTool) => {

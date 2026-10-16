@@ -7,6 +7,7 @@ import { formatExpiry } from '../../domain/dates';
 import { istDate, validateTxn } from '../../domain/portfolio';
 import { inr } from '../../lib/format';
 import { US_PREFIX, displaySymbol, isUs } from '../../lib/markets';
+import { rememberName } from '../../lib/symbolNames';
 
 const usd = (v: number) => `$${v.toLocaleString('en-US', { maximumFractionDigits: 2 })}`;
 
@@ -127,16 +128,16 @@ export function TransactionDialog({
     };
   }, [kind, sym, heldExpiry]);
 
-  // US: suggest matching stocks and ETFs as the ticker or name is typed.
+  // Stocks: suggest matches (NSE or US, stocks and ETFs) as a symbol or company name is typed.
   useEffect(() => {
-    if (!us || ticker.length < 1 || usPicked) {
+    if (kind !== 'STOCK' || ticker.length < 1 || usPicked) {
       setUsResults([]);
       return;
     }
     let cancelled = false;
     const t = window.setTimeout(() => {
-      api
-        .searchUs(symbol.trim())
+      const search = us ? api.searchUs : api.searchIndia;
+      search(symbol.trim())
         .then((r) => !cancelled && setUsResults(r.results))
         .catch(() => !cancelled && setUsResults([]));
     }, 250);
@@ -144,7 +145,7 @@ export function TransactionDialog({
       cancelled = true;
       window.clearTimeout(t);
     };
-  }, [us, ticker, symbol, usPicked]);
+  }, [us, kind, ticker, symbol, usPicked]);
 
   // US: the USD/INR close on the transaction date, filled in until the user types their own.
   useEffect(() => {
@@ -192,6 +193,8 @@ export function TransactionDialog({
       ...(note.trim() ? { note: note.trim() } : {}),
     };
     if (date > today()) return setError('The date can’t be in the future.');
+    // Typed a company name without picking it: there's no symbol yet.
+    if (!/^[A-Z0-9&_.-]{1,20}$/.test(ticker)) return setError(kind === 'STOCK' ? 'Pick a stock from the suggestions, or type its exact symbol.' : 'Enter a symbol.');
     const problem = validateTxn(existing, txn);
     if (problem) return setError(problem);
     setSaving(true);
@@ -252,24 +255,25 @@ export function TransactionDialog({
               className={field}
               value={symbol}
               onChange={(e) => {
-                setSymbol(us ? e.target.value : e.target.value.toUpperCase());
+                // Stocks can be searched by company name, so keep what's typed; futures take a symbol.
+                setSymbol(kind === 'STOCK' ? e.target.value : e.target.value.toUpperCase());
                 setUsPicked(null);
                 setError(null);
               }}
-              list={us ? undefined : 'portfolio-symbols'}
-              placeholder={kind === 'FUT' ? 'NIFTY' : us ? 'AAPL or Apple' : 'HDFCBANK'}
+              list={kind === 'FUT' ? 'portfolio-symbols' : undefined}
+              placeholder={kind === 'FUT' ? 'NIFTY' : us ? 'AAPL or Apple' : 'HDFCBANK, Tata Motors or NIFTYBEES'}
               autoCapitalize="characters"
               spellCheck={false}
               required
             />
-            {us && usPicked && (
+            {kind === 'STOCK' && usPicked && (
               <span className="mt-0.5 block text-[var(--text-muted)]">
                 {usPicked.name} · {usPicked.exchange}
                 {usPicked.type === 'ETF' ? ' · ETF' : ''}
               </span>
             )}
-            {us && usResults.length > 0 && (
-              <ul aria-label="Matching US stocks" className="absolute inset-x-0 top-full z-10 mt-1 max-h-60 overflow-auto rounded-md border border-[var(--border-strong)] bg-[var(--surface-raised)] py-1 shadow-xl">
+            {kind === 'STOCK' && usResults.length > 0 && (
+              <ul aria-label={us ? 'Matching US stocks' : 'Matching NSE stocks and ETFs'} className="absolute inset-x-0 top-full z-10 mt-1 max-h-60 overflow-auto rounded-md border border-[var(--border-strong)] bg-[var(--surface-raised)] py-1 shadow-xl">
                 {usResults.map((r) => (
                   <li key={r.symbol}>
                     <button
@@ -277,6 +281,7 @@ export function TransactionDialog({
                       onClick={() => {
                         setSymbol(displaySymbol(r.symbol));
                         setUsPicked(r);
+                        rememberName(r.symbol, r.name);
                         setUsResults([]);
                       }}
                       className="flex w-full items-baseline gap-2 px-3 py-1.5 text-left text-xs hover:bg-[var(--surface-sunken)]"

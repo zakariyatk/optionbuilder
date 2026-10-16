@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import type { Plugin } from 'vite';
+import { indiaSearch } from './indiaSearch';
 
 /**
  * Offline backend for `npm run dev:mock`.
@@ -360,6 +361,7 @@ export function mockApi(base: string): Plugin {
             return send({ series });
           }
           case '/search': {
+            if (url.searchParams.get('market') === 'in') return send({ results: indiaSearch(url.searchParams.get('q') ?? '') });
             const q = (url.searchParams.get('q') ?? '').toLowerCase();
             return send({ results: US_LISTINGS.filter((l) => l.ticker.toLowerCase().startsWith(q) || l.name.toLowerCase().includes(q)) });
           }

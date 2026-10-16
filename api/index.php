@@ -16,6 +16,7 @@ require_once __DIR__ . '/lib/upstox.php';
 require_once __DIR__ . '/lib/chain.php';
 require_once __DIR__ . '/lib/markets.php';
 require_once __DIR__ . '/lib/us.php';
+require_once __DIR__ . '/lib/india.php';
 require_once __DIR__ . '/lib/news.php';
 require_once __DIR__ . '/lib/report.php';
 require_once __DIR__ . '/lib/drafts.php';
@@ -510,6 +511,10 @@ try {
             ob_error('q must be 1–40 characters', 400);
         }
         try {
+            // market=in: every NSE stock and ETF, from the cached instruments list (no per-query cache needed).
+            if (ob_query('market') === 'in') {
+                ob_json(['results' => ob_india_search($q)]);
+            }
             ob_json(['results' => ob_cached('search:us:' . mb_strtolower($q), fn() => ob_us_search($q), 86400)]);
         } catch (Throwable $e) {
             ob_error('Search failed', 502, $e->getMessage());

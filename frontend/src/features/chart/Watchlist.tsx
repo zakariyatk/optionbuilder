@@ -7,12 +7,10 @@ import { useAsync } from '../../hooks/useAsync';
 import { num } from '../../lib/format';
 import { marketOpen, NSE_SESSION, sessionFor, US_SESSION } from '../../lib/nse';
 import { displaySymbol, isUs } from '../../lib/markets';
+import { nameOf } from '../../lib/symbolNames';
 import { activeList, useWatchlist } from '../../store/watchlist';
 import { SymbolSearch } from './SymbolSearch';
 import { WatchlistMenu } from './WatchlistMenu';
-
-/** Names of US symbols seen in search this session (the watchlist stores symbols only). */
-const usNames = new Map<string, string>();
 
 /** Near-live while a market the list covers trades; prices don't move once it's closed. */
 const WATCH_POLL_OPEN_MS = 5_000;
@@ -48,10 +46,10 @@ export function Watchlist({
     enabled: symbols.length > 0,
   });
   const bySymbol = useMemo(() => new Map((quotes.data?.quotes ?? []).map((q) => [q.symbol, q])), [quotes.data]);
-  const label = (s: string) => symbolInfo.find((i) => i.symbol === s)?.label ?? usNames.get(s) ?? displaySymbol(s);
+  const label = (s: string) => symbolInfo.find((i) => i.symbol === s)?.label ?? nameOf(s) ?? displaySymbol(s);
 
-  const pick = (symbol: string, name: string) => {
-    if (isUs(symbol)) usNames.set(symbol, name);
+  // The search dialog remembers the picked symbol's name (lib/symbolNames).
+  const pick = (symbol: string) => {
     add(symbol);
     onSelect(symbol);
   };

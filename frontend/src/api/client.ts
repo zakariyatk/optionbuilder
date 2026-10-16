@@ -154,6 +154,8 @@ export const api = {
     get<{ series: Record<string, HistorySeries> }>(`/api/history?symbols=${encodeURIComponent(symbols.join(','))}&range=${range}`),
   /** US stocks and ETFs matching a name or ticker (Yahoo). */
   searchUs: (q: string) => get<{ results: UsSearchResult[] }>(`/api/search?q=${encodeURIComponent(q)}`),
+  /** Every NSE stock and ETF matching a symbol or company name. Same result shape as searchUs, symbols without a prefix. */
+  searchIndia: (q: string) => get<{ results: UsSearchResult[] }>(`/api/search?market=in&q=${encodeURIComponent(q)}`),
   futures: (symbol: string) =>
     get<{ symbol: string; contracts: FutureContract[] }>(`/api/futures?symbol=${encodeURIComponent(symbol)}`),
 

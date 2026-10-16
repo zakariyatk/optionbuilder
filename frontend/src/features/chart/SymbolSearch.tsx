@@ -3,6 +3,7 @@ import { Search, X, XCircle } from 'lucide-react';
 import { api } from '../../api/client';
 import type { SymbolInfo, UsSearchResult } from '../../api/types';
 import { displaySymbol } from '../../lib/markets';
+import { rememberName } from '../../lib/symbolNames';
 
 /** A row in the results, from either market. */
 interface Hit {
@@ -83,6 +84,8 @@ export function SymbolSearch({
   const [tab, setTab] = useState<Tab>('all');
   const [us, setUs] = useState<UsSearchResult[] | null>(null);
   const [usLoading, setUsLoading] = useState(false);
+  const [nse, setNse] = useState<UsSearchResult[] | null>(null);
+  const [nseLoading, setNseLoading] = useState(false);
   const [cursor, setCursor] = useState(0);
   const input = useRef<HTMLInputElement>(null);
   const list = useRef<HTMLDivElement>(null);
@@ -120,16 +123,47 @@ export function SymbolSearch({
     };
   }, [query, tab]);
 
+  // Every NSE stock and ETF, by symbol or company name, from the server.
+  useEffect(() => {
+    const q = query.trim();
+    if (!q || tab === 'US') {
+      setNse(null);
+      setNseLoading(false);
+      return;
+    }
+    let cancelled = false;
+    setNseLoading(true);
+    const t = window.setTimeout(() => {
+      api
+        .searchIndia(q)
+        .then((r) => !cancelled && setNse(r.results))
+        .catch(() => !cancelled && setNse(null))
+        .finally(() => !cancelled && setNseLoading(false));
+    }, 180);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(t);
+    };
+  }, [query, tab]);
+
   const skip = useMemo(() => new Set(exclude), [exclude]);
 
   const indian = useMemo<Hit[]>(() => {
     const q = query.trim().toUpperCase();
-    const all = symbolInfo
+    const local = symbolInfo
       .filter((s) => !skip.has(s.symbol) && (!q || s.symbol.includes(q) || s.label.toUpperCase().includes(q)))
       .map((s) => ({ symbol: s.symbol, name: s.label, type: NSE_INDICES.has(s.symbol) ? 'index' : 'stock', exchange: 'NSE', market: 'IN' as const }));
     // Tickers that start with the query first, then the rest — as TradingView ranks.
-    return q ? [...all.filter((h) => h.symbol.startsWith(q)), ...all.filter((h) => !h.symbol.startsWith(q))] : all;
-  }, [symbolInfo, query, skip]);
+    const ranked = q ? [...local.filter((h) => h.symbol.startsWith(q)), ...local.filter((h) => !h.symbol.startsWith(q))] : local;
+    if (!q || !nse) return ranked;
+    // Indices (only in the app's own list) lead; then every NSE stock and ETF the server matched.
+    const indices = ranked.filter((h) => h.type === 'index');
+    const server = nse
+      .filter((r) => !skip.has(r.symbol))
+      .map((r) => ({ symbol: r.symbol, name: r.name, type: r.type === 'ETF' ? 'etf' : 'stock', exchange: 'NSE', market: 'IN' as const }));
+    const seen = new Set(indices.map((h) => h.symbol));
+    return [...indices, ...server.filter((h) => !seen.has(h.symbol) && seen.add(h.symbol))];
+  }, [symbolInfo, query, skip, nse]);
 
   const american = useMemo<Hit[]>(() => {
     const rows = query.trim()
@@ -140,7 +174,13 @@ export function SymbolSearch({
 
   const sections = useMemo(() => {
     const out: { title: string; hits: Hit[]; loading: boolean; empty: string }[] = [];
-    if (tab !== 'US') out.push({ title: 'Indian stocks', hits: tab === 'all' ? indian.slice(0, 8) : indian, loading: false, empty: 'No NSE symbol matches.' });
+    if (tab !== 'US')
+      out.push({
+        title: query.trim() ? 'Indian stocks & ETFs' : 'Indian stocks',
+        hits: tab === 'all' ? indian.slice(0, 8) : indian,
+        loading: nseLoading && !nse && indian.length === 0,
+        empty: 'No NSE stock or ETF matches.',
+      });
     if (tab !== 'IN')
       out.push({
         title: query.trim() ? 'US stocks' : 'US stocks · popular',
@@ -149,7 +189,7 @@ export function SymbolSearch({
         empty: 'No US stock or ETF matches.',
       });
     return out;
-  }, [tab, indian, american, usLoading, us, query]);
+  }, [tab, indian, american, usLoading, us, query, nseLoading, nse]);
 
   const flat = useMemo(() => sections.flatMap((s) => s.hits), [sections]);
   useEffect(() => setCursor(0), [query, tab]);
@@ -158,6 +198,7 @@ export function SymbolSearch({
   }, [cursor]);
 
   const pick = (h: Hit) => {
+    rememberName(h.symbol, h.name);
     onPick(h.symbol, h.name);
     onClose();
   };
@@ -252,7 +293,7 @@ export function SymbolSearch({
               ref={input}
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Symbol or company, e.g. RELIANCE or Apple"
+              placeholder="Symbol, company or ETF — e.g. BSE, Tata Motors, NIFTYBEES, Apple"
               aria-label="Search symbols"
               aria-controls="symbol-search-results"
               spellCheck={false}
