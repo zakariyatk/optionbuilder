@@ -7,7 +7,9 @@ import { num } from '../../lib/format';
 import { activeList, useWatchlist } from '../../store/watchlist';
 import { WatchlistMenu } from './WatchlistMenu';
 
-const WATCH_POLL_MS = 15_000;
+/** Near-live while NSE trades; prices don't move once it's closed. */
+const WATCH_POLL_OPEN_MS = 5_000;
+const WATCH_POLL_CLOSED_MS = 60_000;
 
 const isQuote = (q: WatchQuote | undefined): q is SpotQuote => !!q && !('error' in q);
 const changeColor = (v: number) => (v > 0 ? 'var(--good-text)' : v < 0 ? 'var(--critical)' : 'var(--text-secondary)');
@@ -41,7 +43,11 @@ export function Watchlist({
   const [adding, setAdding] = useState(false);
   const [query, setQuery] = useState('');
 
-  const quotes = useAsync(() => api.watch(symbols), [symbols.join(',')], { pollMs: WATCH_POLL_MS, enabled: symbols.length > 0 });
+  const open = nseOpen();
+  const quotes = useAsync(() => api.watch(symbols), [symbols.join(',')], {
+    pollMs: open ? WATCH_POLL_OPEN_MS : WATCH_POLL_CLOSED_MS,
+    enabled: symbols.length > 0,
+  });
   const bySymbol = useMemo(() => new Map((quotes.data?.quotes ?? []).map((q) => [q.symbol, q])), [quotes.data]);
   const label = (s: string) => symbolInfo.find((i) => i.symbol === s)?.label ?? s;
 
@@ -64,7 +70,6 @@ export function Watchlist({
   const selQuote = isQuote(sel) ? sel : null;
   const selChange = selQuote ? selQuote.price - selQuote.previousClose : null;
   const selPct = selQuote && selQuote.previousClose ? (selChange! / selQuote.previousClose) * 100 : null;
-  const open = nseOpen();
 
   return (
     <aside className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--surface-card)]">

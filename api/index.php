@@ -184,29 +184,38 @@ try {
         if (!$symbols || count($symbols) > 30) {
             ob_error('symbols must list 1–30 symbols', 400);
         }
-        // Upstox when connected (live NSE), else the delayed spot feed per symbol.
+        // Upstox when connected (live NSE), else the Yahoo spot feed. Neither
+        // falls back to an old snapshot for long: a list that silently stops
+        // moving is worse than a "—" for a symbol that can't be quoted.
         $live = [];
         if (ob_has_valid_token()) {
             try {
-                $live = ob_cached('watch:' . md5(implode(',', $symbols)), fn() => ob_upstox_watch_quotes($symbols), 5);
+                $live = ob_cached('watch:' . md5(implode(',', $symbols)), fn() => ob_upstox_watch_quotes($symbols), 2, 0);
             } catch (Throwable) {
                 $live = [];
             }
         }
         $quotes = [];
+        $missing = [];
         foreach ($symbols as $symbol) {
-            if (isset($live[$symbol])) {
-                $quotes[] = $live[$symbol];
-                continue;
-            }
-            try {
-                $quotes[] = ob_cached("spot:$symbol", fn() => ob_spot_price($symbol), OB_TTL_QUOTE);
-            } catch (Throwable) {
-                // One bad or unlisted symbol shouldn't blank the whole list.
-                $quotes[] = ['symbol' => $symbol, 'error' => true];
+            $quote = $live[$symbol] ?? ob_cache_get("spot:$symbol", OB_TTL_WATCH);
+            if ($quote !== null) {
+                $quotes[$symbol] = $quote;
+            } else {
+                $missing[] = $symbol;
             }
         }
-        ob_json(['quotes' => $quotes]);
+        if ($missing) {
+            $fetched = ob_spot_prices($missing);
+            foreach ($missing as $symbol) {
+                if (isset($fetched[$symbol])) {
+                    ob_cache_put("spot:$symbol", $fetched[$symbol]);
+                }
+                // One bad or unlisted symbol shouldn't blank the whole list.
+                $quotes[$symbol] = $fetched[$symbol] ?? ob_cache_get("spot:$symbol", OB_MAX_STALE_QUOTE) ?? ['symbol' => $symbol, 'error' => true];
+            }
+        }
+        ob_json(['quotes' => array_map(static fn(string $s): array => $quotes[$s], $symbols)]);
     }
 
     if ($path === '/api/candles') {

@@ -18,10 +18,13 @@ const OB_YAHOO_TICKER = [
     'INDIAVIX' => '^INDIAVIX',
 ];
 
-function ob_yahoo_meta(string $ticker): array
+function ob_yahoo_chart_url(string $ticker): string
 {
-    $url = 'https://query1.finance.yahoo.com/v8/finance/chart/' . rawurlencode($ticker) . '?interval=1d&range=1d';
-    $json = ob_get_json($url, [], 20);
+    return 'https://query1.finance.yahoo.com/v8/finance/chart/' . rawurlencode($ticker) . '?interval=1d&range=1d';
+}
+
+function ob_yahoo_meta_from(mixed $json, string $ticker): array
+{
     $meta = $json['chart']['result'][0]['meta'] ?? null;
     if (!is_array($meta) || !isset($meta['regularMarketPrice'])) {
         throw new RuntimeException("No data for $ticker");
@@ -29,10 +32,18 @@ function ob_yahoo_meta(string $ticker): array
     return $meta;
 }
 
-function ob_spot_price(string $symbol): array
+function ob_yahoo_meta(string $ticker): array
 {
-    $ticker = OB_YAHOO_TICKER[$symbol] ?? ($symbol . '.NS');
-    $meta = ob_yahoo_meta($ticker);
+    return ob_yahoo_meta_from(ob_get_json(ob_yahoo_chart_url($ticker), [], 20), $ticker);
+}
+
+function ob_yahoo_ticker(string $symbol): string
+{
+    return OB_YAHOO_TICKER[$symbol] ?? ($symbol . '.NS');
+}
+
+function ob_spot_from_meta(string $symbol, string $ticker, array $meta): array
+{
     return [
         'symbol' => $symbol,
         'ticker' => $ticker,
@@ -41,6 +52,41 @@ function ob_spot_price(string $symbol): array
         'currency' => $meta['currency'] ?? 'INR',
         'marketTime' => (int) ($meta['regularMarketTime'] ?? 0),
     ];
+}
+
+function ob_spot_price(string $symbol): array
+{
+    $ticker = ob_yahoo_ticker($symbol);
+    return ob_spot_from_meta($symbol, $ticker, ob_yahoo_meta($ticker));
+}
+
+/**
+ * Spot quotes for many symbols at once, fetched in parallel with a short
+ * timeout so one slow symbol can't stall the whole watchlist. Symbols that
+ * fail are left out.
+ *
+ * @param list<string> $symbols
+ * @return array<string, array> keyed by symbol
+ */
+function ob_spot_prices(array $symbols, int $timeout = 8): array
+{
+    $urls = [];
+    foreach ($symbols as $symbol) {
+        $urls[$symbol] = ob_yahoo_chart_url(ob_yahoo_ticker($symbol));
+    }
+    $out = [];
+    foreach (ob_http_multi_get($urls, ['Accept' => 'application/json'], 10, $timeout) as $symbol => $res) {
+        if ($res['status'] < 200 || $res['status'] >= 300) {
+            continue;
+        }
+        try {
+            $ticker = ob_yahoo_ticker($symbol);
+            $out[$symbol] = ob_spot_from_meta($symbol, $ticker, ob_yahoo_meta_from(json_decode($res['body'], true), $ticker));
+        } catch (Throwable) {
+            // Left out: the caller marks it.
+        }
+    }
+    return $out;
 }
 
 // ------------------------------------------------------------ global markets
