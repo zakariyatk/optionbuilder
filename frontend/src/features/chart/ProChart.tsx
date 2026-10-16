@@ -4,7 +4,8 @@ import { KLineChartPro, type Datafeed, type Period, type SymbolInfo as ProSymbol
 import '@klinecharts/pro/dist/klinecharts-pro.css';
 import { TooltipShowRule, type KLineData } from 'klinecharts';
 import { api, UPSTOX_LOGIN_URL } from '../../api/client';
-import { nseOpen } from '../../lib/nse';
+import { marketOpen, sessionFor } from '../../lib/nse';
+import { displaySymbol, isUs } from '../../lib/markets';
 import { attachLiveTag, innerChart, LIVE_TAG_STYLES } from './liveTag';
 import { tvChartStyles } from './tvStyle';
 import { PERIODS, periodMs } from './periods';
@@ -25,11 +26,14 @@ const HISTORY_RETRY_MS = 3_000;
 
 const tfOf = (p: Period) => PERIODS.find((x) => x.multiplier === p.multiplier && x.timespan === p.timespan)?.tf ?? '15m';
 
-const toProSymbol = (s: SymbolInfo | { symbol: string; label?: string }): ProSymbol => ({
+/** Exchange names of US symbols seen in search, for the chart legend (NASDAQ, NYSE, …). */
+const usExchange = new Map<string, string>();
+
+const toProSymbol = (s: SymbolInfo | { symbol: string; label?: string; exchange?: string }): ProSymbol => ({
   ticker: s.symbol,
-  name: 'label' in s && s.label ? s.label : s.symbol,
-  shortName: s.symbol,
-  exchange: 'NSE',
+  name: 'label' in s && s.label ? s.label : displaySymbol(s.symbol),
+  shortName: displaySymbol(s.symbol),
+  exchange: isUs(s.symbol) ? (('exchange' in s && s.exchange) || usExchange.get(s.symbol) || 'US') : 'NSE',
   market: 'stocks',
   pricePrecision: 2,
   volumePrecision: 0,
@@ -47,6 +51,10 @@ interface FeedHooks {
   current: () => { symbol: ProSymbol; period: Period } | null;
   /** Makes the chart load its current symbol / period again. */
   reload: () => void;
+  /** A load just finished: apply a symbol / period change queued while it ran. True when one was applied (a new load starts). */
+  flush: () => boolean;
+  /** Whether Upstox is connected — without it only US symbols can be charted. */
+  brokerConnected: () => boolean;
   /** The chart finished loading this symbol (it may have been picked in the chart's own search). */
   onLoaded: (ticker: string) => void;
   /** Bar replay owns the chart: live bars must not be painted. */
@@ -65,7 +73,7 @@ interface FeedHooks {
  * one settles the feed reloads whatever the chart is on now if that isn't
  * what was loaded (or retries a load that failed).
  */
-function upstoxDatafeed(symbols: () => SymbolInfo[], hooks: FeedHooks): Datafeed & { dispose: () => void } {
+function upstoxDatafeed(symbols: () => SymbolInfo[], hooks: FeedHooks): Datafeed & { dispose: () => void; loading: () => boolean } {
   const subs = new Map<string, { timers: number[]; alive: boolean }>();
   const stop = (k: string) => {
     const sub = subs.get(k);
@@ -80,16 +88,34 @@ function upstoxDatafeed(symbols: () => SymbolInfo[], hooks: FeedHooks): Datafeed
     return !c || key(c.symbol, c.period) === key(s, p);
   };
   let disposed = false;
+  /** A history load is in flight — Pro must not be handed a new symbol or period until it settles. */
+  let loading = false;
   let retry = 0;
   return {
     async searchSymbols(search = '') {
       const q = search.trim().toUpperCase();
-      return symbols()
-        .filter((s) => !q || s.symbol.includes(q) || s.label.toUpperCase().includes(q))
-        .slice(0, 50)
-        .map(toProSymbol);
+      // NSE symbols need Upstox for candles; US ones come from Yahoo and always work.
+      const nse = hooks.brokerConnected()
+        ? symbols()
+            .filter((s) => !q || s.symbol.includes(q) || s.label.toUpperCase().includes(q))
+            .slice(0, 50)
+            .map(toProSymbol)
+        : [];
+      if (!q) return nse;
+      let us: ProSymbol[] = [];
+      try {
+        const { results } = await api.searchUs(search.trim());
+        us = results.map((r) => {
+          usExchange.set(r.symbol, r.exchange);
+          return toProSymbol({ symbol: r.symbol, label: r.name, exchange: r.exchange });
+        });
+      } catch {
+        /* US search is a bonus; NSE results still show */
+      }
+      return [...nse, ...us];
     },
     async getHistoryKLineData(symbol, period, _from, to) {
+      loading = true;
       // One request returns everything Upstox has for this timeframe, so scrolling back pages in nothing older.
       let all: KLineData[] = [];
       let failed = false;
@@ -101,7 +127,10 @@ function upstoxDatafeed(symbols: () => SymbolInfo[], hooks: FeedHooks): Datafeed
       // Pro finishes this load right after we return; then catch up with any change it ignored meanwhile.
       window.setTimeout(() => {
         if (disposed) return;
+        // Pro has applied the data and cleared its own loading state by now.
+        loading = false;
         window.clearTimeout(retry);
+        if (hooks.flush()) return;
         if (!showing(symbol, period)) hooks.reload();
         else if (failed) retry = window.setTimeout(() => !disposed && showing(symbol, period) && hooks.reload(), HISTORY_RETRY_MS);
         else hooks.onLoaded(symbol.ticker);
@@ -137,7 +166,7 @@ function upstoxDatafeed(symbols: () => SymbolInfo[], hooks: FeedHooks): Datafeed
         }
       };
       const quoteTick = async () => {
-        if (!bar || document.visibilityState !== 'visible' || !nseOpen()) return;
+        if (!bar || document.visibilityState !== 'visible' || !marketOpen(sessionFor(symbol.ticker))) return;
         try {
           const q = (await api.watch([symbol.ticker])).quotes[0];
           if (!bar || !q || 'error' in q || !(q.price > 0)) return;
@@ -164,6 +193,7 @@ function upstoxDatafeed(symbols: () => SymbolInfo[], hooks: FeedHooks): Datafeed
       stop(key(symbol, period));
     },
     /** Pro never unsubscribes when the chart is torn down; stop every poll. */
+    loading: () => loading,
     dispose() {
       disposed = true;
       window.clearTimeout(retry);
@@ -238,13 +268,40 @@ export function ProChart({
   themeRef.current = theme;
   const scaleRef = useRef<ReturnType<typeof installScaleButtons> | null>(null);
   const legendTitleRef = useRef<() => string>(() => '');
+  /**
+   * Symbol / period changes that arrived during a history load. Pro drops a
+   * change made mid-load — and its loader then stops listening for changes at
+   * all — so they wait here and are applied, one at a time, once it settles.
+   */
+  const queued = useRef<{ symbol?: string; period?: string }>({});
+  const feedRef = useRef<{ loading: () => boolean } | null>(null);
+  const proSymbolOf = (s: string) => toProSymbol(symbolsRef.current.find((x) => x.symbol === s) ?? { symbol: s });
+  const samePeriod = (a: Period, b: Period) => a.multiplier === b.multiplier && a.timespan === b.timespan;
+  /** Show this symbol / timeframe now, or as soon as the load in flight ends. */
+  const show = (change: { symbol?: string; period?: string }) => {
+    const c = chart.current;
+    if (!c) return;
+    if (feedRef.current?.loading()) {
+      queued.current = { ...queued.current, ...change };
+      return;
+    }
+    if (change.symbol && c.getSymbol().ticker !== change.symbol) {
+      c.setSymbol(proSymbolOf(change.symbol));
+      // One change per load: a period change goes in once this symbol's load ends.
+      if (change.period) queued.current = { ...queued.current, period: change.period };
+      return;
+    }
+    const p = change.period ? PERIODS.find((x) => x.tf === change.period) : undefined;
+    if (p && !samePeriod(c.getPeriod(), p)) c.setPeriod(p);
+  };
+  const showRef = useRef(show);
+  showRef.current = show;
 
   useEffect(() => {
     if (!actionsRef) return;
     actionsRef.current = {
       setPeriod: (tf) => {
-        const p = PERIODS.find((x) => x.tf === tf);
-        if (p) chart.current?.setPeriod(p);
+        showRef.current({ period: tf });
       },
       openTool: (tool) => {
         const items = host.current?.querySelectorAll<HTMLElement>('.klinecharts-pro-period-bar .item.tools') ?? [];
@@ -265,17 +322,22 @@ export function ProChart({
 
 
 
+  // US symbols chart from Yahoo, so the chart works for them before Upstox is connected.
+  const live = brokerConnected || isUs(symbol);
+  const brokerRef = useRef(brokerConnected);
+  brokerRef.current = brokerConnected;
+
   // Built once per mount (and on reconnect); symbol and theme changes go through the API.
   useEffect(() => {
     const el = host.current;
-    if (!el || !brokerConnected) return;
+    if (!el || !live) return;
     el.replaceChildren();
     const info = symbolsRef.current.find((s) => s.symbol === symbol);
     let replay: ReplayController | null = null;
     // "NIFTY 50 · 15m · NSE", as TradingView titles its legend.
     const legendTitle = () => {
       const c = chart.current;
-      return c ? `${c.getSymbol().name ?? c.getSymbol().ticker} · ${c.getPeriod().text} · NSE` : '';
+      return c ? `${c.getSymbol().name ?? c.getSymbol().ticker} · ${c.getPeriod().text} · ${c.getSymbol().exchange ?? 'NSE'}` : '';
     };
     legendTitleRef.current = legendTitle;
     const feed = upstoxDatafeed(() => symbolsRef.current, {
@@ -295,6 +357,17 @@ export function ProChart({
         if (ticker !== symbolRef.current) onSymbolChangeRef.current?.(ticker);
       },
       paused: () => replay?.holdsChart() ?? false,
+      flush: () => {
+        const q = queued.current;
+        if (!q.symbol && !q.period) return false;
+        queued.current = {};
+        const c = chart.current;
+        if (!c) return false;
+        const before = { t: c.getSymbol().ticker, p: c.getPeriod() };
+        showRef.current(q);
+        return c.getSymbol().ticker !== before.t || !samePeriod(c.getPeriod(), before.p);
+      },
+      brokerConnected: () => brokerRef.current,
     });
     chart.current = new KLineChartPro({
       container: el,
@@ -338,12 +411,16 @@ export function ProChart({
         return;
       }
       pro.setStyles(tvChartStyles(themeRef.current, legendTitle));
-      tag = attachLiveTag(el, inner, () => pro.getPeriod());
+      tag = attachLiveTag(el, inner, () => pro.getPeriod(), () => sessionFor(pro.getSymbol().ticker));
     };
     attach();
 
+    feedRef.current = feed;
+
     return () => {
       feed.dispose();
+      feedRef.current = null;
+      queued.current = {};
       removeTools();
       alerts.dispose();
       scale.dispose();
@@ -357,20 +434,11 @@ export function ProChart({
       chart.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- symbol / theme are applied by the effects below
-  }, [brokerConnected]);
+  }, [live]);
 
-  useEffect(() => {
-    const c = chart.current;
-    if (c && c.getSymbol().ticker !== symbol) {
-      c.setSymbol(toProSymbol(symbolsRef.current.find((s) => s.symbol === symbol) ?? { symbol }));
-    }
-  }, [symbol]);
+  useEffect(() => showRef.current({ symbol }), [symbol]);
 
-  useEffect(() => {
-    const c = chart.current;
-    const p = PERIODS.find((x) => x.tf === period);
-    if (c && p && (c.getPeriod().multiplier !== p.multiplier || c.getPeriod().timespan !== p.timespan)) c.setPeriod(p);
-  }, [period]);
+  useEffect(() => showRef.current({ period }), [period]);
 
   useEffect(() => {
     chart.current?.setTheme(theme);
@@ -380,10 +448,10 @@ export function ProChart({
     scaleRef.current?.reapply();
   }, [theme]);
 
-  if (!brokerConnected) {
+  if (!live) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3 text-center text-sm text-[var(--text-muted)]">
-        Connect Upstox to load the chart from your account.
+        Connect Upstox to chart NSE symbols. US stocks chart without it — search one in the watchlist.
         <a href={UPSTOX_LOGIN_URL} target="_blank" rel="noreferrer" className="inline-flex min-h-11 items-center gap-2 rounded-md bg-[var(--series-blue)] px-4 py-2 text-sm font-medium text-white">
           Connect Upstox
           <ExternalLink size={16} aria-hidden="true" />

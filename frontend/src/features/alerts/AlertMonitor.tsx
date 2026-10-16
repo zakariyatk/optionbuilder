@@ -1,11 +1,11 @@
 import { useEffect, useMemo } from 'react';
 import { BellRing, X } from 'lucide-react';
 import { api } from '../../api/client';
-import { nseOpen } from '../../lib/nse';
+import { marketOpen, sessionFor } from '../../lib/nse';
 import { activeAlerts, useAlerts } from '../../store/alerts';
 import { alertDetail, alertTitle, signalAlerts } from './alertSignals';
 
-/** Checks every few seconds while NSE trades; a slow heartbeat otherwise (prices don't move). */
+/** Checks every few seconds while a watched market (NSE or US) trades; a slow heartbeat otherwise. */
 const OPEN_POLL_MS = 4_000;
 const CLOSED_POLL_MS = 60_000;
 
@@ -22,10 +22,11 @@ export function AlertMonitor() {
   useEffect(() => {
     if (!key) return;
     const list = key.split(',');
+    const trading = () => list.some((s) => marketOpen(sessionFor(s)));
     let timer = 0;
     let cancelled = false;
     const check = async () => {
-      if (document.visibilityState === 'visible' || nseOpen()) {
+      if (document.visibilityState === 'visible' || trading()) {
         try {
           const { quotes } = await api.watch(list);
           if (cancelled) return;
@@ -35,7 +36,7 @@ export function AlertMonitor() {
           /* next check retries */
         }
       }
-      if (!cancelled) timer = window.setTimeout(check, nseOpen() ? OPEN_POLL_MS : CLOSED_POLL_MS);
+      if (!cancelled) timer = window.setTimeout(check, trading() ? OPEN_POLL_MS : CLOSED_POLL_MS);
     };
     void check();
     return () => {

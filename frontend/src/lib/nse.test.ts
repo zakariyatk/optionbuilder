@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { candleCloseMs, fmtLeft, nseCloseMs, nseOpen } from './nse';
+import { candleCloseMs, fmtLeft, marketOpen, nseCloseMs, nseOpen, sessionFor, US_SESSION } from './nse';
 
 // 2026-10-14 is a Wednesday. IST = UTC + 5:30.
 const ist = (hh: number, mm: number, day = 14) => new Date(Date.UTC(2026, 9, day, hh, mm) - 330 * 60_000);
@@ -56,5 +56,36 @@ describe('fmtLeft', () => {
     expect(fmtLeft(4 * 86_400_000 + 16 * 3600_000 + 59_000)).toBe('4d 16h');
     expect(fmtLeft(2 * 3600_000 + 15 * 60_000 + 30_000)).toBe('2:15:30');
     expect(fmtLeft(3 * 86_400_000 + 5 * 3600_000)).toBe('3d 5h');
+  });
+});
+
+describe('US session', () => {
+  // 2026-10-16 is a Friday; New York is on EDT (UTC−4) until 1 Nov 2026.
+  const utc = (iso: string) => Date.parse(iso);
+
+  it('is open 09:30–16:00 New York time, i.e. 19:00–01:30 IST in summer', () => {
+    expect(marketOpen(US_SESSION, new Date(utc('2026-10-16T13:29:00Z')))).toBe(false);
+    expect(marketOpen(US_SESSION, new Date(utc('2026-10-16T13:30:00Z')))).toBe(true);
+    expect(marketOpen(US_SESSION, new Date(utc('2026-10-16T19:59:00Z')))).toBe(true);
+    expect(marketOpen(US_SESSION, new Date(utc('2026-10-16T20:00:00Z')))).toBe(false);
+  });
+
+  it('follows daylight saving: 09:30 New York is 14:30 UTC in winter', () => {
+    expect(marketOpen(US_SESSION, new Date(utc('2026-11-16T14:29:00Z')))).toBe(false);
+    expect(marketOpen(US_SESSION, new Date(utc('2026-11-16T14:30:00Z')))).toBe(true);
+  });
+
+  it('times candles from the US open and close', () => {
+    const now = utc('2026-10-16T14:02:00Z'); // 10:02 New York
+    expect(candleCloseMs('minute', 15, now, US_SESSION)).toBe(utc('2026-10-16T14:15:00Z'));
+    expect(candleCloseMs('hour', 1, now, US_SESSION)).toBe(utc('2026-10-16T14:30:00Z'));
+    expect(candleCloseMs('day', 1, now, US_SESSION)).toBe(utc('2026-10-16T20:00:00Z'));
+    // Friday after the close → Monday's first 5-minute bar.
+    expect(candleCloseMs('minute', 5, utc('2026-10-16T21:00:00Z'), US_SESSION)).toBe(utc('2026-10-19T13:35:00Z'));
+  });
+
+  it('picks the session from the symbol', () => {
+    expect(sessionFor('US:AAPL')).toBe(US_SESSION);
+    expect(sessionFor('NIFTY').name).toBe('NSE');
   });
 });

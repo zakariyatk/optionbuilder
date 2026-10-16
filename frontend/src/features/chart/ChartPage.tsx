@@ -22,6 +22,7 @@ import { BottomSheet } from '../../components/BottomSheet';
 import { useAsync } from '../../hooks/useAsync';
 import { PHONE_QUERY, useMediaQuery } from '../../hooks/useMediaQuery';
 import { num } from '../../lib/format';
+import { displaySymbol, isUs } from '../../lib/markets';
 import { useChartLayout } from '../../store/chartLayout';
 import { CELL_NAMES, chartCount, gridStyle, layoutById } from './layouts';
 import { LayoutMenu } from './LayoutMenu';
@@ -131,7 +132,7 @@ export function ChartPage({
         <div role="toolbar" aria-label="Chart" className="relative z-40 flex h-[38px] shrink-0 items-center gap-0.5 overflow-x-auto border-b border-[var(--border)] px-1">
           <TvButton label="Symbol search" onClick={() => act()?.openSymbolSearch()}>
             <Search size={16} strokeWidth={1.75} aria-hidden="true" />
-            <span className="font-semibold">{chartSymbols[active]}</span>
+            <span className="font-semibold">{displaySymbol(chartSymbols[active])}</span>
           </TvButton>
           <TvSep />
           {PERIODS.map((p) => (
@@ -299,12 +300,14 @@ function PhoneChart({
   const [sheet, setSheet] = useState<'watchlist' | 'interval' | 'more' | null>(null);
   const close = useCallback(() => setSheet(null), []);
 
-  const quoteState = useAsync(() => api.watch([symbol]), [symbol], { pollMs: QUOTE_POLL_MS, enabled: brokerConnected });
+  // US symbols chart from Yahoo, so they don't need the broker.
+  const canChart = brokerConnected || isUs(symbol);
+  const quoteState = useAsync(() => api.watch([symbol]), [symbol], { pollMs: QUOTE_POLL_MS, enabled: canChart });
   const q = quoteState.data?.quotes.find((x) => x.symbol === symbol);
   const quote = q && !('error' in q) ? q : null;
   const chg = quote ? quote.price - quote.previousClose : null;
   const pct = quote && quote.previousClose ? (chg! / quote.previousClose) * 100 : null;
-  const label = symbolInfo.find((s) => s.symbol === symbol)?.label ?? symbol;
+  const label = symbolInfo.find((s) => s.symbol === symbol)?.label ?? displaySymbol(symbol);
   const period = PERIODS.find((p) => p.tf === tf);
 
   const tool = (t: ProTool) => {
@@ -326,7 +329,7 @@ function PhoneChart({
         <div className="min-w-0">
           <div className="truncate text-base font-semibold">{label}</div>
           <div className="text-[11px] text-[var(--text-muted)]">
-            {symbol} · NSE · {period?.text ?? tf}
+            {displaySymbol(symbol)} · {isUs(symbol) ? 'US' : 'NSE'} · {period?.text ?? tf}
           </div>
         </div>
         <div className="shrink-0 text-right tabular">
@@ -351,20 +354,20 @@ function PhoneChart({
           aria-label="Watchlist and symbol"
           className="flex h-11 min-w-0 items-center gap-1 rounded-lg px-2 text-sm font-semibold"
         >
-          <span className="truncate">{symbol}</span>
+          <span className="truncate">{displaySymbol(symbol)}</span>
           <ChevronDown size={16} aria-hidden="true" className="shrink-0 text-[var(--text-muted)]" />
         </button>
         <button
           type="button"
           onClick={() => setSheet('interval')}
           aria-label={`Interval ${period?.text ?? tf}`}
-          disabled={!brokerConnected}
+          disabled={!canChart}
           className="flex h-11 min-w-11 items-center justify-center rounded-lg px-2 text-sm font-semibold disabled:opacity-40"
         >
           {period?.text ?? tf}
         </button>
         <span className="flex-1" />
-        {brokerConnected && (
+        {canChart && (
           <>
             <ToolbarButton label="Indicators" onClick={() => tool('Indicator')}>
               <Plus size={22} strokeWidth={1.75} aria-hidden="true" />
@@ -419,7 +422,7 @@ function PhoneChart({
       </BottomSheet>
 
       <BottomSheet open={sheet === 'more'} onClose={close} title="Chart">
-        {brokerConnected && (
+        {canChart && (
           <>
             <SheetItem icon={<Activity size={20} aria-hidden="true" />} label="Indicators" onClick={() => tool('Indicator')} />
             <SheetItem icon={<Globe size={20} aria-hidden="true" />} label="Timezone" onClick={() => tool('Timezone')} />
@@ -428,14 +431,16 @@ function PhoneChart({
             <SheetItem icon={<Maximize size={20} aria-hidden="true" />} label="Full screen" onClick={() => tool('Full Screen')} />
           </>
         )}
-        <SheetItem
-          icon={<Layers size={20} aria-hidden="true" />}
-          label={`Build strategy on ${symbol}`}
-          onClick={() => {
-            setSheet(null);
-            onOpenBuilder(symbol);
-          }}
-        />
+        {!isUs(symbol) && (
+          <SheetItem
+            icon={<Layers size={20} aria-hidden="true" />}
+            label={`Build strategy on ${symbol}`}
+            onClick={() => {
+              setSheet(null);
+              onOpenBuilder(symbol);
+            }}
+          />
+        )}
       </BottomSheet>
     </div>
   );

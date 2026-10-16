@@ -1,6 +1,6 @@
 import { ActionType, DomPosition, init, LineType, type Chart, type DeepPartial, type Styles } from 'klinecharts';
 import type { Period } from '@klinecharts/pro';
-import { candleCloseMs, fmtLeft } from '../../lib/nse';
+import { candleCloseMs, fmtLeft, NSE_SESSION, type Session } from '../../lib/nse';
 import { TV_DOWN, TV_UP } from './tvStyle';
 
 const UP = TV_UP;
@@ -43,7 +43,13 @@ const fmtPrice = (v: number) => v.toLocaleString('en-US', { minimumFractionDigit
  * that candle underneath, on a dotted line across the chart. Replaces the
  * chart's own last-price label.
  */
-export function attachLiveTag(host: HTMLElement, chart: Chart, getPeriod: () => Period): { refresh: () => void; dispose: () => void } {
+/** `getSession` gives the exchange of the symbol on the chart, so the countdown follows its trading hours. */
+export function attachLiveTag(
+  host: HTMLElement,
+  chart: Chart,
+  getPeriod: () => Period,
+  getSession: () => Session = () => NSE_SESSION,
+): { refresh: () => void; dispose: () => void } {
   chart.setStyles(LIVE_TAG_STYLES);
 
   const tag = document.createElement('div');
@@ -75,7 +81,7 @@ export function attachLiveTag(host: HTMLElement, chart: Chart, getPeriod: () => 
     price.textContent = fmtPrice(last.close);
     const period = getPeriod();
     const now = Date.now();
-    left.textContent = fmtLeft(candleCloseMs(period.timespan, period.multiplier, now) - now);
+    left.textContent = fmtLeft(candleCloseMs(period.timespan, period.multiplier, now, getSession()) - now);
     tag.style.display = '';
     tag.style.background = last.close >= last.open ? UP : DOWN;
     tag.style.left = `${axisBox.left - hostBox.left}px`;
