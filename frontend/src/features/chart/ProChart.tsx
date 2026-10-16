@@ -4,6 +4,7 @@ import '@klinecharts/pro/dist/klinecharts-pro.css';
 import type { KLineData } from 'klinecharts';
 import { api, UPSTOX_LOGIN_URL } from '../../api/client';
 import type { SymbolInfo } from '../../api/types';
+import { installDrawingTools } from './drawingTools';
 
 /** The chart's periods, and the Upstox candle timeframe each one loads. */
 const PERIODS: (Period & { tf: string })[] = [
@@ -125,7 +126,9 @@ export function ProChart({
       subIndicators: ['VOL'],
       datafeed: upstoxDatafeed(() => symbolsRef.current),
     });
+    const removeTools = installDrawingTools(el);
     return () => {
+      removeTools();
       el.replaceChildren();
       chart.current = null;
     };
