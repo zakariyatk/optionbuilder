@@ -11,6 +11,7 @@ import type { SymbolInfo } from '../../api/types';
 import { installDrawingTools } from './drawingTools';
 import { installPriceAlerts } from './priceAlerts';
 import { installScaleButtons } from './scaleButtons';
+import { installReplay, type ReplayController } from './replay';
 import { useAlerts } from '../../store/alerts';
 import { signalAlerts } from '../alerts/alertSignals';
 
@@ -48,6 +49,8 @@ interface FeedHooks {
   reload: () => void;
   /** The chart finished loading this symbol (it may have been picked in the chart's own search). */
   onLoaded: (ticker: string) => void;
+  /** Bar replay owns the chart: live bars must not be painted. */
+  paused: () => boolean;
 }
 
 /**
@@ -117,8 +120,8 @@ function upstoxDatafeed(symbols: () => SymbolInfo[], hooks: FeedHooks): Datafeed
       /** The forming bar, as last sent to the chart. */
       let bar: KLineData | null = null;
       const send = (b: KLineData) => {
-        // A request that was in flight when the chart moved on must not paint the old symbol's bars.
-        if (!sub.alive) return;
+        // A request that was in flight when the chart moved on must not paint the old symbol's bars; nor may live bars land in a replay.
+        if (!sub.alive || hooks.paused()) return;
         bar = b;
         callback(b);
         hooks.onTick();
@@ -193,6 +196,7 @@ export function ProChart({
   compact = false,
   actionsRef,
   onSymbolChange,
+  onReplay,
 }: {
   symbol: string;
   symbolInfo: SymbolInfo[];
@@ -203,6 +207,8 @@ export function ProChart({
   actionsRef?: RefObject<ProChartActions | null>;
   /** The chart switched symbol on its own (its search box). */
   onSymbolChange?: (symbol: string) => void;
+  /** Hands out this chart's bar-replay controls (null when the chart goes away). */
+  onReplay?: (replay: ReplayController | null) => void;
 }) {
   const host = useRef<HTMLDivElement>(null);
   const chart = useRef<KLineChartPro | null>(null);
@@ -212,6 +218,8 @@ export function ProChart({
   symbolRef.current = symbol;
   const onSymbolChangeRef = useRef(onSymbolChange);
   onSymbolChangeRef.current = onSymbolChange;
+  const onReplayRef = useRef(onReplay);
+  onReplayRef.current = onReplay;
   const compactRef = useRef(compact);
   compactRef.current = compact;
   const scaleRef = useRef<ReturnType<typeof installScaleButtons> | null>(null);
@@ -245,6 +253,7 @@ export function ProChart({
     if (!el || !brokerConnected) return;
     el.replaceChildren();
     const info = symbolsRef.current.find((s) => s.symbol === symbol);
+    let replay: ReplayController | null = null;
     const feed = upstoxDatafeed(() => symbolsRef.current, {
       onTick: () => {
         tag?.refresh();
@@ -257,8 +266,11 @@ export function ProChart({
         if (c) c.setSymbol({ ...c.getSymbol() });
       },
       onLoaded: (ticker) => {
+        // Fresh history (a new symbol or timeframe, or leaving replay) ends any replay.
+        replay?.reset();
         if (ticker !== symbolRef.current) onSymbolChangeRef.current?.(ticker);
       },
+      paused: () => replay?.holdsChart() ?? false,
     });
     chart.current = new KLineChartPro({
       container: el,
@@ -281,6 +293,12 @@ export function ProChart({
     const pro = chart.current;
     const alerts = installPriceAlerts(el, () => pro.getSymbol().ticker);
     const scale = installScaleButtons(el);
+    replay = installReplay(el, {
+      chart: () => innerChart(el),
+      reloadLive: () => pro.setSymbol({ ...pro.getSymbol() }),
+      periodText: () => pro.getPeriod().text,
+    });
+    onReplayRef.current?.(replay);
     // Pro only resizes with the window; a chart in a multi-chart layout also changes size when the layout does.
     const resize = new ResizeObserver(() => innerChart(el)?.resize());
     resize.observe(el);
@@ -301,6 +319,8 @@ export function ProChart({
       removeTools();
       alerts.dispose();
       scale.dispose();
+      replay?.dispose();
+      onReplayRef.current?.(null);
       resize.disconnect();
       scaleRef.current = null;
       cancelAnimationFrame(frame);

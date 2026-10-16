@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
-import { Activity, Camera, ChevronDown, Globe, Layers, Maximize, MoreHorizontal, PencilLine, Plus, Settings } from 'lucide-react';
+import { Activity, Camera, ChevronDown, Globe, Layers, Maximize, MoreHorizontal, PencilLine, Plus, Rewind, Settings } from 'lucide-react';
 import { api } from '../../api/client';
 import type { SymbolInfo } from '../../api/types';
 import { BottomSheet } from '../../components/BottomSheet';
@@ -11,6 +11,8 @@ import { CELL_NAMES, chartCount, gridStyle, layoutById } from './layouts';
 import { LayoutMenu } from './LayoutMenu';
 import { PERIODS } from './periods';
 import { ProChart, type ProChartActions, type ProTool } from './ProChart';
+import { useReplayState, type ReplayController } from './replay';
+import { ReplayBar } from './ReplayBar';
 import { Watchlist } from './Watchlist';
 
 /** The theme actually applied to the page: the explicit choice on <html>, else the OS preference. */
@@ -56,6 +58,19 @@ export function ChartPage({
   const { layoutId, symbols: chartSymbols, active, setLayout, setActive, setSymbol } = useChartLayout();
   // The first chart opens on the builder's underlying, as the single chart always did.
   useEffect(() => useChartLayout.getState().setSymbol(symbol, 0), [symbol]);
+  // Each chart's bar-replay controls; the toolbar and replay bar drive the selected chart's.
+  const [replays, setReplays] = useState<(ReplayController | null)[]>([]);
+  const activeReplay = replays[active] ?? null;
+  const replayOn = useReplayState(activeReplay).mode !== 'off';
+  const registerReplay = useCallback(
+    (i: number) => (r: ReplayController | null) =>
+      setReplays((prev) => {
+        const next = [...prev];
+        next[i] = r;
+        return next;
+      }),
+    [],
+  );
 
   if (phone) {
     return (
@@ -79,6 +94,20 @@ export function ChartPage({
         {/* Above the charts, whose own labels and panels use z-index, so the layout menu opens over them. */}
         <div className="relative z-40 flex items-center gap-2 border-b border-[var(--border)] px-2 py-1">
           <LayoutMenu layoutId={layout.id} onChange={setLayout} />
+          <span aria-hidden="true" className="h-5 w-px bg-[var(--border-strong)]" />
+          <button
+            type="button"
+            disabled={!activeReplay}
+            aria-pressed={replayOn}
+            title="Bar replay"
+            onClick={() => (replayOn ? activeReplay?.exit() : activeReplay?.selectBar())}
+            className={`flex h-8 items-center gap-1.5 rounded-md px-2.5 text-sm font-medium disabled:opacity-40 ${
+              replayOn ? 'bg-[var(--text-primary)] text-[var(--surface-page)]' : 'text-[var(--text-primary)] hover:bg-[var(--surface-sunken)]'
+            }`}
+          >
+            <Rewind size={16} aria-hidden="true" />
+            Replay
+          </button>
           {count > 1 && <span className="truncate text-xs text-[var(--text-muted)]">Click a chart to select it; the watchlist changes the selected chart.</span>}
         </div>
         <div className="grid min-h-0 flex-1 gap-px bg-[var(--border)]" style={gridStyle(layout)}>
@@ -97,11 +126,13 @@ export function ChartPage({
                 theme={theme}
                 brokerConnected={brokerConnected}
                 onSymbolChange={(s) => setSymbol(s, i)}
+                onReplay={registerReplay(i)}
               />
               {count > 1 && i === active && <div aria-hidden="true" className="pointer-events-none absolute inset-0 z-20 border-2 border-[var(--series-blue)]" />}
             </div>
           ))}
         </div>
+        {activeReplay && <ReplayBar replay={activeReplay} />}
       </div>
       <div className="flex min-h-[420px] flex-col lg:min-h-0" style={{ height: panelHeight }}>
         <Watchlist symbolInfo={symbolInfo} selected={chartSymbols[active]} onSelect={(s) => setSymbol(s)} onOpenBuilder={onOpenBuilder} />

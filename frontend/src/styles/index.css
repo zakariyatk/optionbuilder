@@ -347,6 +347,37 @@ input[type='number']::-webkit-inner-spin-button {
   position: relative;
 }
 
+/* Bar replay's "select bar" cursor (features/chart/replay.ts). */
+.ob-replay-line,
+.ob-replay-shade,
+.ob-replay-tag {
+  position: absolute;
+  z-index: 13;
+  pointer-events: none;
+}
+.ob-replay-line[hidden],
+.ob-replay-shade[hidden],
+.ob-replay-tag[hidden] {
+  display: none;
+}
+.ob-replay-line {
+  width: 2px;
+  margin-left: -1px;
+  background: var(--series-blue);
+}
+.ob-replay-shade {
+  background: color-mix(in srgb, var(--surface-page) 55%, transparent);
+}
+.ob-replay-tag {
+  transform: translateX(-50%);
+  padding: 4px 10px;
+  border-radius: 3px;
+  background: var(--series-blue);
+  color: #fff;
+  font: 600 12px/1.2 Arial, Helvetica, sans-serif;
+  white-space: nowrap;
+}
+
 /* TradingView's A (auto-fit) / L (log) at the foot of the price axis (features/chart/scaleButtons.ts). */
 .ob-scale {
   position: absolute;
