@@ -25,6 +25,7 @@ import { num } from '../../lib/format';
 import { displaySymbol, isUs } from '../../lib/markets';
 import { nameOf } from '../../lib/symbolNames';
 import { useChartLayout } from '../../store/chartLayout';
+import { ChartSettingsDialog } from './ChartSettingsDialog';
 import { CELL_NAMES, chartCount, gridStyle, layoutById } from './layouts';
 import { LayoutMenu } from './LayoutMenu';
 import { PERIODS } from './periods';
@@ -95,6 +96,8 @@ export function ChartPage({
   const actionsFor = (i: number) => (actions.current[i] ??= { current: null });
   /** The TradingView-style symbol search dialog. */
   const [searching, setSearching] = useState(false);
+  /** The chart Settings dialog. */
+  const [configuring, setConfiguring] = useState(false);
   const panel = useRef<HTMLDivElement>(null);
   const [fullscreen, setFullscreen] = useState(false);
   useEffect(() => {
@@ -164,7 +167,7 @@ export function ChartPage({
           <TvButton label="Timezone" onClick={() => act()?.openTool('Timezone')} icon>
             <Globe size={17} strokeWidth={1.6} aria-hidden="true" />
           </TvButton>
-          <TvButton label="Chart settings" onClick={() => act()?.openTool('Setting')} icon>
+          <TvButton label="Chart settings" onClick={() => setConfiguring(true)} icon>
             <Settings size={17} strokeWidth={1.6} aria-hidden="true" />
           </TvButton>
           <TvButton label="Take a snapshot" onClick={() => act()?.openTool('Screenshot')} icon>
@@ -204,6 +207,7 @@ export function ChartPage({
       <div className="flex min-h-[420px] flex-col lg:min-h-0" style={{ height: panelHeight }}>
         <Watchlist symbolInfo={symbolInfo} selected={chartSymbols[active]} onSelect={(s) => setSymbol(s)} onOpenBuilder={onOpenBuilder} />
         {searching && <SymbolSearch symbolInfo={symbolInfo} onPick={(s) => setSymbol(s)} onClose={() => setSearching(false)} />}
+        {configuring && <ChartSettingsDialog theme={theme} onClose={() => setConfiguring(false)} />}
       </div>
     </div>
   );
@@ -303,6 +307,7 @@ function PhoneChart({
   const [tf, setTf] = useState('15m');
   const [drawing, setDrawing] = useState(false);
   const [sheet, setSheet] = useState<'watchlist' | 'interval' | 'more' | null>(null);
+  const [configuring, setConfiguring] = useState(false);
   const close = useCallback(() => setSheet(null), []);
 
   // US symbols chart from Yahoo, so they don't need the broker.
@@ -431,7 +436,14 @@ function PhoneChart({
           <>
             <SheetItem icon={<Activity size={20} aria-hidden="true" />} label="Indicators" onClick={() => tool('Indicator')} />
             <SheetItem icon={<Globe size={20} aria-hidden="true" />} label="Timezone" onClick={() => tool('Timezone')} />
-            <SheetItem icon={<Settings size={20} aria-hidden="true" />} label="Chart settings" onClick={() => tool('Setting')} />
+            <SheetItem
+              icon={<Settings size={20} aria-hidden="true" />}
+              label="Chart settings"
+              onClick={() => {
+                setSheet(null);
+                setConfiguring(true);
+              }}
+            />
             <SheetItem icon={<Camera size={20} aria-hidden="true" />} label="Screenshot" onClick={() => tool('Screenshot')} />
             <SheetItem icon={<Maximize size={20} aria-hidden="true" />} label="Full screen" onClick={() => tool('Full Screen')} />
           </>
@@ -447,6 +459,7 @@ function PhoneChart({
           />
         )}
       </BottomSheet>
+      {configuring && <ChartSettingsDialog theme={theme} onClose={() => setConfiguring(false)} />}
     </div>
   );
 }

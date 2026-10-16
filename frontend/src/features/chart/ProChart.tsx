@@ -8,6 +8,8 @@ import { marketOpen, sessionFor } from '../../lib/nse';
 import { displaySymbol, isUs } from '../../lib/markets';
 import { attachLiveTag, innerChart, LIVE_TAG_STYLES } from './liveTag';
 import { tvChartStyles } from './tvStyle';
+import { applyHostSettings, settingsStyles } from './chartSettings';
+import { effectiveSettings, useChartSettings } from './chartSettingsStore';
 import { PERIODS, periodMs } from './periods';
 import type { SymbolInfo } from '../../api/types';
 import { installDrawingTools } from './drawingTools';
@@ -267,6 +269,11 @@ export function ProChart({
   const themeRef = useRef(theme);
   themeRef.current = theme;
   const scaleRef = useRef<ReturnType<typeof installScaleButtons> | null>(null);
+  const alertsRef = useRef<ReturnType<typeof installPriceAlerts> | null>(null);
+  // The chart Settings dialog's choices (its live preview while it's open).
+  const settings = useChartSettings(effectiveSettings);
+  const settingsRef = useRef(settings);
+  settingsRef.current = settings;
   const legendTitleRef = useRef<() => string>(() => '');
   /**
    * Symbol / period changes that arrived during a history load. Pro drops a
@@ -296,6 +303,24 @@ export function ProChart({
   };
   const showRef = useRef(show);
   showRef.current = show;
+
+  /** TradingView's look, then the chart Settings over it. Again after a theme change (Pro's setTheme resets styles). */
+  const applyLook = () => {
+    const c = chart.current;
+    const el = host.current;
+    if (!c || !el) return;
+    const s = settingsRef.current;
+    const title = () => legendTitleRef.current();
+    c.setStyles(tvChartStyles(themeRef.current, title));
+    c.setStyles(LIVE_TAG_STYLES);
+    c.setStyles(settingsStyles(s, themeRef.current, title, compactRef.current));
+    innerChart(el)?.setPaneOptions({ id: 'candle_pane', gap: { top: s.marginTop / 100, bottom: s.marginBottom / 100 } });
+    applyHostSettings(el, s);
+    scaleRef.current?.reapply();
+    alertsRef.current?.sync();
+  };
+  const applyLookRef = useRef(applyLook);
+  applyLookRef.current = applyLook;
 
   useEffect(() => {
     if (!actionsRef) return;
@@ -400,6 +425,7 @@ export function ProChart({
     const resize = new ResizeObserver(() => innerChart(el)?.resize());
     resize.observe(el);
     scaleRef.current = scale;
+    alertsRef.current = alerts;
 
     // Live price + candle countdown on the price axis, once the inner chart exists.
     let tag: ReturnType<typeof attachLiveTag> | null = null;
@@ -410,8 +436,8 @@ export function ProChart({
         frame = requestAnimationFrame(attach);
         return;
       }
-      pro.setStyles(tvChartStyles(themeRef.current, legendTitle));
       tag = attachLiveTag(el, inner, () => pro.getPeriod(), () => sessionFor(pro.getSymbol().ticker));
+      applyLookRef.current();
     };
     attach();
 
@@ -428,6 +454,7 @@ export function ProChart({
       onReplayRef.current?.(null);
       resize.disconnect();
       scaleRef.current = null;
+      alertsRef.current = null;
       cancelAnimationFrame(frame);
       tag?.dispose();
       el.replaceChildren();
@@ -442,11 +469,11 @@ export function ProChart({
 
   useEffect(() => {
     chart.current?.setTheme(theme);
-    // A theme swap resets the chart styles: put back the TradingView look and the live tag.
-    chart.current?.setStyles(tvChartStyles(theme, () => legendTitleRef.current()));
-    chart.current?.setStyles(LIVE_TAG_STYLES);
-    scaleRef.current?.reapply();
+    // A theme swap resets the chart styles: put back the TradingView look, the live tag and the settings.
+    applyLookRef.current();
   }, [theme]);
+
+  useEffect(() => applyLookRef.current(), [settings]);
 
   if (!live) {
     return (

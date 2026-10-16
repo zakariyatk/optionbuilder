@@ -1,6 +1,7 @@
 import { DomPosition, registerOverlay, type Chart, type Overlay, type OverlayFigure, type OverlayTemplate } from 'klinecharts';
 import { activeAlerts, useAlerts } from '../../store/alerts';
 import { armAlertSound } from '../alerts/alertSignals';
+import { effectiveSettings, useChartSettings } from './chartSettingsStore';
 import { innerChart, isActiveChart } from './liveTag';
 
 /**
@@ -22,6 +23,8 @@ const overlayId = (alertId: string) => `ob-alert-${alertId}`;
 const DRAW_FINISHED = -1;
 
 const css = (name: string, fallback: string) => getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback;
+/** The chart Settings' alert choices (line colour, price-scale label, lines shown). */
+const alertLook = () => effectiveSettings(useChartSettings.getState());
 const fmt = (v: number) => v.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 interface AlertData {
@@ -43,7 +46,7 @@ const alertLine: OverlayTemplate = {
     const value = overlay.points[0]?.value;
     if (!p || value === undefined) return [];
     const { symbol } = overlay.extendData as AlertData;
-    const line = css('--text-secondary', '#cfcfcf');
+    const line = alertLook().alertColor ?? css('--text-secondary', '#cfcfcf');
     const text = `${symbol} Crossing ${fmt(value)}`;
     // Arial 12px is ~6.6px a character; good enough to sit the delete button after the tag.
     const x = Math.round(bounding.width * 0.22);
@@ -70,14 +73,15 @@ const alertLine: OverlayTemplate = {
   createYAxisFigures: ({ coordinates, overlay }) => {
     const p = coordinates[0];
     const value = overlay.points[0]?.value;
-    if (!p || value === undefined) return [];
+    const look = alertLook();
+    if (!p || value === undefined || !look.alertAxisLabel) return [];
     return [
       {
         type: 'text',
         attrs: { x: 0, y: p.y, text: fmt(value), baseline: 'middle' },
         styles: {
           color: css('--surface-page', '#050505'),
-          backgroundColor: css('--text-secondary', '#cfcfcf'),
+          backgroundColor: look.alertColor ?? css('--text-secondary', '#cfcfcf'),
           borderRadius: 2,
           paddingLeft: 4,
           paddingRight: 4,
@@ -141,7 +145,8 @@ export function installPriceAlerts(container: HTMLElement, symbol: () => string)
   const sync = () => {
     const c = getChart();
     if (!c || c.getDataList().length === 0) return;
-    const want = activeAlerts(useAlerts.getState().alerts, symbol());
+    // Alert lines switched off in the chart Settings: the alerts still watch, the chart just doesn't draw them.
+    const want = alertLook().alertLines ? activeAlerts(useAlerts.getState().alerts, symbol()) : [];
     const ids = new Set(want.map((a) => overlayId(a.id)));
     for (const id of [...shown]) {
       if (ids.has(id)) continue;

@@ -1,23 +1,17 @@
 import { DomPosition, YAxisType, type Chart } from 'klinecharts';
+import { effectiveSettings, useChartSettings } from './chartSettingsStore';
 import { innerChart } from './liveTag';
 
 /**
  * TradingView's "A" and "L" at the foot of the price axis.
  * A — Auto (fits data to screen): dragging the price axis takes manual
  *     control of its range; A gives it back. Lit while auto is on.
- * L — Logarithmic price scale; remembered in this browser.
+ * L — Logarithmic price scale; the chart Settings' scale mode (saved there).
  */
 
 const CANDLE_PANE = 'candle_pane';
-const LOG_KEY = 'option-builder-chart-log';
-
-const readLog = () => {
-  try {
-    return localStorage.getItem(LOG_KEY) === '1';
-  } catch {
-    return false;
-  }
-};
+const scaleMode = () => effectiveSettings(useChartSettings.getState()).scaleMode;
+const SCALE_TYPE = { normal: YAxisType.Normal, percent: YAxisType.Percentage, log: YAxisType.Log } as const;
 
 /** klinecharts keeps the price axis' auto flag internal; read it where it lives, assuming auto if that ever moves. */
 function isAuto(chart: Chart): boolean {
@@ -28,7 +22,6 @@ function isAuto(chart: Chart): boolean {
 export function installScaleButtons(container: HTMLElement) {
   let chart: Chart | null = null;
   const getChart = () => (chart ??= innerChart(container));
-  let log = readLog();
 
   const group = document.createElement('div');
   group.className = 'ob-scale';
@@ -49,7 +42,7 @@ export function installScaleButtons(container: HTMLElement) {
   container.append(group);
 
   // Setting the axis type also hands the range back to auto-fit.
-  const applyType = () => getChart()?.setStyles({ yAxis: { type: log ? YAxisType.Log : YAxisType.Normal } });
+  const applyType = () => getChart()?.setStyles({ yAxis: { type: SCALE_TYPE[scaleMode()] } });
 
   const refresh = () => {
     const c = getChart();
@@ -64,7 +57,7 @@ export function installScaleButtons(container: HTMLElement) {
     group.style.left = `${a.left - host.left + (a.width - group.offsetWidth) / 2}px`;
     group.style.top = `${a.bottom - host.top - group.offsetHeight - 8}px`;
     auto.setAttribute('aria-pressed', String(isAuto(c)));
-    logBtn.setAttribute('aria-pressed', String(log));
+    logBtn.setAttribute('aria-pressed', String(scaleMode() === 'log'));
   };
 
   auto.addEventListener('click', () => {
@@ -72,13 +65,10 @@ export function installScaleButtons(container: HTMLElement) {
     requestAnimationFrame(refresh);
   });
   logBtn.addEventListener('click', () => {
-    log = !log;
-    try {
-      localStorage.setItem(LOG_KEY, log ? '1' : '0');
-    } catch {
-      /* not remembered, still applied */
-    }
+    // Saved straight away; every chart picks it up through its settings.
+    useChartSettings.getState().set({ scaleMode: scaleMode() === 'log' ? 'normal' : 'log' });
     applyType();
+    logBtn.setAttribute('aria-pressed', String(scaleMode() === 'log'));
     requestAnimationFrame(refresh);
   });
 
@@ -90,23 +80,17 @@ export function installScaleButtons(container: HTMLElement) {
   container.addEventListener('dblclick', later);
   const resize = new ResizeObserver(later);
   resize.observe(container);
-  // The inner chart appears a moment after Pro mounts; apply the remembered scale once it's there.
+  // The inner chart appears a moment after Pro mounts; place the buttons once it's there.
   let tries = 0;
   const boot = window.setInterval(() => {
-    if (getChart()) {
-      if (log) applyType();
-      refresh();
-    }
+    if (getChart()) refresh();
     if (chart || ++tries > 50) window.clearInterval(boot);
   }, 100);
   const tick = window.setInterval(refresh, 1000);
 
   return {
-    /** Re-apply the scale after something reset the chart's styles (a theme change). */
-    reapply: () => {
-      if (log) applyType();
-      later();
-    },
+    /** The chart's styles were set again (theme or settings): show the scale mode they carry. */
+    reapply: later,
     dispose: () => {
       window.clearInterval(boot);
       window.clearInterval(tick);

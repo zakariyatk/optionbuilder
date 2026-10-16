@@ -3,6 +3,7 @@ import { BellRing, X } from 'lucide-react';
 import { api } from '../../api/client';
 import { marketOpen, sessionFor } from '../../lib/nse';
 import { activeAlerts, useAlerts } from '../../store/alerts';
+import { useChartSettings } from '../chart/chartSettingsStore';
 import { alertDetail, alertTitle, signalAlerts } from './alertSignals';
 
 /** Checks every few seconds while a watched market (NSE or US) trades; a slow heartbeat otherwise. */
@@ -47,7 +48,9 @@ export function AlertMonitor() {
 
   const fired = alerts.filter((a) => a.triggeredAt !== null).sort((a, b) => (b.triggeredAt ?? 0) - (a.triggeredAt ?? 0));
   const remove = useAlerts((s) => s.remove);
-  if (fired.length === 0) return null;
+  // "Show a popup" off in the chart Settings: fired alerts stay listed on the chart only.
+  const popup = useChartSettings((s) => s.settings.alertPopup);
+  if (fired.length === 0 || !popup) return null;
 
   return (
     <div

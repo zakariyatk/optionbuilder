@@ -14,9 +14,15 @@ export const TV_DOWN = '#F23645';
 const fmt = (v: number) => v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 /** "O22,972.75 H22,973.60 L22,936.40 C22,965.75 −8.05 (−0.04%)", after a "NIFTY 50 · 15m · NSE" title. */
-export function ohlcLegend(title: string, text: string, data: { prev: KLineData | null; current: KLineData }): TooltipLegend[] {
+export function ohlcLegend(
+  title: string,
+  text: string,
+  data: { prev: KLineData | null; current: KLineData },
+  up = TV_UP,
+  down = TV_DOWN,
+): TooltipLegend[] {
   const { prev, current: c } = data;
-  const color = c.close >= c.open ? TV_UP : TV_DOWN;
+  const color = c.close >= c.open ? up : down;
   const base = prev?.close ?? c.open;
   const change = c.close - base;
   const pct = base ? (change / base) * 100 : 0;

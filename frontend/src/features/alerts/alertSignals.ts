@@ -1,4 +1,5 @@
 import type { PriceAlert } from '../../store/alerts';
+import { useChartSettings } from '../chart/chartSettingsStore';
 
 /**
  * How a fired alert gets your attention: a chime (Web Audio, no sound file)
@@ -53,11 +54,12 @@ export const alertTitle = (a: PriceAlert) => `${a.symbol} Crossing ${fmt(a.price
 export const alertDetail = (a: PriceAlert) =>
   a.triggerPrice !== null ? `Price ${fmt(a.triggerPrice)} at ${new Date(a.triggeredAt ?? Date.now()).toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata' })}` : '';
 
-/** Sound plus a system notification for alerts that just fired. */
+/** Sound plus a system notification for alerts that just fired, as the chart Settings allow. */
 export function signalAlerts(fired: PriceAlert[]) {
   if (fired.length === 0) return;
-  ringAlert();
-  if (!('Notification' in window) || Notification.permission !== 'granted') return;
+  const { alertSound, alertPopup } = useChartSettings.getState().settings;
+  if (alertSound) ringAlert();
+  if (!alertPopup || !('Notification' in window) || Notification.permission !== 'granted') return;
   for (const a of fired) {
     try {
       new Notification(alertTitle(a), { body: alertDetail(a), tag: a.id });
