@@ -410,7 +410,7 @@ input[type='number']::-webkit-inner-spin-button {
   justify-content: center;
   gap: 0.3em;
   pointer-events: none;
-  color: color-mix(in srgb, var(--text-primary) 5%, transparent);
+  color: color-mix(in srgb, var(--text-primary) 3%, transparent);
   font-family: -apple-system, BlinkMacSystemFont, 'Trebuchet MS', Roboto, Ubuntu, sans-serif;
   font-weight: 400;
   line-height: 1;
