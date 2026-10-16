@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { api, errorMessage } from '../api/client';
 
-export function LoginGate({ onSuccess }: { onSuccess: () => void }) {
+export function LoginGate({ onSuccess, onBack }: { onSuccess: () => void; onBack?: () => void }) {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -61,6 +61,16 @@ export function LoginGate({ onSuccess }: { onSuccess: () => void }) {
         >
           {busy ? 'Checking…' : 'Open'}
         </button>
+
+        {onBack && (
+          <button
+            type="button"
+            onClick={onBack}
+            className="mt-3 min-h-11 w-full text-[11px] uppercase tracking-[0.14em] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+          >
+            ← Back
+          </button>
+        )}
       </form>
     </main>
   );

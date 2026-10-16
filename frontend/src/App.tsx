@@ -32,6 +32,8 @@ const PAGE_KEY = 'option-builder-tab';
 
 // The chart engine is large, so its page loads only when opened.
 const ChartPage = lazy(() => import('./features/chart/ChartPage').then((m) => ({ default: m.ChartPage })));
+// Only visitors who aren't signed in see the landing page.
+const Landing = lazy(() => import('./features/landing/Landing').then((m) => ({ default: m.Landing })));
 
 function initialRoute(): Route {
   const fromHash = parseRoute(window.location.hash);
@@ -48,10 +50,11 @@ function initialRoute(): Route {
 /** Pages that show the symbol / expiry bar and use the live chain. */
 const MARKET_PAGES: PageId[] = ['builder', 'chain', 'report'];
 
-/** Session gate: shows the login form until the backend says we're in. */
+/** Session gate: the landing page, then the login form, until the backend says we're in. */
 export default function App() {
   const [session, setSession] = useState<Session | null>(null);
   const [unreachable, setUnreachable] = useState(false);
+  const [signingIn, setSigningIn] = useState(false);
 
   const check = useCallback(() => {
     api
@@ -77,7 +80,19 @@ export default function App() {
     );
   }
   if (session === null) return null;
-  if (!session.loggedIn) return <LoginGate onSuccess={check} />;
+  if (!session.loggedIn) {
+    if (signingIn) return <LoginGate onSuccess={check} onBack={() => setSigningIn(false)} />;
+    return (
+      <Suspense fallback={null}>
+        <Landing
+          onSignIn={() => {
+            setSigningIn(true);
+            window.scrollTo({ top: 0 });
+          }}
+        />
+      </Suspense>
+    );
+  }
 
   return (
     <Workspace
