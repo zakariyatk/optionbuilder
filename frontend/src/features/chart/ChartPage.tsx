@@ -30,6 +30,7 @@ import { PERIODS } from './periods';
 import { ProChart, type ProChartActions, type ProTool } from './ProChart';
 import { useReplayState, type ReplayController } from './replay';
 import { ReplayBar } from './ReplayBar';
+import { SymbolSearch } from './SymbolSearch';
 import { Watchlist } from './Watchlist';
 
 /** The theme actually applied to the page: the explicit choice on <html>, else the OS preference. */
@@ -91,6 +92,8 @@ export function ChartPage({
   // Each chart's imperative handle; the toolbar drives the selected chart's.
   const actions = useRef<RefObject<ProChartActions | null>[]>([]);
   const actionsFor = (i: number) => (actions.current[i] ??= { current: null });
+  /** The TradingView-style symbol search dialog. */
+  const [searching, setSearching] = useState(false);
   const panel = useRef<HTMLDivElement>(null);
   const [fullscreen, setFullscreen] = useState(false);
   useEffect(() => {
@@ -130,7 +133,7 @@ export function ChartPage({
       >
         {/* TradingView's top toolbar, for the selected chart. Above the charts (their labels use z-index) so its menus open over them. */}
         <div role="toolbar" aria-label="Chart" className="relative z-40 flex h-[38px] shrink-0 items-center gap-0.5 overflow-x-auto border-b border-[var(--border)] px-1">
-          <TvButton label="Symbol search" onClick={() => act()?.openSymbolSearch()}>
+          <TvButton label="Symbol search" onClick={() => setSearching(true)}>
             <Search size={16} strokeWidth={1.75} aria-hidden="true" />
             <span className="font-semibold">{displaySymbol(chartSymbols[active])}</span>
           </TvButton>
@@ -199,6 +202,7 @@ export function ChartPage({
       </div>
       <div className="flex min-h-[420px] flex-col lg:min-h-0" style={{ height: panelHeight }}>
         <Watchlist symbolInfo={symbolInfo} selected={chartSymbols[active]} onSelect={(s) => setSymbol(s)} onOpenBuilder={onOpenBuilder} />
+        {searching && <SymbolSearch symbolInfo={symbolInfo} onPick={(s) => setSymbol(s)} onClose={() => setSearching(false)} />}
       </div>
     </div>
   );

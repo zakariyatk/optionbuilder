@@ -1,13 +1,14 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { ArrowRight, Plus, X } from 'lucide-react';
 import { api } from '../../api/client';
-import type { SpotQuote, SymbolInfo, UsSearchResult, WatchQuote } from '../../api/types';
+import type { SpotQuote, SymbolInfo, WatchQuote } from '../../api/types';
 import { Button } from '../../components/ui';
 import { useAsync } from '../../hooks/useAsync';
 import { num } from '../../lib/format';
 import { marketOpen, NSE_SESSION, sessionFor, US_SESSION } from '../../lib/nse';
 import { displaySymbol, isUs } from '../../lib/markets';
 import { activeList, useWatchlist } from '../../store/watchlist';
+import { SymbolSearch } from './SymbolSearch';
 import { WatchlistMenu } from './WatchlistMenu';
 
 /** Names of US symbols seen in search this session (the watchlist stores symbols only). */
@@ -39,7 +40,6 @@ export function Watchlist({
   const { lists, activeId, add, remove } = useWatchlist();
   const symbols = activeList({ lists, activeId }).symbols;
   const [adding, setAdding] = useState(false);
-  const [query, setQuery] = useState('');
 
   const open = marketOpen(sessionFor(selected));
   const anyOpen = (symbols.some((s) => !isUs(s)) && marketOpen(NSE_SESSION)) || (symbols.some(isUs) && marketOpen(US_SESSION));
@@ -50,50 +50,10 @@ export function Watchlist({
   const bySymbol = useMemo(() => new Map((quotes.data?.quotes ?? []).map((q) => [q.symbol, q])), [quotes.data]);
   const label = (s: string) => symbolInfo.find((i) => i.symbol === s)?.label ?? usNames.get(s) ?? displaySymbol(s);
 
-  // US stocks and ETFs from Yahoo, searched as the user types.
-  const [usMatches, setUsMatches] = useState<UsSearchResult[]>([]);
-  useEffect(() => {
-    const q = query.trim();
-    if (!q) {
-      setUsMatches([]);
-      return;
-    }
-    let cancelled = false;
-    const t = window.setTimeout(() => {
-      api
-        .searchUs(q)
-        .then((r) => {
-          if (cancelled) return;
-          r.results.forEach((x) => usNames.set(x.symbol, x.name));
-          setUsMatches(r.results);
-        })
-        .catch(() => !cancelled && setUsMatches([]));
-    }, 250);
-    return () => {
-      cancelled = true;
-      window.clearTimeout(t);
-    };
-  }, [query]);
-
-  const matches = useMemo(() => {
-    const q = query.trim().toUpperCase();
-    if (!q) return [];
-    const nse = symbolInfo
-      .filter((i) => !symbols.includes(i.symbol) && (i.symbol.includes(q) || i.label.toUpperCase().includes(q)))
-      .slice(0, 6)
-      .map((i) => ({ symbol: i.symbol, label: i.label, exchange: 'NSE' }));
-    const us = usMatches
-      .filter((r) => !symbols.includes(r.symbol))
-      .slice(0, 6)
-      .map((r) => ({ symbol: r.symbol, label: r.name, exchange: r.type === 'ETF' ? `${r.exchange} · ETF` : r.exchange }));
-    return [...nse, ...us];
-  }, [query, symbolInfo, symbols, usMatches]);
-
-  const pick = (symbol: string) => {
+  const pick = (symbol: string, name: string) => {
+    if (isUs(symbol)) usNames.set(symbol, name);
     add(symbol);
     onSelect(symbol);
-    setQuery('');
-    setAdding(false);
   };
 
   const sel = bySymbol.get(selected);
@@ -118,38 +78,13 @@ export function Watchlist({
       </div>
 
       {adding && (
-        <div className="border-b border-[var(--border)] p-2">
-          <input
-            autoFocus
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && matches[0]) pick(matches[0].symbol);
-              if (e.key === 'Escape') setAdding(false);
-            }}
-            placeholder="Search NSE or US symbol…"
-            aria-label="Search symbol to add"
-            className="w-full rounded-md border border-[var(--border)] bg-transparent px-2 py-1.5 text-sm outline-none focus:border-[var(--series-blue)]"
-          />
-          {matches.length > 0 && (
-            <ul className="mt-1 max-h-56 overflow-auto">
-              {matches.map((m) => (
-                <li key={m.symbol}>
-                  <button
-                    type="button"
-                    onClick={() => pick(m.symbol)}
-                    className="flex w-full items-baseline justify-between gap-2 rounded px-2 py-1.5 text-left hover:bg-[var(--surface-sunken)]"
-                  >
-                    <span className="text-sm font-medium">{displaySymbol(m.symbol)}</span>
-                    <span className="min-w-0 flex-1 truncate text-right text-xs text-[var(--text-muted)]">{m.label}</span>
-                    <span className="shrink-0 text-[10px] text-[var(--text-muted)]">{m.exchange}</span>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-          {query.trim() && matches.length === 0 && <div className="px-2 py-2 text-xs text-[var(--text-muted)]">No matching symbol.</div>}
-        </div>
+        <SymbolSearch
+          title="Add to watchlist"
+          symbolInfo={symbolInfo}
+          exclude={symbols}
+          onPick={pick}
+          onClose={() => setAdding(false)}
+        />
       )}
 
       <div className="grid grid-cols-[minmax(0,1fr)_auto_auto_auto] gap-x-3 border-b border-[var(--border)] px-3 py-1.5 text-[11px] text-[var(--text-muted)]">
