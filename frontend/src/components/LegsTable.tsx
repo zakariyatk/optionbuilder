@@ -1,4 +1,5 @@
 import { isLinear, type Leg, type LegType } from '../domain/types';
+import { Plus, Trash2, X } from 'lucide-react';
 import { Button, Card, CardHeader, inputClass } from './ui';
 
 const TYPE_LABEL: Record<LegType, string> = { CE: 'CE', PE: 'PE', FUT: 'FUT', EQ: 'Stock' };
@@ -57,12 +58,17 @@ export function LegsTable({
   return (
     <Card>
       <CardHeader title={`Strategy legs${legs.length ? ` (${legs.length})` : ''}`}>
-        <Button onClick={onAddBlank}>+ Option leg</Button>
+        <Button onClick={onAddBlank}>
+          <Plus size={16} aria-hidden="true" />
+          Option leg
+        </Button>
         <Button onClick={onAddEquity} title="Add a cash-equity holding — the stock leg of a covered call">
-          + Stock leg
+          <Plus size={16} aria-hidden="true" />
+          Stock leg
         </Button>
         {legs.length > 0 && (
           <Button variant="danger" onClick={onClear}>
+            <Trash2 size={16} aria-hidden="true" />
             Clear all
           </Button>
         )}
@@ -73,7 +79,7 @@ export function LegsTable({
           Click B / S in the option chain, pick a template, or add a leg to start building a strategy.
         </div>
       ) : (
-        <div className="overflow-x-auto">
+        <div className="relative overflow-x-auto">
           <table className="w-full min-w-[520px] text-xs">
             <thead>
               <tr className="text-[var(--text-muted)]">
@@ -97,7 +103,7 @@ export function LegsTable({
                       type="button"
                       onClick={() => onToggleAction(leg.id)}
                       title="Click to flip buy / sell"
-                      className="w-11 rounded px-2 py-0.5 text-[10px] font-semibold"
+                      className="w-11 rounded px-2 py-0.5 text-[10px] font-semibold pointer-coarse:min-h-10 pointer-coarse:w-12 pointer-coarse:text-xs"
                       style={{
                         background: leg.action === 'BUY' ? 'var(--good-fill)' : 'var(--critical-fill)',
                         color: leg.action === 'BUY' ? 'var(--good-text)' : 'var(--critical)',
@@ -156,11 +162,11 @@ export function LegsTable({
                     <button
                       type="button"
                       onClick={() => onRemove(leg.id)}
-                      className="rounded px-1.5 text-[var(--critical)] hover:bg-[var(--critical-fill)]"
+                      className="inline-flex h-7 w-7 items-center justify-center rounded text-[var(--critical)] hover:bg-[var(--critical-fill)] pointer-coarse:h-10 pointer-coarse:w-10"
                       title="Remove leg"
                       aria-label="Remove leg"
                     >
-                      ✕
+                      <X size={16} aria-hidden="true" />
                     </button>
                   </td>
                 </tr>

@@ -17,6 +17,9 @@ DirectoryIndex index.html index.php
     RewriteRule ^(.*)$ https://optionbuilder.adddots.com/$1 [R=301,L]
 </IfModule>
 
+# --- PWA manifest ---------------------------------------------------------------
+AddType application/manifest+json .webmanifest
+
 # --- security headers ---------------------------------------------------------
 <IfModule mod_headers.c>
     Header always set X-Content-Type-Options "nosniff"
@@ -34,7 +37,7 @@ DirectoryIndex index.html index.php
     <FilesMatch "\.(js|css)$">
         Header set Cache-Control "public, max-age=31536000, immutable"
     </FilesMatch>
-    <FilesMatch "\.(png|svg|ico)$">
+    <FilesMatch "\.(png|svg|ico|webmanifest)$">
         Header set Cache-Control "public, max-age=86400"
     </FilesMatch>
     <FilesMatch "\.(html|php)$">

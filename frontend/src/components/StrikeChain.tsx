@@ -58,7 +58,7 @@ function PositionBadge({ position, onRemove }: { position: StrikePosition; onRem
       }}
       title={`${verb} ${position.quantity} — click to remove`}
       aria-label={`${verb} ${position.quantity}, remove`}
-      className="group/badge flex items-center gap-1 tabular text-[11px] text-[var(--text-secondary)]"
+      className="group/badge flex items-center gap-1 tabular text-[11px] text-[var(--text-secondary)] pointer-coarse:min-h-8"
     >
       {position.quantity}
       <span
@@ -231,7 +231,7 @@ export function StrikeChain({
               type="button"
               aria-pressed={view === v.id}
               onClick={() => setView(v.id)}
-              className="rounded px-3 py-1 text-xs font-medium transition-colors"
+              className="rounded px-3 py-1 text-xs font-medium transition-colors pointer-coarse:min-h-10 pointer-coarse:px-4 pointer-coarse:text-sm"
               style={view === v.id ? { background: BUY, color: '#fff' } : { color: 'var(--text-secondary)' }}
             >
               {v.label}
@@ -367,7 +367,7 @@ export function StrikeChain({
           type="button"
           onClick={onClear}
           disabled={legs.length === 0}
-          className="ml-auto rounded-md border border-[var(--border)] px-2.5 py-1 text-xs font-medium text-[var(--text-primary)] hover:border-[var(--border-strong)] disabled:opacity-40"
+          className="ml-auto rounded-md border border-[var(--border)] px-2.5 py-1 text-xs font-medium text-[var(--text-primary)] hover:border-[var(--border-strong)] disabled:opacity-40 pointer-coarse:min-h-10 pointer-coarse:px-3.5"
         >
           Clear all
         </button>

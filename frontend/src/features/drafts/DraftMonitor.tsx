@@ -1,4 +1,5 @@
 import { useMemo, useState, type ReactNode } from 'react';
+import { ArrowLeft, Check, Pencil, Plus, Trash2 } from 'lucide-react';
 import { api, errorMessage } from '../../api/client';
 import type { ChainSide, Draft, DraftLeg } from '../../api/types';
 import { MetricsPanel } from '../../components/MetricsPanel';
@@ -164,18 +165,21 @@ export function DraftMonitor({
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center gap-2">
         <Button variant="ghost" onClick={onBack}>
-          ← All drafts
+          <ArrowLeft size={16} aria-hidden="true" />
+          All drafts
         </Button>
-        <h2 className="mr-auto min-w-0 truncate text-lg font-semibold">{draft.name}</h2>
+        <h2 className="mr-auto min-w-0 truncate text-lg font-semibold max-sm:basis-[calc(100%-9rem)]">{draft.name}</h2>
         {!closed && (
           <Button variant={adjusting ? 'primary' : 'default'} onClick={() => setAdjusting((a) => !a)} disabled={!brokerConnected} aria-expanded={adjusting}>
-            {adjusting ? 'Done adjusting' : '+ Add / exit legs'}
+            {adjusting ? <Check size={16} aria-hidden="true" /> : <Plus size={16} aria-hidden="true" />}
+            {adjusting ? 'Done adjusting' : 'Add / exit legs'}
           </Button>
         )}
         <Button onClick={() => onOpenInBuilder(draft)} disabled={draft.legs.length === 0}>
           Open in builder
         </Button>
         <Button onClick={rename} disabled={busy}>
+          <Pencil size={16} aria-hidden="true" />
           Rename
         </Button>
         {closed ? (
@@ -188,6 +192,7 @@ export function DraftMonitor({
           </Button>
         )}
         <Button variant="danger" onClick={remove} disabled={busy}>
+          <Trash2 size={16} aria-hidden="true" />
           Delete
         </Button>
       </div>
@@ -279,7 +284,7 @@ export function DraftMonitor({
         {draft.legs.length === 0 ? (
           <div className="px-4 py-6 text-center text-sm text-[var(--text-muted)]">All legs exited.</div>
         ) : (
-          <div className="overflow-x-auto">
+          <div className="relative overflow-x-auto">
             <table className="w-full min-w-[680px] border-collapse text-sm tabular">
               <thead className="text-left text-xs text-[var(--text-muted)]">
                 <tr className="border-b border-[var(--border)]">
@@ -355,7 +360,7 @@ export function DraftMonitor({
       {trades.length > 0 && (
         <Card>
           <CardHeader title={`Trade record (${trades.length})`} />
-          <div className="max-h-80 overflow-auto">
+          <div className="relative max-h-80 overflow-auto">
             <table className="w-full min-w-[560px] border-collapse text-sm tabular">
               <thead className="sticky top-0 bg-[var(--surface-card)] text-left text-xs text-[var(--text-muted)]">
                 <tr className="border-b border-[var(--border)]">

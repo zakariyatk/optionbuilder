@@ -37,7 +37,11 @@ export function Button({
   className = '',
   ...rest
 }: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: Variant; size?: 'xs' | 'sm' }) {
-  const pad = size === 'xs' ? 'px-2 py-0.5 text-[11px]' : 'px-2.5 py-1 text-xs';
+  // Touch screens get finger-sized targets; mouse users keep the compact desktop toolbar.
+  const pad =
+    size === 'xs'
+      ? 'px-2 py-0.5 text-[11px] pointer-coarse:min-h-9 pointer-coarse:px-2.5 pointer-coarse:text-xs'
+      : 'px-2.5 py-1 text-xs pointer-coarse:min-h-11 pointer-coarse:px-3.5 pointer-coarse:text-sm';
   return (
     <button
       type="button"
@@ -56,7 +60,7 @@ export function SideChip({ side, onClick, label, title }: { side: 'BUY' | 'SELL'
       onClick={onClick}
       title={title ?? (buy ? 'Buy' : 'Sell')}
       aria-label={title ?? (buy ? 'Buy' : 'Sell')}
-      className="rounded px-1.5 py-0.5 text-[10px] font-semibold transition-opacity hover:opacity-80"
+      className="rounded px-1.5 py-0.5 text-[10px] font-semibold transition-opacity hover:opacity-80 pointer-coarse:min-h-8 pointer-coarse:min-w-8 pointer-coarse:text-xs"
       style={{
         background: buy ? 'var(--good-fill)' : 'var(--critical-fill)',
         color: buy ? 'var(--good-text)' : 'var(--critical)',
@@ -127,6 +131,6 @@ export function LegendSwatch({ color, kind = 'box', children }: { color: string;
 }
 
 export const inputClass =
-  'rounded border border-[var(--border)] bg-transparent px-1.5 py-0.5 text-[var(--text-primary)] tabular hover:border-[var(--border-strong)]';
+  'rounded border border-[var(--border)] bg-transparent px-1.5 py-0.5 text-[var(--text-primary)] tabular hover:border-[var(--border-strong)] pointer-coarse:min-h-10 pointer-coarse:px-2';
 export const selectClass =
-  'rounded-md border border-[var(--border)] bg-transparent px-2 py-1.5 text-sm text-[var(--text-primary)] outline-none hover:border-[var(--border-strong)] disabled:opacity-40';
+  'min-w-0 max-w-full rounded-md border border-[var(--border)] bg-transparent px-2 py-1.5 text-sm text-[var(--text-primary)] outline-none hover:border-[var(--border-strong)] disabled:opacity-40 pointer-coarse:min-h-11';
