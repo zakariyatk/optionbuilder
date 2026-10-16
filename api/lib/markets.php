@@ -39,6 +39,9 @@ function ob_yahoo_meta(string $ticker): array
 
 function ob_yahoo_ticker(string $symbol): string
 {
+    if (ob_is_us($symbol)) {
+        return ob_us_ticker($symbol);
+    }
     return OB_YAHOO_TICKER[$symbol] ?? ($symbol . '.NS');
 }
 

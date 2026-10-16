@@ -19,6 +19,7 @@ import type {
   Session,
   SpotQuote,
   SymbolsResponse,
+  UsSearchResult,
   WatchQuote,
 } from './types';
 
@@ -151,6 +152,8 @@ export const api = {
   /** Daily closes (Yahoo) for stocks and benchmark keys such as NIFTY, SP500, QQQ, USDINR. */
   history: (symbols: string[], range = '5y') =>
     get<{ series: Record<string, HistorySeries> }>(`/api/history?symbols=${encodeURIComponent(symbols.join(','))}&range=${range}`),
+  /** US stocks and ETFs matching a name or ticker (Yahoo). */
+  searchUs: (q: string) => get<{ results: UsSearchResult[] }>(`/api/search?q=${encodeURIComponent(q)}`),
   futures: (symbol: string) =>
     get<{ symbol: string; contracts: FutureContract[] }>(`/api/futures?symbol=${encodeURIComponent(symbol)}`),
 

@@ -15,6 +15,7 @@ require_once __DIR__ . '/lib/symbols.php';
 require_once __DIR__ . '/lib/upstox.php';
 require_once __DIR__ . '/lib/chain.php';
 require_once __DIR__ . '/lib/markets.php';
+require_once __DIR__ . '/lib/us.php';
 require_once __DIR__ . '/lib/news.php';
 require_once __DIR__ . '/lib/report.php';
 require_once __DIR__ . '/lib/drafts.php';
@@ -180,7 +181,7 @@ try {
     if ($path === '/api/watch') {
         $symbols = array_values(array_unique(array_filter(
             array_map(static fn(string $v): string => strtoupper(trim($v)), explode(',', ob_query('symbols') ?? '')),
-            static fn(string $v): bool => (bool) preg_match('/^[A-Z0-9&_\-]{1,20}$/', $v)
+            static fn(string $v): bool => ob_symbol_ok($v)
         )));
         if (!$symbols || count($symbols) > 30) {
             ob_error('symbols must list 1–30 symbols', 400);
@@ -189,9 +190,11 @@ try {
         // falls back to an old snapshot for long: a list that silently stops
         // moving is worse than a "—" for a symbol that can't be quoted.
         $live = [];
-        if (ob_has_valid_token()) {
+        // US symbols always come from Yahoo; Upstox has no US market data.
+        $nse = array_values(array_filter($symbols, static fn(string $s): bool => !ob_is_us($s)));
+        if ($nse && ob_has_valid_token()) {
             try {
-                $live = ob_cached('watch:' . md5(implode(',', $symbols)), fn() => ob_upstox_watch_quotes($symbols), 2, 0);
+                $live = ob_cached('watch:' . md5(implode(',', $nse)), fn() => ob_upstox_watch_quotes($nse), 2, 0);
             } catch (Throwable) {
                 $live = [];
             }
@@ -222,8 +225,17 @@ try {
     if ($path === '/api/candles') {
         $symbol = strtoupper(ob_query('symbol') ?? '');
         $tf = ob_query('tf') ?? '15m';
-        if (!preg_match('/^[A-Z0-9&_\-]{1,20}$/', $symbol) || !isset(OB_CANDLE_TIMEFRAMES[$tf])) {
+        if (!ob_symbol_ok($symbol) || !isset(OB_CANDLE_TIMEFRAMES[$tf])) {
             ob_error('symbol and a valid tf are required', 400);
+        }
+        // US symbols chart from Yahoo, so they work without a broker login.
+        if (ob_is_us($symbol)) {
+            try {
+                $ttl = OB_CANDLE_TIMEFRAMES[$tf][3];
+                ob_json(['symbol' => $symbol, 'tf' => $tf, 'candles' => ob_cached("candles:$symbol:$tf", fn() => ob_yahoo_candles($symbol, $tf), $ttl)]);
+            } catch (Throwable $e) {
+                ob_error('Failed to fetch candles', 502, $e->getMessage());
+            }
         }
         if (!ob_has_valid_token()) {
             ob_error('NOT_AUTHENTICATED', 401);
@@ -460,7 +472,7 @@ try {
     if ($path === '/api/history') {
         $keys = array_values(array_unique(array_filter(
             array_map(static fn(string $v): string => strtoupper(trim($v)), explode(',', ob_query('symbols') ?? '')),
-            static fn(string $v): bool => (bool) preg_match('/^[A-Z0-9&_\-]{1,20}$/', $v)
+            static fn(string $v): bool => ob_symbol_ok($v)
         )));
         $range = ob_query('range') ?? '5y';
         if (!$keys || count($keys) > 40 || !in_array($range, ['1y', '2y', '5y', '10y', 'max'], true)) {
@@ -489,6 +501,19 @@ try {
             }
         }
         ob_json(['series' => (object) $series]);
+    }
+
+    // US stocks and ETFs by name or ticker, for charts, watchlists and portfolios.
+    if ($path === '/api/search') {
+        $q = trim((string) (ob_query('q') ?? ''));
+        if ($q === '' || mb_strlen($q) > 40) {
+            ob_error('q must be 1–40 characters', 400);
+        }
+        try {
+            ob_json(['results' => ob_cached('search:us:' . mb_strtolower($q), fn() => ob_us_search($q), 86400)]);
+        } catch (Throwable $e) {
+            ob_error('Search failed', 502, $e->getMessage());
+        }
     }
 
     if ($path === '/api/futures') {

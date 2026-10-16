@@ -61,7 +61,8 @@ function ob_portfolio_txn(mixed $in): array
         throw new InvalidArgumentException('Transaction kind or side is invalid');
     }
     $symbol = strtoupper(trim((string) ($in['symbol'] ?? '')));
-    if (!preg_match('/^[A-Z0-9&_\-]{1,20}$/', $symbol)) {
+    // Futures are NSE only; stocks may be NSE or US (US:AAPL).
+    if (!ob_symbol_ok($symbol) || ($kind === 'FUT' && ob_is_us($symbol))) {
         throw new InvalidArgumentException('Transaction symbol is invalid');
     }
     $date = ob_date_or_null($in['date'] ?? null);

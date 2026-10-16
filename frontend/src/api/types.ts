@@ -245,3 +245,12 @@ export interface FutureContract {
   instrumentKey: string;
   lotSize: number;
 }
+
+/** A US stock or ETF from /api/search. `symbol` is the app's key, e.g. "US:AAPL". */
+export interface UsSearchResult {
+  symbol: string;
+  ticker: string;
+  name: string;
+  exchange: string;
+  type: 'EQUITY' | 'ETF';
+}
