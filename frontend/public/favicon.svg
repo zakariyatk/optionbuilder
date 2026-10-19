@@ -1,7 +1,15 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <rect width="512" height="512" fill="#050505"/>
-  <rect x="48" y="48" width="416" height="416" fill="none" stroke="#9A9A9A" stroke-width="22"/>
-  <text x="263" y="260" text-anchor="middle" dominant-baseline="central"
-        font-family="Arial, Helvetica, sans-serif" font-weight="700" font-size="214"
-        letter-spacing="14" fill="#FFFFFF">AD</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="162 157 928 935">
+  <rect x="162" y="157" width="928" height="935" rx="220" fill="#000000"/>
+  <g fill="#FFFFFF">
+    <path d="M578,322 C600,285 658,285 680,322 L790,527 L706,612 L626,472 L520,655 C440,738 360,805 286,866 C276,873 266,866 272,856 Z"/>
+    <path d="M276,903 L382,816 L382,918 C382,926 376,932 368,932 L286,932 C266,932 262,914 276,903 Z"/>
+    <rect x="410" y="793" width="55" height="140" rx="9"/>
+    <rect x="573" y="679" width="55" height="156" rx="9"/>
+    <path d="M828,606 L982,888 C996,912 984,932 958,932 L842,932 C822,932 808,924 800,910 L724,768 C712,744 716,722 732,704 Z"/>
+  </g>
+  <g fill="#7B61FF" stroke="#000000" stroke-width="14" stroke-linejoin="round" paint-order="stroke">
+    <rect x="488" y="739" width="63" height="138" rx="9" stroke="none"/>
+    <path d="M482,710 L604,584 C610,578 618,578 624,584 L692,648 L832,516 L852,540 L702,704 C694,712 684,712 678,704 L606,622 Z"/>
+    <path d="M806,488 L900,458 C910,455 916,462 913,472 L894,560 C891,570 882,572 876,566 Z"/>
+  </g>
 </svg>

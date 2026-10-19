@@ -1,4 +1,5 @@
 import { useId, type ReactNode } from 'react';
+import { Logo } from '../../components/Logo';
 import type { PayoffPoint } from '../../domain/payoff';
 import { useTheme } from '../../hooks/useTheme';
 import { DEMO_CHANGE_PCT, DEMO_LEGS, DEMO_SPOT, STRATEGY_CARDS, demoCurve, demoMetrics } from './demo';
@@ -141,7 +142,7 @@ function ProductPreview() {
   return (
     <div className="lp-preview" role="img" aria-label="Preview of the Strategy Builder: a NIFTY bull call spread with its payoff chart and risk metrics">
       <div className="lp-preview-bar">
-        <span className="lp-mark lp-mark-sm">AD</span>
+        <Logo size={32} className="lp-mark lp-mark-sm" />
         <span className="lp-brand-sm">
           <b>AD OPTION</b> BUILDER
         </span>
@@ -316,7 +317,7 @@ export function Landing({ onSignIn }: { onSignIn: () => void }) {
       <header className="lp-header">
         <div className="lp-wrap lp-header-row">
           <a href="#top" className="lp-logo" aria-label="AD Option Builder home">
-            <span className="lp-mark">AD</span>
+            <Logo size={52} className="lp-mark" />
             <span className="lp-brand">
               <b>AD OPTION</b> BUILDER
             </span>
@@ -485,7 +486,7 @@ export function Landing({ onSignIn }: { onSignIn: () => void }) {
       <footer className="lp-footer">
         <div className="lp-wrap lp-footer-row">
           <span className="lp-logo">
-            <span className="lp-mark lp-mark-sm">AD</span>
+            <Logo size={32} className="lp-mark lp-mark-sm" />
             <span className="lp-brand">
               <b>AD OPTION</b> BUILDER
             </span>
