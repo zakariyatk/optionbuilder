@@ -30,8 +30,11 @@
   --itm-fill: #eda1001a;
   --unusual: #4a3aa7;
   --focus: #2a78d6;
-  --accent: #0b0b0b;
+  --accent: #7b61ff;
   --accent-text: #ffffff;
+  --logo-tile: #0a0e20;
+  --logo-ink: #ffffff;
+  --logo-accent: #7b61ff;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -60,8 +63,9 @@
     --itm-fill: #eda10024;
     --unusual: #9a90e0;
     --focus: #5b8fd9;
-    --accent: #ffffff;
-    --accent-text: #050505;
+    --accent: #7b61ff;
+    --accent-text: #ffffff;
+    --logo-tile: #000000;
   }
 }
 
@@ -90,8 +94,9 @@
   --itm-fill: #eda10024;
   --unusual: #9a90e0;
   --focus: #5b8fd9;
-  --accent: #ffffff;
-  --accent-text: #050505;
+  --accent: #7b61ff;
+  --accent-text: #ffffff;
+  --logo-tile: #000000;
 }
 
 @theme {
@@ -227,20 +232,12 @@ input[type='number']::-webkit-inner-spin-button {
 }
 
 .ob-logo {
-  display: grid;
+  display: flex;
   flex-shrink: 0;
-  place-items: center;
-  width: 40px;
-  height: 40px;
-  padding-left: 2px;
-  border: 1px solid var(--border-strong);
-  color: var(--text-primary);
-  text-decoration: none;
-  font: 700 10px/1 Arial, Helvetica, sans-serif;
-  letter-spacing: 2px;
+  border-radius: 9px;
 }
 .ob-logo:hover {
-  border-color: var(--text-primary);
+  opacity: 0.85;
 }
 
 .ob-sub {

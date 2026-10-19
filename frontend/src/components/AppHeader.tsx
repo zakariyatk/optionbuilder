@@ -4,6 +4,7 @@ import { UPSTOX_LOGIN_URL } from '../api/client';
 import type { AuthStatus } from '../api/types';
 import { useTheme } from '../hooks/useTheme';
 import { MOBILE_TABS, NAV, PAGE_ICONS, PAGE_LABELS, type NavItem, type PageId, type Route } from './tabs';
+import { Logo } from './Logo';
 import { Dot } from './ui';
 
 function BrokerBadge({ status }: { status: AuthStatus | null }) {
@@ -203,7 +204,7 @@ function MobileTabBar({ route, onNavigate }: { route: Route; onNavigate: (page: 
 const navItemClass = (active: boolean) =>
   `relative flex h-full items-center gap-1 px-3 text-sm font-medium transition-colors ${
     active
-      ? 'text-[var(--series-blue)] after:absolute after:inset-x-2 after:bottom-0 after:h-[3px] after:rounded-t after:bg-[var(--series-blue)]'
+      ? 'text-[var(--text-primary)] after:absolute after:inset-x-2 after:bottom-0 after:h-[3px] after:rounded-t after:bg-[var(--accent)]'
       : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
   }`;
 
@@ -236,7 +237,7 @@ export function AppHeader({
       <div className="safe-x flex h-14 w-full items-center gap-x-4">
         <div className="flex h-14 min-w-0 items-center gap-2.5">
           <a className="ob-logo" href="https://www.adddots.com/" aria-label="ADD DOTS home">
-            AD
+            <Logo size={36} />
           </a>
           <button type="button" onClick={() => go('builder')} className="ob-title hidden !text-base sm:block">
             Option Builder
@@ -296,7 +297,7 @@ export function AppHeader({
             align="right"
             trigger={(open) => (
               <span className="flex min-h-11 items-center gap-1 text-[var(--text-secondary)]">
-                <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--series-blue)] text-xs font-bold text-white">
+                <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--accent)] text-xs font-bold text-[var(--accent-text)]">
                   {initials(userName)}
                 </span>
                 <Chevron open={open} />

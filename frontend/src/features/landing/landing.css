@@ -13,9 +13,9 @@
   --lp-text: var(--text-primary);
   --lp-text-2: var(--text-secondary);
   --lp-muted: var(--text-muted);
-  --lp-blue: var(--series-blue);
-  --lp-blue-2: var(--series-blue);
-  --lp-tint: color-mix(in srgb, var(--series-blue) 10%, transparent);
+  --lp-blue: var(--accent);
+  --lp-blue-2: var(--accent);
+  --lp-tint: color-mix(in srgb, var(--accent) 10%, transparent);
   --lp-green: var(--good-text);
   --lp-red: var(--critical);
   --lp-radius: 8px;
@@ -97,21 +97,12 @@
   gap: 14px;
 }
 .lp-mark {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
   width: 52px;
   height: 52px;
-  border: 2px solid var(--lp-text);
-  font-weight: 800;
-  font-size: 21px;
-  letter-spacing: 0.5px;
 }
 .lp-mark-sm {
   width: 32px;
   height: 32px;
-  font-size: 13px;
-  border-width: 1.5px;
 }
 .lp-brand {
   font-size: 20px;
@@ -878,10 +869,9 @@
     height: 68px;
     gap: 12px;
   }
-  .lp-mark {
+  .lp-mark:not(.lp-mark-sm) {
     width: 40px;
     height: 40px;
-    font-size: 16px;
   }
   .lp-brand {
     font-size: 15px;
