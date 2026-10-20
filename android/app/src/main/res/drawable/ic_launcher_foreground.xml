@@ -1,21 +1,27 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Payoff-curve mark on the ADD DOTS black tile. -->
+<!--
+  The Option Builder logo (frontend/src/components/Logo.tsx, public/favicon.svg),
+  scaled so its tile fills the 72dp visible area of the adaptive icon.
+  The tile itself is the icon background (@color/logo_tile).
+-->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <path
-        android:strokeColor="#FFFFFF"
-        android:strokeWidth="2"
-        android:pathData="M30,66 L78,66" />
-    <path
-        android:strokeColor="#2FBF2F"
-        android:strokeWidth="5"
-        android:strokeLineCap="round"
-        android:strokeLineJoin="round"
-        android:pathData="M30,74 L46,74 L62,44 L78,44" />
-    <path
-        android:fillColor="#FFFFFF"
-        android:pathData="M54,30 m-4,0 a4,4 0,1 1,8 0 a4,4 0,1 1,-8 0" />
+    <group android:scaleX="0.077005" android:scaleY="0.077005" android:translateX="5.7947" android:translateY="5.9102">
+        <path android:fillColor="#FFFFFFFF" android:pathData="M578,322 C600,285 658,285 680,322 L790,527 L706,612 L626,472 L520,655 C440,738 360,805 286,866 C276,873 266,866 272,856 Z" />
+        <path android:fillColor="#FFFFFFFF" android:pathData="M276,903 L382,816 L382,918 C382,926 376,932 368,932 L286,932 C266,932 262,914 276,903 Z" />
+        <path android:fillColor="#FFFFFFFF" android:pathData="M419,793 h37 a9,9 0 0 1 9,9 v122 a9,9 0 0 1 -9,9 h-37 a9,9 0 0 1 -9,-9 v-122 a9,9 0 0 1 9,-9 Z" />
+        <path android:fillColor="#FFFFFFFF" android:pathData="M582,679 h37 a9,9 0 0 1 9,9 v138 a9,9 0 0 1 -9,9 h-37 a9,9 0 0 1 -9,-9 v-138 a9,9 0 0 1 9,-9 Z" />
+        <path android:fillColor="#FFFFFFFF" android:pathData="M435,770 h2 a5,5 0 0 1 5,5 v20 a5,5 0 0 1 -5,5 h-2 a5,5 0 0 1 -5,-5 v-20 a5,5 0 0 1 5,-5 Z" />
+        <path android:fillColor="#FFFFFFFF" android:pathData="M598,654 h3 a5,5 0 0 1 5,5 v20 a5,5 0 0 1 -5,5 h-3 a5,5 0 0 1 -5,-5 v-20 a5,5 0 0 1 5,-5 Z" />
+        <path android:fillColor="#FFFFFFFF" android:pathData="M828,606 L982,888 C996,912 984,932 958,932 L842,932 C822,932 808,924 800,910 L724,768 C712,744 716,722 732,704 Z" />
+        <path android:fillColor="#FF7B61FF" android:pathData="M497,739 h45 a9,9 0 0 1 9,9 v120 a9,9 0 0 1 -9,9 h-45 a9,9 0 0 1 -9,-9 v-120 a9,9 0 0 1 9,-9 Z" />
+        <path android:fillColor="#FF7B61FF" android:pathData="M518,713 h3 a5,5 0 0 1 5,5 v20 a5,5 0 0 1 -5,5 h-3 a5,5 0 0 1 -5,-5 v-20 a5,5 0 0 1 5,-5 Z" />
+        <path android:strokeColor="#FF000000" android:strokeWidth="14" android:strokeLineJoin="round" android:pathData="M482,710 L604,584 C610,578 618,578 624,584 L692,648 L832,516 L852,540 L702,704 C694,712 684,712 678,704 L606,622 Z" />
+        <path android:fillColor="#FF7B61FF" android:pathData="M482,710 L604,584 C610,578 618,578 624,584 L692,648 L832,516 L852,540 L702,704 C694,712 684,712 678,704 L606,622 Z" />
+        <path android:strokeColor="#FF000000" android:strokeWidth="14" android:strokeLineJoin="round" android:pathData="M806,488 L900,458 C910,455 916,462 913,472 L894,560 C891,570 882,572 876,566 Z" />
+        <path android:fillColor="#FF7B61FF" android:pathData="M806,488 L900,458 C910,455 916,462 913,472 L894,560 C891,570 882,572 876,566 Z" />
+    </group>
 </vector>

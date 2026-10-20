@@ -42,7 +42,7 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.adddots.optionbuilder.ui.AdMark
+import com.adddots.optionbuilder.ui.components.Logo
 import com.adddots.optionbuilder.ui.theme.Ob
 
 /** Mirrors components/LoginGate.tsx. Any non-empty password opens it until the API is wired. */
@@ -60,7 +60,7 @@ fun LoginScreen(onOpen: () -> Unit) {
                 .padding(start = 28.dp, end = 28.dp, top = 34.dp, bottom = 28.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            AdMark(52)
+            Logo(64.dp)
             Spacer(Modifier.size(18.dp))
             Text("Option Builder", fontSize = 26.sp, fontWeight = FontWeight.Bold, color = Ob.colors.textPrimary)
             Text("ADD DOTS · Enter your password", Modifier.padding(top = 6.dp, bottom = 26.dp), fontSize = 12.sp, color = Ob.colors.textSecondary, textAlign = TextAlign.Center)

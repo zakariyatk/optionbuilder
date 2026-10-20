@@ -43,6 +43,8 @@ data class ObColors(
     val itmFill: Color,
     val accent: Color,
     val accentText: Color,
+    /** Tile behind the logo (--logo-tile on the web). */
+    val logoTile: Color,
 )
 
 val LightObColors = ObColors(
@@ -69,6 +71,7 @@ val LightObColors = ObColors(
     itmFill = Color(0x1AEDA100),
     accent = Color(0xFF0B0B0B),
     accentText = Color(0xFFFFFFFF),
+    logoTile = Color(0xFF0A0E20),
 )
 
 val DarkObColors = ObColors(
@@ -95,6 +98,7 @@ val DarkObColors = ObColors(
     itmFill = Color(0x24EDA100),
     accent = Color(0xFFFFFFFF),
     accentText = Color(0xFF050505),
+    logoTile = Color(0xFF000000),
 )
 
 val LocalObColors = staticCompositionLocalOf { LightObColors }

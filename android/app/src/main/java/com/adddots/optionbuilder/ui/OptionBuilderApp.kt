@@ -65,6 +65,7 @@ import com.adddots.optionbuilder.data.ANALYSE_PAGES
 import com.adddots.optionbuilder.data.Page
 import com.adddots.optionbuilder.data.SampleData
 import com.adddots.optionbuilder.ui.components.LiveDot
+import com.adddots.optionbuilder.ui.components.Logo
 import com.adddots.optionbuilder.ui.screens.BuilderScreen
 import com.adddots.optionbuilder.ui.screens.ChartScreen
 import com.adddots.optionbuilder.ui.screens.DraftDetailScreen
@@ -143,7 +144,7 @@ private fun Shell(state: AppState, dark: Boolean) {
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Ob.colors.page, titleContentColor = Ob.colors.textPrimary),
                 title = {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        AdMark(30)
+                        Logo(36.dp)
                         Column {
                             Text(state.page.label, fontSize = 16.sp, fontWeight = FontWeight.Bold)
                             Text("OPTION BUILDER · ADD DOTS", fontSize = 9.sp, letterSpacing = 1.2.sp, color = Ob.colors.textMuted)
@@ -261,16 +262,5 @@ private fun Shell(state: AppState, dark: Boolean) {
                 Spacer(Modifier.size(8.dp))
             }
         }
-    }
-}
-
-/** The ADD DOTS "AD" monogram from the web header. */
-@Composable
-fun AdMark(sizeDp: Int) {
-    Box(
-        Modifier.size(sizeDp.dp).clip(RoundedCornerShape(6.dp)).background(Ob.colors.accent),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text("AD", fontSize = (sizeDp * 0.38).sp, fontWeight = FontWeight.Black, color = Ob.colors.accentText, letterSpacing = 0.5.sp)
     }
 }
