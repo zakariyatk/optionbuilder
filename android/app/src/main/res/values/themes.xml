@@ -1,0 +1,9 @@
+<resources>
+    <style name="Theme.OptionBuilder" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/page</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+    </style>
+    <color name="page">#F9F9F7</color>
+    <color name="ink">#0B0B0B</color>
+</resources>
