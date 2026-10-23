@@ -72,6 +72,18 @@ export function installScaleButtons(container: HTMLElement) {
     requestAnimationFrame(refresh);
   });
 
+  // "On price scale hover" (the default): shown only while the pointer is over the price axis, or on the buttons.
+  const onMove = (e: PointerEvent) => {
+    const axis = getChart()?.getDom(CANDLE_PANE, DomPosition.YAxis)?.getBoundingClientRect();
+    const near =
+      group.contains(e.target as Node) ||
+      (!!axis && e.clientX >= axis.left && e.clientX <= axis.right && e.clientY >= axis.top && e.clientY <= axis.bottom);
+    group.classList.toggle('is-near', near);
+  };
+  const onLeave = () => group.classList.remove('is-near');
+  container.addEventListener('pointermove', onMove);
+  container.addEventListener('pointerleave', onLeave);
+
   // Auto turns off when the axis is dragged or scrolled; check after any such gesture, and keep the buttons on the axis as panes resize.
   const later = () => requestAnimationFrame(refresh);
   container.addEventListener('mouseup', later);
@@ -99,6 +111,8 @@ export function installScaleButtons(container: HTMLElement) {
       container.removeEventListener('touchend', later);
       container.removeEventListener('wheel', later);
       container.removeEventListener('dblclick', later);
+      container.removeEventListener('pointermove', onMove);
+      container.removeEventListener('pointerleave', onLeave);
       group.remove();
     },
   };

@@ -111,7 +111,7 @@ export const DEFAULT_SETTINGS: ChartSettings = {
   scaleTextColor: null,
   scaleTextSize: 12,
   scaleLineColor: null,
-  buttons: 'always',
+  buttons: 'hover',
   marginTop: 10,
   marginBottom: 8,
   alertLines: true,
@@ -187,8 +187,14 @@ export const useChartSettings = create<ChartSettingsState>()(
     }),
     {
       name: 'option-builder-chart-settings',
-      version: 1,
+      version: 2,
       storage: createJSONStorage(() => localStorage),
+      // v2: the A / L buttons moved to "on price scale hover" by default; carry that over the old default.
+      migrate: (persisted, version) => {
+        const p = (persisted ?? {}) as Partial<ChartSettingsState>;
+        if (version < 2 && p.settings?.buttons === 'always') p.settings = { ...p.settings, buttons: 'hover' };
+        return p as ChartSettingsState;
+      },
       partialize: (s) => ({ settings: s.settings, templates: s.templates }),
       // Settings added in later versions take their defaults.
       merge: (persisted, current) => {

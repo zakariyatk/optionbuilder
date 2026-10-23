@@ -460,19 +460,20 @@ input[type='number']::-webkit-inner-spin-button {
   position: absolute;
   z-index: 14;
   display: flex;
-  gap: 4px;
+  gap: 3px;
 }
 .ob-scale[hidden] {
   display: none;
 }
 .ob-scale button {
-  width: 24px;
-  height: 24px;
+  width: 18px;
+  height: 18px;
+  padding: 0;
   border: 1px solid var(--border-strong);
-  border-radius: 4px;
+  border-radius: 3px;
   background: var(--surface-card);
   color: var(--text-secondary);
-  font: 600 13px/1 Arial, Helvetica, sans-serif;
+  font: 600 10px/1 Arial, Helvetica, sans-serif;
   cursor: pointer;
 }
 .ob-scale button:hover {
@@ -574,9 +575,12 @@ input[type='number']::-webkit-inner-spin-button {
 }
 .ob-buttons-hover .ob-scale {
   opacity: 0;
+  pointer-events: none;
   transition: opacity 0.15s;
 }
-.ob-buttons-hover:hover .ob-scale,
+/* Shown while the pointer is over the price axis (scaleButtons.ts sets is-near), or a button has focus. */
+.ob-buttons-hover .ob-scale.is-near,
 .ob-buttons-hover .ob-scale:focus-within {
   opacity: 1;
+  pointer-events: auto;
 }

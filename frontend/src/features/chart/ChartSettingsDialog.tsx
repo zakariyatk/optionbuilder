@@ -466,7 +466,7 @@ export function ChartSettingsDialog({ theme, onClose }: { theme: 'light' | 'dark
             onChange={set('buttons')}
             options={[
               { v: 'always', label: 'Always visible' },
-              { v: 'hover', label: 'Visible on mouse over' },
+              { v: 'hover', label: 'On price scale hover' },
               { v: 'never', label: 'Hidden' },
             ]}
           />

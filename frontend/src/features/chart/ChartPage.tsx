@@ -136,32 +136,35 @@ export function ChartPage({
         style={{ height: fullscreen ? '100vh' : panelHeight }}
       >
         {/* TradingView's top toolbar, for the selected chart. Above the charts (their labels use z-index) so its menus open over them. */}
-        <div role="toolbar" aria-label="Chart" className="relative z-40 flex h-[38px] shrink-0 items-center gap-0.5 overflow-x-auto border-b border-[var(--border)] px-1">
+        {/* Fits its width (labels give way to icons when narrow) instead of scrolling. */}
+        <div role="toolbar" aria-label="Chart" className="relative z-40 flex h-[38px] shrink-0 items-center gap-0.5 overflow-hidden border-b border-[var(--border)] px-1">
           <TvButton label="Symbol search" onClick={() => setSearching(true)}>
             <Search size={16} strokeWidth={1.75} aria-hidden="true" />
             <span className="font-semibold">{displaySymbol(chartSymbols[active])}</span>
           </TvButton>
           <TvSep />
-          {PERIODS.map((p) => (
+          {/* The everyday intervals stay one click away; the rest live in the dropdown. A pick from it shows here too. */}
+          {PERIODS.filter((p) => QUICK_PERIODS.includes(p.tf) || p.tf === tf).map((p) => (
             <TvButton key={p.tf} label={`Interval ${p.text}`} active={p.tf === tf} onClick={() => setPeriod(p.tf)} narrow>
               {p.text}
             </TvButton>
           ))}
+          <IntervalMenu value={tf} onChange={setPeriod} />
           <TvSep />
           <TvButton label="Indicators" onClick={() => act()?.openTool('Indicator')}>
             <ChartCandlestick size={17} strokeWidth={1.6} aria-hidden="true" />
-            Indicators
+            <span className="max-xl:hidden">Indicators</span>
           </TvButton>
           <TvSep />
           <LayoutMenu layoutId={layout.id} onChange={setLayout} />
           <TvSep />
           <TvButton label="Create alert" onClick={() => act()?.addAlert()}>
             <AlarmClockPlus size={17} strokeWidth={1.6} aria-hidden="true" />
-            Alert
+            <span className="max-xl:hidden">Alert</span>
           </TvButton>
           <TvButton label="Bar replay" active={replayOn} disabled={!activeReplay} onClick={() => (replayOn ? activeReplay?.exit() : activeReplay?.selectBar())}>
             <Rewind size={17} strokeWidth={1.6} aria-hidden="true" />
-            Replay
+            <span className="max-xl:hidden">Replay</span>
           </TvButton>
           <span className="flex-1" />
           <TvButton label="Timezone" onClick={() => act()?.openTool('Timezone')} icon>
@@ -253,6 +256,88 @@ function TvButton({
 }
 
 const TvSep = () => <span aria-hidden="true" className="mx-1 h-5 w-px shrink-0 bg-[var(--border-strong)]" />;
+
+/** Intervals shown as toolbar buttons; every interval is in the dropdown. */
+const QUICK_PERIODS = ['15m', '1D', '1W'];
+const PERIOD_GROUPS: { label: string; timespans: string[] }[] = [
+  { label: 'Minutes', timespans: ['minute'] },
+  { label: 'Hours', timespans: ['hour'] },
+  { label: 'Days', timespans: ['day', 'week', 'month'] },
+];
+const periodName = (p: (typeof PERIODS)[number]) => {
+  const unit = { minute: 'minute', hour: 'hour', day: 'day', week: 'week', month: 'month' }[p.timespan as string] ?? p.timespan;
+  return `${p.multiplier} ${unit}${p.multiplier === 1 ? '' : 's'}`;
+};
+
+/** TradingView's interval dropdown: every interval, grouped, with the selected one ticked. */
+function IntervalMenu({ value, onChange }: { value: string; onChange: (tf: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const root = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: MouseEvent) => {
+      if (!root.current?.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false);
+    };
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [open]);
+
+  return (
+    <div ref={root} className="relative shrink-0">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-haspopup="true"
+        aria-expanded={open}
+        aria-label="More intervals"
+        title="More intervals"
+        className={`flex h-[30px] w-[22px] items-center justify-center rounded text-[var(--text-primary)] hover:bg-[color-mix(in_srgb,var(--text-primary)_8%,transparent)] ${
+          open ? 'bg-[color-mix(in_srgb,var(--text-primary)_12%,transparent)]' : ''
+        }`}
+      >
+        <ChevronDown size={15} strokeWidth={1.75} aria-hidden="true" />
+      </button>
+      {open && (
+        <div role="menu" aria-label="Intervals" className="fixed z-50 mt-1 min-w-[170px] rounded-lg border border-[var(--border-strong)] bg-[var(--surface-raised)] py-1 shadow-xl">
+          {PERIOD_GROUPS.map((g, gi) => (
+            <div key={g.label} className={gi > 0 ? 'mt-1 border-t border-[var(--border)] pt-1' : ''}>
+              <div className="px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">{g.label}</div>
+              {PERIODS.filter((p) => g.timespans.includes(p.timespan as string)).map((p) => {
+                const selected = p.tf === value;
+                return (
+                  <button
+                    key={p.tf}
+                    type="button"
+                    role="menuitemradio"
+                    aria-checked={selected}
+                    onClick={() => {
+                      onChange(p.tf);
+                      setOpen(false);
+                    }}
+                    className={`flex h-8 w-full items-center justify-between gap-4 px-3 text-left text-[13px] hover:bg-[color-mix(in_srgb,var(--text-primary)_8%,transparent)] ${
+                      selected ? 'text-[var(--series-blue)]' : 'text-[var(--text-primary)]'
+                    }`}
+                  >
+                    {periodName(p)}
+                    <span className="text-[11px] text-[var(--text-muted)]">{p.text}</span>
+                  </button>
+                );
+              })}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 const QUOTE_POLL_MS = 15_000;
 const changeColor = (v: number) => (v > 0 ? 'var(--good-text)' : v < 0 ? 'var(--critical)' : 'var(--text-secondary)');
