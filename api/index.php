@@ -23,6 +23,7 @@ require_once __DIR__ . '/lib/drafts.php';
 require_once __DIR__ . '/lib/candles.php';
 require_once __DIR__ . '/lib/oi.php';
 require_once __DIR__ . '/lib/portfolio.php';
+require_once __DIR__ . '/lib/sectors.php';
 
 // Errors must never leak into a JSON body as HTML.
 ini_set('display_errors', '0');
@@ -532,6 +533,22 @@ try {
             ob_json(['results' => ob_cached('search:us:' . mb_strtolower($q), fn() => ob_us_search($q), 86400)]);
         } catch (Throwable $e) {
             ob_error('Search failed', 502, $e->getMessage());
+        }
+    }
+
+    // Sector of each holding, for the Portfolio page's sector cards.
+    if ($path === '/api/sectors') {
+        $symbols = array_values(array_unique(array_filter(
+            array_map(static fn(string $v): string => strtoupper(trim($v)), explode(',', ob_query('symbols') ?? '')),
+            static fn(string $v): bool => ob_symbol_ok($v)
+        )));
+        if (!$symbols || count($symbols) > 100) {
+            ob_error('symbols must list 1–100 symbols', 400);
+        }
+        try {
+            ob_json(['sectors' => (object) ob_sectors($symbols)]);
+        } catch (Throwable $e) {
+            ob_error('Failed to look up sectors', 502, $e->getMessage());
         }
     }
 

@@ -4,6 +4,8 @@ import type { SeriesPoint } from '../../domain/portfolio';
 export interface ChartLine {
   key: string;
   label: string;
+  /** Name in the chip at the line's end; defaults to `label`. */
+  short?: string;
   color: string;
   points: SeriesPoint[];
   /** The portfolio itself is drawn thicker and on top. */
@@ -13,7 +15,10 @@ export interface ChartLine {
 const W = 800;
 const H = 300;
 const LEFT = 48;
-const RIGHT = W - 12;
+/** Room on the right for the end-of-line chips: "−10.6%" plus a short name. */
+const RIGHT = W - 132;
+const CHIP_H = 18;
+const CHIP_GAP = 4;
 const TOP = 12;
 const BOTTOM = H - 26;
 
@@ -29,12 +34,30 @@ const shortDate = (d: string, withYear: boolean) =>
   new Date(`${d}T00:00:00Z`).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', ...(withYear ? { year: '2-digit' } : {}), timeZone: 'UTC' });
 
 /**
+ * Nudges label positions apart so none are closer than `gap`, keeping them
+ * inside [min, max] and as near to their own line's end as the room allows.
+ */
+function spreadLabels(ys: number[], gap: number, min: number, max: number): number[] {
+  const order = ys.map((y, i) => ({ y, i })).sort((a, b) => a.y - b.y);
+  const out = order.map((o) => Math.min(max, Math.max(min, o.y)));
+  for (let k = 1; k < out.length; k++) out[k] = Math.max(out[k], out[k - 1] + gap);
+  // Overflowed the bottom: push the stack back up from there.
+  if (out.length && out[out.length - 1] > max) {
+    out[out.length - 1] = max;
+    for (let k = out.length - 2; k >= 0; k--) out[k] = Math.min(out[k], out[k + 1] - gap);
+  }
+  const placed: number[] = [];
+  order.forEach((o, k) => (placed[o.i] = out[k]));
+  return placed;
+}
+
+/**
  * Percent-return lines on a shared date axis, all starting at 0%. Series are
  * aligned on the union of their dates; a line with no point on a date simply
- * isn't drawn there.
+ * isn't drawn there. Each line ends in a colour chip with its latest return
+ * and short name.
  */
-/** `callout` labels the portfolio's latest point, e.g. "1Y +31.5%". */
-export function PerformanceChart({ lines, callout }: { lines: ChartLine[]; callout?: string }) {
+export function PerformanceChart({ lines }: { lines: ChartLine[] }) {
   const svgRef = useRef<SVGSVGElement>(null);
   const [hover, setHover] = useState<number | null>(null);
 
@@ -104,6 +127,21 @@ export function PerformanceChart({ lines, callout }: { lines: ChartLine[]; callo
   // Draw benchmarks first so the portfolio sits on top.
   const order = lines.map((l, i) => ({ l, i })).sort((a, b) => Number(!!a.l.primary) - Number(!!b.l.primary));
 
+  // Where each line ends, and where its chip goes once chips are pushed apart.
+  const ends = values.map((vals) => {
+    const back = [...vals].reverse().findIndex((v) => v !== null);
+    if (back < 0) return null;
+    const i = vals.length - 1 - back;
+    return { i, v: vals[i]! };
+  });
+  const endLines = lines.map((l, k) => ({ l, end: ends[k] })).filter((e): e is { l: ChartLine; end: { i: number; v: number } } => e.end !== null);
+  const chipYs = spreadLabels(
+    endLines.map((e) => y(e.end.v)),
+    CHIP_H + CHIP_GAP,
+    TOP + CHIP_H / 2,
+    BOTTOM - CHIP_H / 2,
+  );
+
   return (
     <div>
       <svg
@@ -157,20 +195,40 @@ export function PerformanceChart({ lines, callout }: { lines: ChartLine[]; callo
             strokeLinejoin="round"
           />
         ))}
-        {/* The latest value, ringed, with a callout — as a dashboard headlines it. */}
-        {primaryIndex >= 0 && primaryLast >= 0 && hover === null && (
-          <g pointerEvents="none">
-            <circle cx={x(primaryLast)} cy={y(values[primaryIndex][primaryLast]!)} r={5} fill="var(--surface-card)" stroke={lines[primaryIndex].color} strokeWidth={2} />
-            {callout && (
-              <g transform={`translate(${Math.min(x(primaryLast), RIGHT - 46)} ${Math.max(y(values[primaryIndex][primaryLast]!) - 24, TOP + 2)})`}>
-                <rect x={-44} y={-11} width={88} height={18} rx={3} fill="var(--surface-card)" stroke={lines[primaryIndex].color} />
-                <text x={0} y={2} textAnchor="middle" fontSize={10.5} fontWeight={700} fill={lines[primaryIndex].color}>
-                  {callout}
+        {/* Every line ends in a dot and a colour chip: latest return, then its short name. */}
+        <g pointerEvents="none">
+          {endLines.map(({ l, end }, k) => {
+            const ex = x(end.i);
+            const ey = y(end.v);
+            const cy = chipYs[k];
+            const text = pct(end.v);
+            const chipW = text.length * 6.4 + 14;
+            const chipX = RIGHT + 10;
+            const name = (l.short ?? l.label).slice(0, 12);
+            return (
+              <g key={l.key}>
+                {/* Joins the dot to its chip when the chip had to move, or the line ends early. */}
+                {(Math.abs(cy - ey) > 0.5 || ex < RIGHT - 0.5) && (
+                  <path d={`M${ex.toFixed(1)} ${ey.toFixed(1)} L${(chipX - 4).toFixed(1)} ${cy.toFixed(1)}`} stroke={l.color} strokeWidth={1} opacity={0.6} fill="none" />
+                )}
+                <circle cx={ex} cy={ey} r={l.primary ? 4.5 : 3.5} fill={l.primary ? 'var(--surface-card)' : l.color} stroke={l.primary ? l.color : 'var(--surface-card)'} strokeWidth={2} />
+                <rect x={chipX} y={cy - CHIP_H / 2} width={chipW} height={CHIP_H} rx={CHIP_H / 2} fill={l.color} />
+                <text x={chipX + chipW / 2} y={cy + 3.6} textAnchor="middle" fontSize={10.5} fontWeight={700} fill="var(--surface-card)" className="tabular">
+                  {text}
+                </text>
+                <text
+                  x={chipX + chipW + 6}
+                  y={cy + 3.6}
+                  fontSize={10.5}
+                  fontWeight={l.primary ? 700 : 400}
+                  fill={l.primary ? 'var(--text-primary)' : 'var(--text-secondary)'}
+                >
+                  {name}
                 </text>
               </g>
-            )}
-          </g>
-        )}
+            );
+          })}
+        </g>
         {hover !== null && (
           <g pointerEvents="none">
             <line x1={x(hover)} x2={x(hover)} y1={TOP} y2={BOTTOM} stroke="var(--text-muted)" strokeWidth={0.8} />

@@ -342,6 +342,16 @@ export function mockApi(base: string): Plugin {
             const q = (url.searchParams.get('q') ?? '').toLowerCase();
             return send({ results: US_LISTINGS.filter((l) => l.ticker.toLowerCase().startsWith(q) || l.name.toLowerCase().includes(q)) });
           }
+          case '/sectors': {
+            const known: Record<string, string> = {
+              RELIANCE: 'Oil Gas & Consumable Fuels', TCS: 'Information Technology', INFY: 'Information Technology', HDFCBANK: 'Financial Services',
+              ICICIBANK: 'Financial Services', SBIN: 'Financial Services', ITC: 'Fast Moving Consumer Goods', LT: 'Construction', MARUTI: 'Automobile and Auto Components',
+              TATAMOTORS: 'Automobile and Auto Components', NIFTYBEES: 'ETF', 'US:AAPL': 'Technology', 'US:MSFT': 'Technology', 'US:NVDA': 'Technology',
+              'US:GOOGL': 'Communication Services', 'US:AMZN': 'Consumer Cyclical', 'US:TSLA': 'Consumer Cyclical', 'US:JPM': 'Financial Services', 'US:QQQ': 'ETF', 'US:SPY': 'ETF',
+            };
+            const symbols = (url.searchParams.get('symbols') ?? '').split(',').filter(Boolean);
+            return send({ sectors: Object.fromEntries(symbols.map((s) => [s, known[s] ?? null])) });
+          }
           case '/futures': {
             const symbol = url.searchParams.get('symbol') ?? '';
             return send({ symbol, contracts: mockFutures(symbol) });

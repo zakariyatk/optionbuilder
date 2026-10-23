@@ -30,14 +30,17 @@ import { marketOpen, NSE_SESSION, US_SESSION } from '../../lib/nse';
 import { buildDemoTransactions } from './demo';
 import { FxPanel } from './FxPanel';
 import { PerformanceChart, type ChartLine } from './PerformanceChart';
+import { SectorCards } from './SectorCards';
 import { TransactionDialog, type TxnDraft } from './TransactionDialog';
-import { useFuturesQuotes, useLiveQuotes, usePortfolios, usePriceHistory } from './usePortfolios';
+import { useFuturesQuotes, useLiveQuotes, usePortfolios, usePriceHistory, useSectors } from './usePortfolios';
 
 // ------------------------------------------------------------ settings
 
 interface Benchmark {
   key: string;
   label: string;
+  /** Shown in the chip at the end of its chart line. */
+  short: string;
   color: string;
   /** Priced in dollars — converted to rupees unless the user picks $. */
   usd: boolean;
@@ -45,13 +48,13 @@ interface Benchmark {
 
 /** Colours are the app's theme tokens, so both themes look right. */
 const BENCHMARKS: Benchmark[] = [
-  { key: 'NIFTY', label: 'NIFTY 50', color: 'var(--warning)', usd: false },
-  { key: 'QQQ', label: 'Nasdaq-100 (QQQ)', color: 'var(--series-violet)', usd: true },
-  { key: 'SP500', label: 'S&P 500', color: 'var(--good)', usd: true },
-  { key: 'BANKNIFTY', label: 'Bank Nifty', color: '#D4537E', usd: false },
-  { key: 'SENSEX', label: 'Sensex', color: '#D85A30', usd: false },
-  { key: 'DOW', label: 'Dow Jones', color: 'var(--text-muted)', usd: true },
-  { key: 'GOLD', label: 'Gold', color: '#BA7517', usd: true },
+  { key: 'NIFTY', label: 'NIFTY 50', short: 'NIFTY', color: 'var(--warning)', usd: false },
+  { key: 'QQQ', label: 'Nasdaq-100 (QQQ)', short: 'NDX', color: 'var(--series-violet)', usd: true },
+  { key: 'SP500', label: 'S&P 500', short: 'SPX', color: 'var(--good)', usd: true },
+  { key: 'BANKNIFTY', label: 'Bank Nifty', short: 'BANKNIFTY', color: '#D4537E', usd: false },
+  { key: 'SENSEX', label: 'Sensex', short: 'SENSEX', color: '#D85A30', usd: false },
+  { key: 'DOW', label: 'Dow Jones', short: 'DOW', color: 'var(--text-muted)', usd: true },
+  { key: 'GOLD', label: 'Gold', short: 'GOLD', color: '#BA7517', usd: true },
 ];
 const DEFAULT_BENCHMARKS = ['NIFTY', 'QQQ', 'SP500'];
 const PORTFOLIO_COLOR = 'var(--series-blue)';
@@ -234,6 +237,7 @@ export function PortfolioPage({ brokerConnected, symbols }: { brokerConnected: b
   const [allocView, setAllocView] = useState<AllocView>('all');
   /** Which market the holdings table shows; futures are NSE, so they count as India. */
   const [holdView, setHoldView] = useState<AllocView>('all');
+  const [sectorView, setSectorView] = useState<AllocView>('all');
   const [actionError, setActionError] = useState<string | null>(null);
   const [demoBusy, setDemoBusy] = useState(false);
 
@@ -262,6 +266,8 @@ export function PortfolioPage({ brokerConnected, symbols }: { brokerConnected: b
     [loaded, txns, settings.benchmarks],
   );
   const history = usePriceHistory(historySymbols, range);
+  const sectorSymbols = useMemo(() => (loaded ? [...new Set(txns.map((t) => t.symbol))] : []), [loaded, txns]);
+  const sectors = useSectors(sectorSymbols);
 
   const perf = useMemo(() => {
     const h = history.data;
@@ -285,7 +291,7 @@ export function PortfolioPage({ brokerConnected, symbols }: { brokerConnected: b
       const p = pts(b.key);
       if (!p) continue;
       const s = rebase(benchmarkSeries(p, calendar, b.usd ? usdinr : undefined), benchStart);
-      if (s.length > 1) lines.push({ key: b.key, label: b.label, color: b.color, points: s, ret: totalReturn(s) });
+      if (s.length > 1) lines.push({ key: b.key, label: b.label, short: b.short, color: b.color, points: s, ret: totalReturn(s) });
     }
     return { lines, portRet: lines.find((l) => l.primary)?.ret ?? null, missing: historySymbols.filter((s) => !h[s]) };
   }, [history.data, txns, settings, portfolio?.name, historySymbols]);
@@ -422,6 +428,11 @@ export function PortfolioPage({ brokerConnected, symbols }: { brokerConnected: b
   const sortedTxns = [...txns].sort((a, b) => b.date.localeCompare(a.date));
   const secsAgo = quotes.updatedAt ? Math.max(0, Math.round((now - quotes.updatedAt) / 1000)) : null;
 
+  // Sector cards for the chosen market.
+  const sectorHoldings = openStocks
+    .filter((h) => (sectorView === 'all' ? true : sectorView === 'US' ? h.currency === 'USD' : h.currency === 'INR'))
+    .map((h) => ({ symbol: h.symbol, us: h.currency === 'USD', value: values.get(h.symbol)!.value, invested: h.invested, pnl: values.get(h.symbol)!.pnl }));
+
   // Allocation for the chosen market.
   const inMarket = (h: StockHolding) => (allocView === 'all' ? true : allocView === 'US' ? h.currency === 'USD' : h.currency === 'INR');
   const allocHoldings = openStocks.filter(inMarket);
@@ -449,8 +460,6 @@ export function PortfolioPage({ brokerConnected, symbols }: { brokerConnected: b
       : allocView === 'IN'
         ? [`P&L ${signedInr(sumOf(india, (x) => x.pnl))}`, `Today ${signedInr(sumOf(india, (x) => x.dayPnl))}`]
         : [fx ? `≈ ${lakhs(sumOf(usa, (x) => x.value))} at ₹${fx.toFixed(2)}` : 'Waiting for USD/INR', `P&L ${signedInr(sumOf(usa, (x) => x.pnl))}`];
-
-  const periodLabel = settings.period === 'All' ? 'Since start' : settings.period;
 
   // Holdings table, narrowed to the chosen market.
   const showStock = (h: StockHolding) => holdView === 'all' || (holdView === 'US') === (h.currency === 'USD');
@@ -699,7 +708,7 @@ export function PortfolioPage({ brokerConnected, symbols }: { brokerConnected: b
                 ) : !perf ? (
                   <Skeleton className="h-64 w-full" />
                 ) : (
-                  <PerformanceChart lines={perf.lines} callout={perf.portRet == null ? undefined : `${periodLabel} ${pct(perf.portRet, 1)}`} />
+                  <PerformanceChart lines={perf.lines} />
                 )}
 
                 {perf && perf.portRet != null && perf.lines.length > 1 && (
@@ -721,6 +730,38 @@ export function PortfolioPage({ brokerConnected, symbols }: { brokerConnected: b
                 )}
                 {perf && perf.missing.length > 0 && (
                   <div className="mt-1 text-[11px] text-[var(--warning)]">No price history for {perf.missing.map(displaySymbol).join(', ')} — left out of the chart.</div>
+                )}
+
+                {/* Sector classification of the stocks held, by market. */}
+                {openStocks.length > 0 && (
+                  <div className="mt-4 border-t border-[var(--border)] pt-3">
+                    <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                      <h3 className="text-[11px] font-bold uppercase tracking-[0.1em]">Sector classification</h3>
+                      <Segmented
+                        label="Sector market"
+                        value={sectorView}
+                        onChange={setSectorView}
+                        options={[
+                          { v: 'all', label: 'All' },
+                          { v: 'IN', label: 'India' },
+                          { v: 'US', label: 'US' },
+                        ]}
+                      />
+                    </div>
+                    {sectorHoldings.length === 0 ? (
+                      <div className="py-4 text-center text-sm text-[var(--text-muted)]">No {sectorView === 'US' ? 'US' : 'Indian'} stocks held.</div>
+                    ) : (
+                      <SectorCards
+                        key={sectorView}
+                        holdings={sectorHoldings}
+                        sectors={sectors.error ? {} : (sectors.data ?? undefined)}
+                        bothMarkets={sectorView === 'all'}
+                        colors={ALLOC_COLORS}
+                        otherColor={OTHER_COLOR}
+                        formatValue={lakhs}
+                      />
+                    )}
+                  </div>
                 )}
               </div>
             </Panel>

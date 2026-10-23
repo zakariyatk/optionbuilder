@@ -97,6 +97,12 @@ export function useFuturesQuotes(keys: string[], brokerConnected: boolean) {
 }
 
 /** Daily closes for holdings and benchmarks. Fetched once per symbol set; the server caches for 6 h. */
+/** Sector per holding; the server caches lookups for a month, so this is one cheap call. */
+export function useSectors(symbols: string[]) {
+  const key = useMemo(() => [...new Set(symbols)].sort().join(','), [symbols]);
+  return useAsync(() => api.sectors(key.split(',')).then((r) => r.sectors), [key], { enabled: key !== '' });
+}
+
 export function usePriceHistory(symbols: string[], range: string) {
   const key = useMemo(() => [...new Set(symbols)].sort().join(','), [symbols]);
   return useAsync(() => api.history(key.split(','), range).then((r) => r.series), [key, range], { enabled: key !== '' });

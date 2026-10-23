@@ -155,6 +155,9 @@ export const api = {
   searchUs: (q: string) => get<{ results: UsSearchResult[] }>(`/api/search?q=${encodeURIComponent(q)}`),
   /** Every NSE stock and ETF matching a symbol or company name. Same result shape as searchUs, symbols without a prefix. */
   searchIndia: (q: string) => get<{ results: UsSearchResult[] }>(`/api/search?market=in&q=${encodeURIComponent(q)}`),
+  /** Sector of each holding (NSE industry, or Yahoo's sector for US stocks); null when unknown. */
+  sectors: (symbols: string[]) =>
+    get<{ sectors: Record<string, string | null> }>(`/api/sectors?symbols=${encodeURIComponent(symbols.join(','))}`),
   futures: (symbol: string) =>
     get<{ symbol: string; contracts: FutureContract[] }>(`/api/futures?symbol=${encodeURIComponent(symbol)}`),
 
