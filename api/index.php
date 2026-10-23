@@ -73,7 +73,29 @@ try {
     }
 
     if ($path === '/api/session' && $method === 'GET') {
-        ob_json(['authRequired' => !ob_auth_disabled(), 'loggedIn' => ob_is_logged_in()]);
+        ob_json([
+            'authRequired' => !ob_auth_disabled(),
+            'loggedIn' => ob_is_logged_in(),
+            // Public by design: the browser needs it to start a Supabase sign-in.
+            'supabase' => ob_supabase_public_config(),
+            'passwordLogin' => ob_password_login_enabled(),
+        ]);
+    }
+
+    if ($path === '/api/login/supabase' && $method === 'POST') {
+        $lockedFor = ob_login_locked_for();
+        if ($lockedFor > 0) {
+            header('Retry-After: ' . $lockedFor);
+            ob_error('Too many attempts. Try again in ' . (int) ceil($lockedFor / 60) . ' min.', 429);
+        }
+
+        $accessToken = (string) (ob_body()['access_token'] ?? '');
+        if (!ob_login_supabase($accessToken)) {
+            ob_login_record_failure();
+            ob_error('This account is not allowed to open Option Builder', 401);
+        }
+        ob_login_clear_failures();
+        ob_json(['ok' => true]);
     }
 
     if ($path === '/api/login' && $method === 'POST') {

@@ -2,14 +2,19 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/http.php';
 
 /**
- * Password gate.
+ * Login gate.
  *
  * The backend holds a live broker token, so every route except /api/health,
- * /api/session and the login endpoint requires a session. One shared password,
- * set in the config file — this is a single-user app, so accounts would be
- * ceremony without benefit.
+ * /api/session and the login endpoints requires a session. Two ways in, set in
+ * the config file — this is a single-user app, so accounts would be ceremony
+ * without benefit:
+ *   - Supabase Auth (email code, or Google), limited to the addresses in
+ *     allowed_emails. When it is configured it replaces the password: the
+ *     password login is switched off.
+ *   - One shared password, used only while Supabase sign-in is not configured.
  */
 
 /** Failed logins allowed per IP inside the window before it is locked out. */
@@ -54,6 +59,52 @@ function ob_password_configured(): bool
     return ob_config_get('app_password', '') !== '' || ob_config_get('app_password_hash', '') !== '';
 }
 
+/** Lower-cased addresses allowed to sign in through Supabase. */
+function ob_allowed_emails(): array
+{
+    $emails = ob_config_get('allowed_emails', []);
+    if (is_string($emails)) {
+        $emails = explode(',', $emails);
+    }
+    return array_values(array_filter(array_map(
+        static fn($e): string => strtolower(trim((string) $e)),
+        (array) $emails
+    )));
+}
+
+function ob_supabase_configured(): bool
+{
+    return ob_config_get('supabase_url', '') !== ''
+        && ob_config_get('supabase_key', '') !== ''
+        && ob_allowed_emails() !== [];
+}
+
+/** What the browser needs to start a Supabase sign-in. All of it is public. */
+function ob_supabase_public_config(): ?array
+{
+    if (!ob_supabase_configured()) {
+        return null;
+    }
+    return [
+        'url' => rtrim((string) ob_config_get('supabase_url'), '/'),
+        'key' => (string) ob_config_get('supabase_key'),
+        // Only once the Google provider is enabled in the Supabase dashboard.
+        'google' => (bool) ob_config_get('supabase_google', false),
+    ];
+}
+
+/** True when some login method is set up, so the gate is on. */
+function ob_login_configured(): bool
+{
+    return ob_supabase_configured() || ob_password_configured();
+}
+
+/** The password form is offered only while Supabase sign-in isn't set up. */
+function ob_password_login_enabled(): bool
+{
+    return ob_password_configured() && !ob_supabase_configured();
+}
+
 /**
  * True when no password is configured — the gate is then disabled.
  *
@@ -63,7 +114,7 @@ function ob_password_configured(): bool
  */
 function ob_auth_disabled(): bool
 {
-    return !ob_password_configured() && ob_is_local_request();
+    return !ob_login_configured() && ob_is_local_request();
 }
 
 /**
@@ -72,12 +123,12 @@ function ob_auth_disabled(): bool
  */
 function ob_require_configured_password(): void
 {
-    if (!ob_password_configured() && !ob_is_local_request()) {
+    if (!ob_login_configured() && !ob_is_local_request()) {
         http_response_code(503);
         header('Content-Type: application/json');
         echo json_encode([
             'error' => 'NOT_CONFIGURED',
-            'detail' => 'Set app_password_hash in the config file. The backend will not serve remote requests without one.',
+            'detail' => 'Set supabase_url + supabase_key + allowed_emails (or app_password_hash) in the config file. The backend will not serve remote requests without one.',
         ]);
         exit;
     }
@@ -185,17 +236,78 @@ function ob_password_matches(string $password): bool
 
 function ob_login(string $password): bool
 {
-    if (!ob_password_configured()) {
+    if (!ob_login_configured()) {
         return true;
     }
-    if (!ob_password_matches($password)) {
+    if (!ob_password_login_enabled() || !ob_password_matches($password)) {
         return false;
     }
+    ob_start_authed_session();
+    return true;
+}
 
+function ob_start_authed_session(?string $email = null): void
+{
     ob_session_start();
     session_regenerate_id(true); // don't let a pre-set session id be reused
     $_SESSION['ob_authed'] = true;
     $_SESSION['ob_authed_at'] = time();
+    $_SESSION['ob_email'] = $email;
+}
+
+/**
+ * Check a Supabase access token and return its email, or null.
+ *
+ * Asking Supabase's /auth/v1/user for the token's owner verifies the signature,
+ * expiry and revocation in one call, so no JWT secret or key set lives here.
+ * The Supabase project may serve other apps with other users, so the address
+ * must also be confirmed and on this app's allowlist.
+ */
+function ob_supabase_verify(string $accessToken): ?string
+{
+    if ($accessToken === '' || strlen($accessToken) > 8192) {
+        return null;
+    }
+    try {
+        $res = ob_http_request(
+            'GET',
+            rtrim((string) ob_config_get('supabase_url'), '/') . '/auth/v1/user',
+            [
+                'Accept' => 'application/json',
+                'apikey' => (string) ob_config_get('supabase_key'),
+                'Authorization' => 'Bearer ' . $accessToken,
+            ],
+            null,
+            15
+        );
+    } catch (Throwable) {
+        return null;
+    }
+    if ($res['status'] !== 200) {
+        return null;
+    }
+    $u = json_decode($res['body'], true);
+    if (!is_array($u)) {
+        return null;
+    }
+
+    $email = strtolower((string) ($u['email'] ?? ''));
+    $ok = $email !== ''
+        && !empty($u['email_confirmed_at'])
+        && in_array($email, ob_allowed_emails(), true);
+    return $ok ? $email : null;
+}
+
+function ob_login_supabase(string $accessToken): bool
+{
+    if (!ob_supabase_configured()) {
+        return false;
+    }
+    $email = ob_supabase_verify($accessToken);
+    if ($email === null) {
+        return false;
+    }
+    ob_start_authed_session($email);
     return true;
 }
 

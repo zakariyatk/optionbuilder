@@ -7,6 +7,7 @@ import { parseRoute, routeHash, type PageId, type Route } from './components/tab
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { LegsTable } from './components/LegsTable';
 import { LoginGate } from './components/LoginGate';
+import { isAuthRedirect } from './api/supabase';
 import { MarketBar } from './components/MarketBar';
 import { MetricsPanel } from './components/MetricsPanel';
 import { OptionChainTable } from './components/OptionChainTable';
@@ -57,7 +58,8 @@ const MARKET_PAGES: PageId[] = ['builder', 'chain', 'report'];
 export default function App() {
   const [session, setSession] = useState<Session | null>(null);
   const [unreachable, setUnreachable] = useState(false);
-  const [signingIn, setSigningIn] = useState(false);
+  // Coming back from a magic link or Google goes straight to the login gate, which finishes the sign-in.
+  const [signingIn, setSigningIn] = useState(isAuthRedirect);
 
   const check = useCallback(() => {
     api
@@ -84,7 +86,16 @@ export default function App() {
   }
   if (session === null) return null;
   if (!session.loggedIn) {
-    if (signingIn) return <LoginGate onSuccess={check} onBack={() => setSigningIn(false)} />;
+    if (signingIn) {
+      return (
+        <LoginGate
+          supabase={session.supabase ?? null}
+          passwordLogin={session.passwordLogin ?? true}
+          onSuccess={check}
+          onBack={() => setSigningIn(false)}
+        />
+      );
+    }
     return (
       <Suspense fallback={null}>
         <Landing

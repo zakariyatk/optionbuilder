@@ -6,6 +6,17 @@
       "runtimeExecutable": "npm",
       "runtimeArgs": ["--prefix", "frontend", "run", "dev:mock"],
       "port": 5173
+    },
+    {
+      "name": "option-builder-mock-supabase",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "frontend", "run", "dev:mock"],
+      "port": 5173,
+      "env": {
+        "MOCK_SUPABASE_URL": "https://zqwuztvbpfifmkwtjyyk.supabase.co",
+        "MOCK_SUPABASE_KEY": "sb_publishable_Fbq7nPSUye9pQk-ogc0ybg_0l9YAENi",
+        "MOCK_SUPABASE_GOOGLE": "1"
+      }
     }
   ]
 }

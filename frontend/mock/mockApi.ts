@@ -278,8 +278,14 @@ export function mockApi(base: string): Plugin {
           res.end(JSON.stringify(body));
         };
 
-        if (route === '/session') return send({ authRequired: true, loggedIn });
-        if (route === '/login' && req.method === 'POST') {
+        if (route === '/session') {
+          // MOCK_SUPABASE_URL + MOCK_SUPABASE_KEY switch the gate to Supabase sign-in against a real project.
+          const supabase = process.env.MOCK_SUPABASE_URL && process.env.MOCK_SUPABASE_KEY
+            ? { url: process.env.MOCK_SUPABASE_URL, key: process.env.MOCK_SUPABASE_KEY, google: process.env.MOCK_SUPABASE_GOOGLE === '1' }
+            : null;
+          return send({ authRequired: true, loggedIn, supabase, passwordLogin: !supabase });
+        }
+        if ((route === '/login' || route === '/login/supabase') && req.method === 'POST') {
           // Any non-empty password opens the mock — there is nothing to protect.
           loggedIn = true;
           return send({ ok: true });

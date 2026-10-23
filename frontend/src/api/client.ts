@@ -104,6 +104,7 @@ const post = <T>(path: string, payload: unknown) =>
 export const api = {
   session: () => get<Session>('/api/session'),
   login: (password: string) => post<{ ok: true }>('/api/login', { password }),
+  loginSupabase: (accessToken: string) => post<{ ok: true }>('/api/login/supabase', { access_token: accessToken }),
   logout: () => post<{ ok: true }>('/api/logout', {}),
 
   authStatus: () => get<AuthStatus>('/api/auth/status'),

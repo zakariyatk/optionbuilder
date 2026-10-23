@@ -76,7 +76,26 @@ root** as `optionbuilder-config.php` (on Hostinger: `/home/<user>/domains/<domai
 where it can never be served. `api/config.php` also works (blocked by `.htaccess`),
 or point `OB_CONFIG_FILE` at it.
 
-Store a password **hash**, not the password:
+**Supabase sign-in (recommended).** Set `supabase_url`, `supabase_key` (the
+project's publishable or anon key, never the secret one) and `allowed_emails`.
+The login page then asks for an email and sends a sign-in code / magic link, and
+the password login is switched off. The backend checks each Supabase access
+token with Supabase and only lets in the listed addresses, so the project can
+be shared with other apps. Accounts are never created from this app.
+
+In the Supabase dashboard:
+- Authentication → URL Configuration → **Redirect URLs**: add
+  `https://optionbuilder.adddots.com/**` (and `http://localhost:5173/**` for development).
+- Optional, for a typed code instead of only a link: Authentication → Emails →
+  *Magic Link* template, include `{{ .Token }}`.
+- Optional, Google: enable the Google provider (it needs a Google Cloud OAuth
+  client with the Supabase callback URL), then set `supabase_google => true`.
+
+To try it with the mock backend, set `MOCK_SUPABASE_URL` and `MOCK_SUPABASE_KEY`
+before `npm run dev:mock`.
+
+**Password (fallback).** Used only while Supabase sign-in is not set up. Store a
+password **hash**, not the password:
 
 ```bash
 php -r "echo password_hash('your-password', PASSWORD_DEFAULT), PHP_EOL;"
@@ -100,9 +119,11 @@ The server needs PHP 8.1+ with cURL, and `api/data/` (or your `data_dir`) writab
 
 ## Security model
 
-- Single shared password (bcrypt hash supported), sessions expire after 12 h,
+- Supabase sign-in (email code / magic link, optional Google) limited to an email
+  allowlist, the token checked server-side with Supabase, or a single shared password
+  (bcrypt hash supported) when Google is not set up. Sessions expire after 12 h,
   5 failed logins per IP lock that IP out for 15 minutes.
-- The backend refuses remote requests if no password is configured.
+- The backend refuses remote requests if no login method is configured.
 - Upstox OAuth uses a `state` parameter bound to the session.
 - POST routes require `X-Requested-With` and a same-origin `Origin` (CSRF), on top
   of `SameSite=Lax` session cookies.

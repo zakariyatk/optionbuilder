@@ -3,6 +3,18 @@
 export interface Session {
   authRequired: boolean;
   loggedIn: boolean;
+  /** Set when Supabase sign-in is configured; the login gate then offers email code / Google. */
+  supabase?: SupabaseConfig | null;
+  /** False once Supabase sign-in has replaced the password. */
+  passwordLogin?: boolean;
+}
+
+export interface SupabaseConfig {
+  url: string;
+  /** Publishable (anon) key — public by design. */
+  key: string;
+  /** The Google provider is enabled in the Supabase project. */
+  google: boolean;
 }
 
 export interface SymbolInfo {
