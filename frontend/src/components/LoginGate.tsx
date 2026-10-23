@@ -1,17 +1,139 @@
-import { useCallback, useEffect, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
+import { ArrowLeft, ArrowRight, Check, Lock, Mail } from 'lucide-react';
 import { api, errorMessage } from '../api/client';
 import { authRedirectUrl, clearAuthRedirect, isAuthRedirect, supabaseAuth } from '../api/supabase';
 import type { SupabaseConfig } from '../api/types';
+import { Logo } from './Logo';
+
+const CODE_LENGTH = 6;
+/** Supabase refuses a new code for about a minute after the last one. */
+const RESEND_AFTER_S = 60;
 
 const FIELD =
-  'mt-1 w-full border border-[var(--border)] bg-transparent px-3 py-2.5 text-sm normal-case tracking-normal text-[var(--text-primary)]';
-const LABEL = 'block text-left text-[9px] uppercase tracking-[0.14em] text-[var(--text-secondary)]';
+  'h-[42px] w-full rounded-lg border border-[var(--border-strong)] bg-[var(--surface-page)] pl-9 pr-3 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:border-[var(--accent)] focus:outline-none focus:ring-2 focus:ring-[color-mix(in_srgb,var(--accent)_30%,transparent)]';
 const PRIMARY =
-  'mt-4 min-h-11 w-full bg-[var(--accent)] px-3 py-2 text-[11px] font-bold uppercase tracking-[0.16em] text-[var(--accent-text)] hover:opacity-90 disabled:opacity-50';
-const SECONDARY =
-  'mt-3 min-h-11 w-full text-[11px] uppercase tracking-[0.14em] text-[var(--text-secondary)] hover:text-[var(--text-primary)]';
+  'mt-3 flex h-[42px] w-full items-center justify-center gap-2 rounded-lg bg-[var(--accent)] text-sm font-medium text-[var(--accent-text)] hover:opacity-90 disabled:opacity-50';
+const LINK = 'inline-flex items-center gap-1 text-xs text-[var(--text-muted)] hover:text-[var(--text-primary)] disabled:hover:text-[var(--text-muted)]';
 
 type Step = 'email' | 'code';
+
+/** Faint candles behind the card, in the theme's blue and its ink colour. Fixed, so the page doesn't shift between renders. */
+const CANDLES = Array.from({ length: 42 }, (_, i) => {
+  const h = 20 + Math.abs(Math.sin(i * 0.7)) * 50;
+  return { x: 10 + i * 16, h, y: 150 - Math.sin(i * 0.25) * 60 - h / 2, up: Math.sin(i * 1.3) > -0.2 };
+});
+
+function Backdrop() {
+  return (
+    <svg viewBox="0 0 680 300" preserveAspectRatio="none" className="pointer-events-none absolute inset-0 h-full w-full" aria-hidden="true">
+      {CANDLES.map((c, i) => {
+        const color = c.up ? 'var(--series-blue)' : 'var(--text-primary)';
+        return (
+          <g key={i}>
+            <line x1={c.x + 4} x2={c.x + 4} y1={c.y - 10} y2={c.y + c.h + 10} stroke={color} opacity={c.up ? 0.4 : 0.22} />
+            <rect x={c.x} y={c.y} width={8} height={c.h} rx={1} fill={color} opacity={c.up ? 0.3 : 0.14} />
+          </g>
+        );
+      })}
+    </svg>
+  );
+}
+
+/** The page around the sign-in card: candle backdrop, the logo top-left, the disclaimer at the foot. */
+function Shell({ subtitle, children }: { subtitle: string; children: ReactNode }) {
+  return (
+    <main className="relative flex min-h-[calc(100dvh-64px)] items-center justify-center overflow-hidden bg-[var(--surface-page)] px-4 py-16">
+      <Backdrop />
+      <div className="absolute top-4 left-4 flex items-center gap-2">
+        <Logo size={28} />
+        <span className="text-[13px] font-semibold tracking-[0.06em]">OPTION BUILDER</span>
+      </div>
+      <span className="absolute top-4 right-4 text-xs text-[var(--text-muted)]">ADD DOTS</span>
+      <div className="relative w-full max-w-[22rem] rounded-2xl border border-[var(--border-strong)] bg-[color-mix(in_srgb,var(--surface-card)_86%,transparent)] p-6 backdrop-blur-sm">
+        <div className="flex items-center gap-3">
+          <Logo size={44} />
+          <div>
+            <h1 className="text-[17px] font-semibold leading-tight">Sign in</h1>
+            <p className="text-xs text-[var(--text-muted)]">{subtitle}</p>
+          </div>
+        </div>
+        {children}
+      </div>
+      <p className="absolute right-0 bottom-3 left-0 text-center text-[11px] text-[var(--text-muted)]">An analysis tool, not investment advice.</p>
+    </main>
+  );
+}
+
+/** "1 · Enter email  2 · Enter code", with the done step ticked. */
+function Steps({ step }: { step: Step }) {
+  const items: { key: Step; label: string }[] = [
+    { key: 'email', label: 'Enter email' },
+    { key: 'code', label: 'Enter code' },
+  ];
+  const current = items.findIndex((s) => s.key === step);
+  return (
+    <ol className="mt-[18px] mb-4 flex gap-2 text-xs">
+      {items.map((s, i) => (
+        <li
+          key={s.key}
+          aria-current={i === current ? 'step' : undefined}
+          className={`flex flex-1 items-center gap-1 rounded-md px-2 py-1.5 ${
+            i === current
+              ? 'bg-[color-mix(in_srgb,var(--accent)_18%,transparent)] text-[var(--accent)]'
+              : i < current
+                ? 'border border-[var(--border-strong)] text-[var(--good-text)]'
+                : 'border border-[var(--border-strong)] text-[var(--text-muted)]'
+          }`}
+        >
+          {i < current ? <Check size={13} aria-hidden="true" /> : `${i + 1} ·`} {s.label}
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+/** Six boxes over one real input, so typing, pasting and the phone's "from Messages" autofill all just work. */
+function CodeBoxes({ value, onChange, invalid }: { value: string; onChange: (v: string) => void; invalid: boolean }) {
+  const ref = useRef<HTMLInputElement>(null);
+  const [focused, setFocused] = useState(true);
+  return (
+    <div className="relative" onClick={() => ref.current?.focus()}>
+      <input
+        ref={ref}
+        value={value}
+        onChange={(e) => onChange(e.target.value.replace(/\D/g, '').slice(0, CODE_LENGTH))}
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
+        autoFocus
+        inputMode="numeric"
+        autoComplete="one-time-code"
+        aria-label={`${CODE_LENGTH}-digit code`}
+        aria-invalid={invalid || undefined}
+        aria-describedby={invalid ? 'login-error' : undefined}
+        className="absolute inset-0 h-full w-full cursor-text opacity-0"
+      />
+      <div className="flex justify-between gap-2" aria-hidden="true">
+        {Array.from({ length: CODE_LENGTH }, (_, i) => {
+          const active = focused && (i === value.length || (i === CODE_LENGTH - 1 && value.length === CODE_LENGTH));
+          return (
+            <span
+              key={i}
+              className={`flex h-[46px] w-[40px] items-center justify-center rounded-lg border bg-[var(--surface-page)] text-xl font-semibold tabular ${
+                active
+                  ? 'border-[var(--accent)] ring-2 ring-[color-mix(in_srgb,var(--accent)_30%,transparent)]'
+                  : invalid
+                    ? 'border-[var(--critical)]'
+                    : 'border-[var(--border-strong)]'
+              }`}
+            >
+              {value[i] ?? ''}
+            </span>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 export function LoginGate({
   supabase,
@@ -30,6 +152,14 @@ export function LoginGate({
   const [step, setStep] = useState<Step>('email');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  /** Seconds until another code may be sent. */
+  const [wait, setWait] = useState(0);
+
+  useEffect(() => {
+    if (wait <= 0) return;
+    const t = window.setTimeout(() => setWait((w) => w - 1), 1000);
+    return () => window.clearTimeout(t);
+  }, [wait]);
 
   /** Hand the Supabase token to the backend, which opens the app session; then drop Supabase's own. */
   const finish = useCallback(
@@ -46,7 +176,7 @@ export function LoginGate({
     [supabase, onSuccess],
   );
 
-  // Return leg of a magic link or Google: supabase-js exchanges the ?code= on load.
+  // Return leg of a sign-in link (still sent alongside the code): supabase-js exchanges the ?code= on load.
   useEffect(() => {
     if (!supabase || !isAuthRedirect()) return;
     let cancelled = false;
@@ -59,7 +189,7 @@ export function LoginGate({
         const sb = await supabaseAuth(supabase);
         const { data, error: err } = await sb.auth.getSession();
         if (err) throw err;
-        if (!data.session) throw new Error('The sign-in link has expired. Request a new one.');
+        if (!data.session) throw new Error('The sign-in link has expired. Request a new code.');
         await finish(data.session.access_token);
       } catch (err) {
         if (!cancelled) setError(errorMessage(err) || 'Sign-in failed');
@@ -99,10 +229,9 @@ export function LoginGate({
     }, 'Login failed');
   };
 
-  const sendCode = (e: FormEvent) => {
-    e.preventDefault();
-    if (!supabase || !email.trim()) return;
-    void run(async () => {
+  const sendCode = () =>
+    run(async () => {
+      if (!supabase) return;
       const sb = await supabaseAuth(supabase);
       const { error: err } = await sb.auth.signInWithOtp({
         email: email.trim(),
@@ -110,122 +239,95 @@ export function LoginGate({
         options: { shouldCreateUser: false, emailRedirectTo: authRedirectUrl() },
       });
       if (err) throw err;
+      setCode('');
       setStep('code');
+      setWait(RESEND_AFTER_S);
     }, 'Could not send the code');
-  };
 
-  const verifyCode = (e: FormEvent) => {
-    e.preventDefault();
-    if (!supabase || !code.trim()) return;
+  const verifyCode = (e?: FormEvent) => {
+    e?.preventDefault();
+    if (!supabase || code.length !== CODE_LENGTH) return;
     void run(async () => {
       const sb = await supabaseAuth(supabase);
-      const { data, error: err } = await sb.auth.verifyOtp({ email: email.trim(), token: code.trim(), type: 'email' });
-      if (err) throw err;
+      const { data, error: err } = await sb.auth.verifyOtp({ email: email.trim(), token: code, type: 'email' });
+      if (err) {
+        setCode('');
+        throw err;
+      }
       if (!data.session) throw new Error('Code not accepted. Request a new one.');
       await finish(data.session.access_token);
     }, 'Code not accepted');
   };
 
-  const signInWithGoogle = () => {
-    if (!supabase) return;
-    void run(async () => {
-      const sb = await supabaseAuth(supabase);
-      const { error: err } = await sb.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: authRedirectUrl() } });
-      if (err) throw err;
-      // The browser now leaves for Google; keep the button disabled until it does.
-      await new Promise(() => undefined);
-    }, 'Google sign-in failed');
-  };
-
   const errorBox = error && (
-    <div id="login-error" role="alert" className="mt-2 text-left text-[11px] text-[var(--critical)]">
+    <p id="login-error" role="alert" className="mt-2 text-left text-xs text-[var(--critical)]">
       {error}
-    </div>
-  );
-
-  const card = 'w-full max-w-[22rem] border border-[var(--border)] bg-[var(--surface-card)] px-[30px] pt-[34px] pb-[30px] text-center';
-  const header = (subtitle: string) => (
-    <>
-      <div className="ad-mark" aria-hidden="true">
-        AD
-      </div>
-      <h1 className="ob-title text-[1.6rem]">Option Builder</h1>
-      <p className="ob-sub mt-2 mb-[26px]">ADD DOTS · {subtitle}</p>
-    </>
+    </p>
   );
   const back = onBack && (
-    <button type="button" onClick={onBack} className={SECONDARY}>
-      ← Back
+    <button type="button" onClick={onBack} className={`${LINK} mt-4`}>
+      <ArrowLeft size={13} aria-hidden="true" /> Back
     </button>
   );
 
   if (supabase && !passwordLogin) {
     return (
-      <main className="flex min-h-[calc(100vh-64px)] items-center justify-center px-4">
-        <div className={card}>
-          {header(step === 'email' ? 'Sign in to continue' : 'Check your email')}
-
-          {supabase.google && step === 'email' && (
-            <>
-              <button
-                type="button"
-                onClick={signInWithGoogle}
-                disabled={busy}
-                className="flex min-h-11 w-full items-center justify-center gap-2 border border-[var(--border)] px-3 py-2 text-sm text-[var(--text-primary)] hover:bg-[var(--surface-hover,transparent)] disabled:opacity-50"
-              >
-                <GoogleMark />
-                Continue with Google
-              </button>
-              <div className="my-4 text-[9px] uppercase tracking-[0.14em] text-[var(--text-muted)]">or</div>
-            </>
-          )}
-
-          {step === 'email' ? (
-            <form onSubmit={sendCode}>
-              <label className={LABEL}>
-                Email
-                <input
-                  type="email"
-                  value={email}
-                  autoFocus
-                  autoComplete="email"
-                  inputMode="email"
-                  onChange={(e) => setEmail(e.target.value)}
-                  aria-invalid={error ? true : undefined}
-                  aria-describedby={error ? 'login-error' : undefined}
-                  className={FIELD}
-                />
-              </label>
-              {errorBox}
-              <button type="submit" disabled={busy || email.trim() === ''} className={PRIMARY}>
-                {busy ? 'Please wait…' : 'Email me a code'}
-              </button>
-            </form>
-          ) : (
-            <form onSubmit={verifyCode}>
-              <p className="mb-4 text-left text-xs text-[var(--text-secondary)]">
-                We sent a sign-in email to <strong className="text-[var(--text-primary)]">{email.trim()}</strong>. Enter
-                the code from it, or just tap the link in the email.
-              </p>
-              <label className={LABEL}>
-                Code
-                <input
-                  type="text"
-                  value={code}
-                  autoFocus
-                  autoComplete="one-time-code"
-                  inputMode="numeric"
-                  maxLength={10}
-                  onChange={(e) => setCode(e.target.value.replace(/\s/g, ''))}
-                  aria-invalid={error ? true : undefined}
-                  aria-describedby={error ? 'login-error' : undefined}
-                  className={`${FIELD} tracking-[0.3em]`}
-                />
-              </label>
-              {errorBox}
-              <button type="submit" disabled={busy || code.trim() === ''} className={PRIMARY}>
-                {busy ? 'Checking…' : 'Open'}
-              </button>
+      <Shell subtitle="to your Option Builder workspace">
+        <Steps step={step} />
+        {step === 'email' ? (
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (email.trim()) void sendCode();
+            }}
+          >
+            <label htmlFor="login-email" className="mb-1.5 block text-xs text-[var(--text-secondary)]">
+              Email
+            </label>
+            <div className="relative">
+              <Mail size={16} className="pointer-events-none absolute top-[13px] left-3 text-[var(--text-muted)]" aria-hidden="true" />
+              <input
+                id="login-email"
+                type="email"
+                value={email}
+                autoFocus
+                autoComplete="email"
+                inputMode="email"
+                placeholder="you@gmail.com"
+                onChange={(e) => setEmail(e.target.value)}
+                aria-invalid={error ? true : undefined}
+                aria-describedby={error ? 'login-error' : undefined}
+                className={FIELD}
+              />
+            </div>
+            {errorBox}
+            <button type="submit" disabled={busy || email.trim() === ''} className={PRIMARY}>
+              {busy ? 'Sending…' : 'Send code'}
+              {!busy && <ArrowRight size={16} aria-hidden="true" />}
+            </button>
+            <p className="mt-3 flex items-center gap-1.5 text-xs text-[var(--text-muted)]">
+              <Lock size={13} aria-hidden="true" /> Only approved emails can sign in
+            </p>
+          </form>
+        ) : (
+          <form onSubmit={verifyCode}>
+            <p className="mb-3 text-[13px] text-[var(--text-secondary)]">
+              We sent a {CODE_LENGTH}-digit code to <span className="text-[var(--text-primary)]">{email.trim()}</span>
+            </p>
+            <CodeBoxes
+              value={code}
+              invalid={!!error}
+              onChange={(v) => {
+                setCode(v);
+                if (error) setError(null);
+              }}
+            />
+            {errorBox}
+            <button type="submit" disabled={busy || code.length !== CODE_LENGTH} className={PRIMARY}>
+              {busy ? 'Checking…' : 'Verify & open'}
+              {!busy && <ArrowRight size={16} aria-hidden="true" />}
+            </button>
+            <div className="mt-3 flex items-center justify-between">
               <button
                 type="button"
                 onClick={() => {
@@ -233,25 +335,31 @@ export function LoginGate({
                   setCode('');
                   setError(null);
                 }}
-                className={SECONDARY}
+                className={LINK}
               >
-                Use a different email
+                <ArrowLeft size={13} aria-hidden="true" /> Change email
               </button>
-            </form>
-          )}
-          {back}
-        </div>
-      </main>
+              <button type="button" disabled={busy || wait > 0} onClick={() => void sendCode()} className={LINK}>
+                {wait > 0 ? `Resend in 0:${String(wait).padStart(2, '0')}` : 'Resend code'}
+              </button>
+            </div>
+          </form>
+        )}
+        {back}
+      </Shell>
     );
   }
 
   return (
-    <main className="flex min-h-[calc(100vh-64px)] items-center justify-center px-4">
-      <form onSubmit={submitPassword} className={card}>
-        {header('Enter your password')}
-        <label className={LABEL}>
+    <Shell subtitle="Enter your password">
+      <form onSubmit={submitPassword} className="mt-5">
+        <label htmlFor="login-password" className="mb-1.5 block text-xs text-[var(--text-secondary)]">
           Password
+        </label>
+        <div className="relative">
+          <Lock size={16} className="pointer-events-none absolute top-[13px] left-3 text-[var(--text-muted)]" aria-hidden="true" />
           <input
+            id="login-password"
             type="password"
             value={password}
             autoFocus
@@ -261,24 +369,14 @@ export function LoginGate({
             aria-describedby={error ? 'login-error' : undefined}
             className={FIELD}
           />
-        </label>
+        </div>
         {errorBox}
         <button type="submit" disabled={busy || password === ''} className={PRIMARY}>
           {busy ? 'Checking…' : 'Open'}
+          {!busy && <ArrowRight size={16} aria-hidden="true" />}
         </button>
-        {back}
       </form>
-    </main>
-  );
-}
-
-function GoogleMark() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true">
-      <path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z" />
-      <path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z" />
-      <path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-7.9l-6.5 5C9.5 39.6 16.2 44 24 44z" />
-      <path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z" />
-    </svg>
+      {back}
+    </Shell>
   );
 }
