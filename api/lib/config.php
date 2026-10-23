@@ -56,7 +56,23 @@ function ob_config(): array
     }
 
     $file = ob_config_file();
-    $loaded = $file !== null ? require $file : [];
+    $loaded = [];
+    if ($file !== null) {
+        // A file missing its `<?php return [` is echoed as plain text by PHP,
+        // which would publish whatever secrets it holds. Swallow any output
+        // and treat the file as invalid instead.
+        ob_start();
+        try {
+            $loaded = require $file;
+        } catch (Throwable) {
+            $loaded = null;
+        } finally {
+            ob_end_clean();
+        }
+        if (!is_array($loaded)) {
+            ob_config_invalid_file($file);
+        }
+    }
     $config = is_array($loaded) ? $loaded : [];
 
     return $config += [
@@ -75,6 +91,39 @@ function ob_config(): array
         // Sessions expire after this many hours even if the tab stays open.
         'session_hours' => 12,
     ];
+}
+
+/** Remembers (and returns) a config file that exists but doesn't return an array. */
+function ob_config_invalid_file(?string $set = null): ?string
+{
+    static $invalid = null;
+    if ($set !== null) {
+        $invalid = $set;
+    }
+    return $invalid;
+}
+
+/**
+ * Hard stop when the config file is broken: say which file and what it must
+ * look like, rather than run with no settings and fail somewhere confusing.
+ */
+function ob_require_valid_config(): void
+{
+    ob_config();
+    $file = ob_config_invalid_file();
+    if ($file === null) {
+        return;
+    }
+    // Name the file relative to its domain folder, not the full server path.
+    $shown = preg_replace('#^.*/(domains/[^/]+/)#', '$1', str_replace('\\', '/', $file));
+    http_response_code(503);
+    header('Content-Type: application/json');
+    echo json_encode([
+        'error' => 'CONFIG_INVALID',
+        'detail' => "The config file $shown is not valid. It must start with <?php and return [ ... ]; "
+            . 'with every setting inside the brackets (see api/config.example.php).',
+    ]);
+    exit;
 }
 
 function ob_config_get(string $key, mixed $default = null): mixed

@@ -62,6 +62,8 @@ header('Referrer-Policy: same-origin');
 header('X-Frame-Options: DENY');
 
 try {
+    // A config file that doesn't parse to settings stops everything, loudly.
+    ob_require_valid_config();
     // Refuse to serve a public deployment that has no password configured.
     ob_require_configured_password();
     // Every POST must come from this app's own pages.
