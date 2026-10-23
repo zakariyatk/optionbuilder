@@ -73,7 +73,7 @@ export interface OptionChain {
 
 export interface AuthStatus {
   configured: boolean;
-  /** Today's Upstox login is active (needed for margin and positions). */
+  /** Today's Upstox login is active (needed for broker margin). */
   authenticated: boolean;
   /** Live quotes, candles and chains are available — via the login or the analytics token. */
   marketData?: boolean;
@@ -162,23 +162,6 @@ export interface Quotes {
   /** Last traded price per Upstox instrument key. */
   quotes: Record<string, number>;
   at: number;
-}
-
-export interface BrokerPosition {
-  instrumentKey: string;
-  symbol: string;
-  exchange: string;
-  product: string;
-  /** Net quantity: positive long, negative short, 0 closed for the day. */
-  quantity: number;
-  averagePrice: number;
-  buyPrice: number;
-  sellPrice: number;
-  ltp: number;
-  closePrice: number;
-  pnl: number;
-  realised: number;
-  unrealised: number;
 }
 
 export interface DraftLeg {

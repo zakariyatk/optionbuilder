@@ -150,7 +150,6 @@ function ProductPreview() {
           <span className="is-active">Strategy Builder</span>
           <span>Analyse</span>
           <span>Watchlist</span>
-          <span>Positions</span>
         </span>
         <span className="lp-avatar">Z</span>
       </div>
@@ -286,7 +285,7 @@ const FEATURES = [
   { icon: ICON.gear, title: 'Strategy Builder', text: 'Add legs straight from the live option chain, from one-click templates, or by hand — options, futures and stock.' },
   { icon: ICON.chart, title: 'Payoff Charts', text: 'Expiry and target-date curves with breakevens, so you see profit, loss and risk before you trade.' },
   { icon: ICON.bars, title: 'Greeks & Analytics', text: 'Position Delta, Gamma, Theta and Vega, risk/reward and broker margin for the whole strategy.' },
-  { icon: ICON.pie, title: 'Positions & Drafts', text: 'Save strategies as drafts, track their live P&L, and follow your broker positions in one place.' },
+  { icon: ICON.pie, title: 'Drafts & Portfolio', text: 'Save strategies as drafts, track their live P&L, and follow your holdings in one place.' },
 ];
 
 const MORE = [

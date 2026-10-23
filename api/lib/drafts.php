@@ -207,32 +207,3 @@ function ob_upstox_ltp(array $keys): array
     }
     return $out;
 }
-
-/** The day's broker positions, trimmed to what the Positions page shows. */
-function ob_upstox_positions(): array
-{
-    $res = ob_upstox_get('/portfolio/short-term-positions');
-    $f = static fn(array $p, string $k): float => is_numeric($p[$k] ?? null) ? (float) $p[$k] : 0.0;
-    $out = [];
-    foreach (($res['data'] ?? []) as $p) {
-        if (!is_array($p)) {
-            continue;
-        }
-        $out[] = [
-            'instrumentKey' => (string) ($p['instrument_token'] ?? ''),
-            'symbol' => (string) ($p['trading_symbol'] ?? $p['tradingsymbol'] ?? ''),
-            'exchange' => (string) ($p['exchange'] ?? ''),
-            'product' => (string) ($p['product'] ?? ''),
-            'quantity' => (int) ($p['quantity'] ?? 0),
-            'averagePrice' => $f($p, 'average_price'),
-            'buyPrice' => $f($p, 'buy_price'),
-            'sellPrice' => $f($p, 'sell_price'),
-            'ltp' => $f($p, 'last_price'),
-            'closePrice' => $f($p, 'close_price'),
-            'pnl' => $f($p, 'pnl'),
-            'realised' => $f($p, 'realised'),
-            'unrealised' => $f($p, 'unrealised'),
-        ];
-    }
-    return $out;
-}

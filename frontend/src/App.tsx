@@ -24,7 +24,6 @@ import { AlertMonitor } from './features/alerts/AlertMonitor';
 import { DraftMonitor } from './features/drafts/DraftMonitor';
 import { DraftsPage } from './features/drafts/DraftsPage';
 import { OpenInterestPage } from './features/oi/OpenInterestPage';
-import { PositionsPage } from './features/positions/PositionsPage';
 import { PortfolioPage } from './features/portfolio/PortfolioPage';
 import { DailyReport } from './features/report/DailyReport';
 import { useBrokerMargin, useBrokerStatus, useOptionChain, useSpot, useSymbols } from './hooks/market';
@@ -144,7 +143,7 @@ function Workspace({ showLogout, onLogout }: { showLogout: boolean; onLogout: ()
   const { status: broker } = useBrokerStatus();
   // Live NSE data: today's Upstox login, or the 1-year analytics token on the server.
   const brokerConnected = !!(broker?.authenticated || broker?.marketData);
-  // Broker margin and positions still need today's login.
+  // Broker margin still needs today's login.
   const brokerSession = !!broker?.authenticated;
   const marketPage = MARKET_PAGES.includes(route.page);
   const spotState = useSpot(symbol);
@@ -376,12 +375,6 @@ function Workspace({ showLogout, onLogout }: { showLogout: boolean; onLogout: ()
         {route.page === 'oi' && (
           <ErrorBoundary label="open interest">
             <OpenInterestPage symbol={symbol} spot={spotState.data} brokerConnected={brokerConnected} />
-          </ErrorBoundary>
-        )}
-
-        {route.page === 'positions' && (
-          <ErrorBoundary label="positions">
-            <PositionsPage brokerConnected={brokerSession} brokerConfigured={!!broker?.configured} />
           </ErrorBoundary>
         )}
 

@@ -26,7 +26,7 @@ return [
     'upstox_redirect_uri' => '',
     // Optional: 1-year read-only Analytics Token (Developer Apps → Analytics →
     // Generate Token). With it, quotes, charts, option chain and OI work with
-    // no daily Upstox login; broker margin and positions still need Connect.
+    // no daily Upstox login; broker margin still needs Connect.
     // Treat it like a password.
     'upstox_analytics_token' => '',
 

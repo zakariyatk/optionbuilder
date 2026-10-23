@@ -23,7 +23,7 @@ function BrokerBadge({ status }: { status: AuthStatus | null }) {
     );
   }
   if (status?.marketData) {
-    // Analytics token: live data with no daily login; Connect only adds margin and positions.
+    // Analytics token: live data with no daily login; Connect only adds broker margin.
     return (
       <span className="flex items-center gap-2 text-xs text-[var(--text-muted)]">
         <span className="flex items-center gap-1.5" title="Live market data via the Upstox analytics token">
@@ -37,7 +37,7 @@ function BrokerBadge({ status }: { status: AuthStatus | null }) {
             rel="noreferrer"
             className="inline-flex items-center gap-1 rounded-md px-2 py-0.5 font-medium hover:opacity-85 pointer-coarse:min-h-10"
             style={{ background: 'var(--good-fill)', color: 'var(--good-text)' }}
-            title="Log in to Upstox for real broker margin and positions"
+            title="Log in to Upstox for real broker margin"
           >
             Connect for margin
             <ExternalLink size={12} aria-hidden="true" />

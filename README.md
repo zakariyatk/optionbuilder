@@ -98,8 +98,8 @@ before `npm run dev:mock`.
 03:30 IST, so Connect is needed once per trading day. Set
 `upstox_analytics_token` to a read-only Analytics Token (Upstox Developer Apps
 → Analytics → Generate Token, valid one year) and quotes, charts, the option
-chain, OI and the daily report stay live without it. Broker margin and
-positions still need Connect; until then the app shows its margin estimate.
+chain, OI and the daily report stay live without it. Broker margin still
+needs Connect; until then the app shows its margin estimate.
 
 **Password (fallback).** Used only while Supabase sign-in is not set up. Store a
 password **hash**, not the password:

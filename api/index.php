@@ -385,19 +385,6 @@ try {
         }
     }
 
-    if ($path === '/api/positions') {
-        if (!ob_has_valid_token()) {
-            ob_error('NOT_AUTHENTICATED', 401);
-        }
-        try {
-            ob_json(['positions' => ob_upstox_positions(), 'at' => (int) round(microtime(true) * 1000)]);
-        } catch (ObNotAuthenticated) {
-            ob_error('NOT_AUTHENTICATED', 401);
-        } catch (Throwable $e) {
-            ob_error('Failed to fetch positions', 502, $e->getMessage());
-        }
-    }
-
     // ---------------------------------------------------- draft portfolios
     if ($path === '/api/drafts' && $method === 'GET') {
         ob_json(['drafts' => ob_drafts_read()]);

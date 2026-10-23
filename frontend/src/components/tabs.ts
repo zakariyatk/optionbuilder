@@ -1,6 +1,6 @@
-import { Briefcase, ChartCandlestick, ChartColumn, ChartLine, FolderOpen, Layers, Newspaper, PieChart, Table2, type LucideIcon } from 'lucide-react';
+import { ChartCandlestick, ChartColumn, ChartLine, FolderOpen, Layers, Newspaper, PieChart, Table2, type LucideIcon } from 'lucide-react';
 
-export type PageId = 'builder' | 'drafts' | 'chart' | 'oi' | 'chain' | 'report' | 'positions' | 'portfolio';
+export type PageId = 'builder' | 'drafts' | 'chart' | 'oi' | 'chain' | 'report' | 'portfolio';
 
 export interface Route {
   page: PageId;
@@ -15,7 +15,6 @@ export const PAGE_LABELS: Record<PageId, string> = {
   oi: 'Open Interest',
   chain: 'Option Chain',
   report: 'Daily Report',
-  positions: 'Positions',
   portfolio: 'Portfolio',
 };
 
@@ -26,7 +25,6 @@ export const PAGE_ICONS: Record<PageId, LucideIcon> = {
   oi: ChartColumn,
   chain: Table2,
   report: Newspaper,
-  positions: Briefcase,
   portfolio: PieChart,
 };
 
@@ -55,7 +53,6 @@ export const NAV: NavEntry[] = [
       { page: 'report', description: 'Levels, flows, global cues and news' },
     ],
   },
-  { label: 'Positions', page: 'positions' },
   { label: 'Portfolio', page: 'portfolio' },
 ];
 
@@ -65,7 +62,6 @@ export const MOBILE_TABS: MobileTab[] = [
   { label: 'Builder', icon: Layers, page: 'builder' },
   { label: 'Drafts', icon: FolderOpen, page: 'drafts' },
   { label: 'Analyse', icon: ChartLine, group: 'Analyse' },
-  { label: 'Positions', icon: Briefcase, page: 'positions' },
   { label: 'Portfolio', icon: PieChart, page: 'portfolio' },
 ];
 

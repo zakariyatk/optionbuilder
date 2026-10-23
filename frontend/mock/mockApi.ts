@@ -70,35 +70,6 @@ function mockQuotes(keys: string[]): Record<string, number> {
   return out;
 }
 
-function mockPositions() {
-  const rows = (fixture('chain') as { rows: MockRow[] }).rows;
-  const atm = rows.reduce((b, r) => (Math.abs(r.strike - 24250) < Math.abs(b.strike - 24250) ? r : b), rows[0]);
-  const jig = (v: number) => Math.round(v * (1 + (Math.random() - 0.5) * 0.04) * 20) / 20;
-  const make = (side: MockSide, symbol: string, quantity: number, avg: number) => {
-    const ltp = jig(side.ltp);
-    const pnl = Math.round((ltp - avg) * quantity * 100) / 100;
-    return {
-      instrumentKey: side.instrumentKey,
-      symbol,
-      exchange: 'NFO',
-      product: 'D',
-      quantity,
-      averagePrice: avg,
-      buyPrice: quantity > 0 ? avg : 0,
-      sellPrice: quantity < 0 ? avg : 0,
-      ltp,
-      closePrice: side.ltp,
-      pnl,
-      realised: 0,
-      unrealised: pnl,
-    };
-  };
-  return [
-    make(atm.call!, `NIFTY ${atm.strike} CE`, -65, Math.round(atm.call!.ltp * 1.08 * 20) / 20),
-    make(atm.put!, `NIFTY ${atm.strike} PE`, -65, Math.round(atm.put!.ltp * 0.95 * 20) / 20),
-  ];
-}
-
 const TF_SECONDS: Record<string, number> = { '1m': 60, '3m': 180, '5m': 300, '15m': 900, '30m': 1800, '1h': 3600, '4h': 14400, '1D': 86400, '1W': 604800, '1M': 2592000 };
 
 /** A deterministic random walk ending near `last`, in NSE session hours for intraday timeframes. */
@@ -423,8 +394,6 @@ export function mockApi(base: string): Plugin {
             return send({ drafts });
           case '/quotes':
             return send({ quotes: mockQuotes((url.searchParams.get('keys') ?? '').split(',')), at: now });
-          case '/positions':
-            return send({ positions: mockPositions(), at: now });
           case '/auth/status':
             // MOCK_ANALYTICS_ONLY=1 shows the analytics-token state: live data, no broker login.
             if (process.env.MOCK_ANALYTICS_ONLY === '1') {

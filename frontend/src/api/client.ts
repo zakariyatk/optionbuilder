@@ -2,7 +2,6 @@ import type { OiHistory } from '../domain/oi';
 import type {
   AuthStatus,
   BrokerMargin,
-  BrokerPosition,
   Draft,
   DraftLeg,
   FiiDiiRow,
@@ -130,7 +129,6 @@ export const api = {
     post<BrokerMargin>('/api/margin', { legs }),
 
   quotes: (keys: string[]) => get<Quotes>(`/api/quotes?keys=${encodeURIComponent(keys.join(','))}`),
-  positions: () => get<{ positions: BrokerPosition[]; at: number }>('/api/positions'),
 
   drafts: () => get<{ drafts: Draft[] }>('/api/drafts'),
   createDraft: (draft: NewDraft) => post<{ draft: Draft }>('/api/drafts', draft),
