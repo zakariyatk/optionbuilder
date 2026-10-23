@@ -12,7 +12,7 @@ require_once __DIR__ . '/us.php';
  * Indian stocks: NSE's Nifty 500 list, which carries NSE's own industry names
  * ("Information Technology", "Financial Services"). Anything outside it, and
  * every US stock, is looked up on Yahoo search, which returns a sector for
- * equities. ETFs are grouped as "ETF". A sector rarely changes, so lookups
+ * equities. ETFs are grouped by what they hold (see ob_etf_sector). A sector rarely changes, so lookups
  * are cached for a month; a symbol nobody knows comes back as null.
  */
 
@@ -43,18 +43,50 @@ function ob_nifty500_sectors(): array
     }, 7 * 86400);
 }
 
-/** NSE symbols the listings mark as ETFs. */
+/** @return array<string,string> NSE ETF symbol → upper-case name text, from the listings. */
 function ob_nse_etfs(): array
 {
     return ob_cached('sectors:nse-etfs', function (): array {
         $out = [];
-        foreach (ob_nse_listings() as [$symbol, , , $type]) {
+        foreach (ob_nse_listings() as [$symbol, , $text, $type]) {
             if ($type === 'ETF') {
-                $out[$symbol] = true;
+                $out[$symbol] = $text;
             }
         }
         return $out;
     }, 86400);
+}
+
+/**
+ * What an ETF holds, read from its symbol and name: gold and silver funds are
+ * Commodities, bank or IT funds join that sector, bond and liquid funds are
+ * Debt, and broad index funds are "Index ETF". Indian funds tracking foreign
+ * markets are "International ETF".
+ */
+function ob_etf_sector(string $symbol, string $name, bool $us): string
+{
+    $t = ' ' . strtoupper($symbol . ' ' . $name) . ' ';
+    $rules = [
+        'Commodities' => '/GOLD|SILVER|\bGLD\b|\bSLV\b|\bIAU\b|COMMODIT|PRECIOUS|CRUDE/',
+        'Debt' => '/GSEC|G-SEC|GILT|LIQUID|\bBOND|TREASURY|\bSDL\b|MONEY MARKET|OVERNIGHT|1D RATE|CORPORATE DEBT|\bDEBT\b/',
+        'International ETF' => $us ? null : '/NASDAQ|NYSE|FANG|HANG ?SENG|S&P ?500|GLOBAL|INTERNATIONAL|\bUS\b|JAPAN|CHINA|EMERGING/',
+        'Financial Services' => '/BANK|FINANCIAL|\bFIN\b|FINIETF|BFSI|FINANCIALS/',
+        'Information Technology' => '/\bIT\b|ITETF|ITBEES|TECH|DIGITAL|SOFTWARE/',
+        'Healthcare' => '/PHARMA|HEALTH|BIOTECH|HOSPITAL/',
+        'Automobile and Auto Components' => '/\bAUTO|\bEV\b|EVIETF|MOBILITY/',
+        'Fast Moving Consumer Goods' => '/FMCG|CONSUMPTION|CONSUMER|STAPLES/',
+        'Oil Gas & Consumable Fuels' => '/ENERGY|\bOIL\b/',
+        'Metals & Mining' => '/METAL|MINING/',
+        'Chemicals' => '/CHEMICAL/',
+        'Construction' => '/INFRA/',
+        'Realty' => '/REALTY|REAL ESTATE|\bREIT/',
+    ];
+    foreach ($rules as $sector => $re) {
+        if ($re !== null && preg_match($re, $t)) {
+            return $sector;
+        }
+    }
+    return 'Index ETF';
 }
 
 /** The Yahoo ticker for a holding: US:BRK.B → BRK-B, TCS → TCS.NS. */
@@ -86,7 +118,7 @@ function ob_sectors(array $symbols): array
     foreach ($symbols as $symbol) {
         if (!ob_is_us($symbol)) {
             if (isset($etfs[$symbol])) {
-                $out[$symbol] = 'ETF';
+                $out[$symbol] = ob_etf_sector($symbol, $etfs[$symbol], false);
                 continue;
             }
             if (isset($nifty[$symbol])) {
@@ -94,7 +126,7 @@ function ob_sectors(array $symbols): array
                 continue;
             }
         }
-        $cached = ob_cache_get("sector:$symbol", OB_TTL_SECTOR);
+        $cached = ob_cache_get("sector2:$symbol", OB_TTL_SECTOR);
         if (is_array($cached)) {
             $out[$symbol] = $cached['sector'];
             continue;
@@ -123,11 +155,11 @@ function ob_sectors(array $symbols): array
                 }
                 $type = (string) ($q['quoteType'] ?? '');
                 $sector = $type === 'ETF' || $type === 'MUTUALFUND'
-                    ? 'ETF'
+                    ? ob_etf_sector(ob_sector_yahoo_ticker($symbol), (string) ($q['longname'] ?? $q['shortname'] ?? ''), ob_is_us($symbol))
                     : (((string) ($q['sectorDisp'] ?? $q['sector'] ?? '')) ?: null);
                 break;
             }
-            ob_cache_put("sector:$symbol", ['sector' => $sector]);
+            ob_cache_put("sector2:$symbol", ['sector' => $sector]);
             $out[$symbol] = $sector;
         }
     }

@@ -22,6 +22,8 @@ interface Sector {
 
 /** Shown when a holding's sector is unknown or still loading. */
 const UNKNOWN = 'Other';
+/** Asset classes rather than company sectors: one card for both markets (Indian and US gold ETFs together). */
+const SHARED = new Set([UNKNOWN, 'Commodities', 'Debt']);
 
 const pct = (v: number) => `${v >= 0 ? '+' : '−'}${Math.abs(v).toFixed(1)}%`;
 const retColor = (v: number) => (v > 0 ? 'var(--good-text)' : v < 0 ? 'var(--critical)' : 'var(--text-secondary)');
@@ -53,7 +55,7 @@ export function SectorCards({
   const groups = new Map<string, SectorHolding[]>();
   for (const h of holdings) {
     const base = sectors?.[h.symbol] || UNKNOWN;
-    const name = bothMarkets && h.us && base !== UNKNOWN ? `US · ${base}` : base;
+    const name = bothMarkets && h.us && !SHARED.has(base) ? `US · ${base}` : base;
     groups.set(name, [...(groups.get(name) ?? []), h]);
   }
   const list: Sector[] = [...groups.entries()]
