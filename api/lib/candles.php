@@ -20,8 +20,9 @@ const OB_CANDLE_TIMEFRAMES = [
     '1h' => ['hours', 1, 85, 30],
     '4h' => ['hours', 4, 85, 60],
     '1D' => ['days', 1, 1100, 300],
-    '1W' => ['weeks', 1, 3650, 600],
-    '1M' => ['months', 1, 7300, 600],
+    // Long intervals load (nearly) all of Upstox's history, so the chart can open on the whole of it.
+    '1W' => ['weeks', 1, 9125, 600],
+    '1M' => ['months', 1, 9125, 600],
 ];
 
 /** Upstox candle rows ([iso, o, h, l, c, volume, oi]) → [unix, o, h, l, c, volume]. */

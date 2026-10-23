@@ -2,7 +2,7 @@ import { useEffect, useRef, type RefObject } from 'react';
 import { ExternalLink } from 'lucide-react';
 import { KLineChartPro, type Datafeed, type Period, type SymbolInfo as ProSymbol } from '@klinecharts/pro';
 import '@klinecharts/pro/dist/klinecharts-pro.css';
-import { TooltipShowRule, type KLineData } from 'klinecharts';
+import { DomPosition, TooltipShowRule, type KLineData } from 'klinecharts';
 import { api, UPSTOX_LOGIN_URL } from '../../api/client';
 import { marketOpen, sessionFor } from '../../lib/nse';
 import { displaySymbol, isUs } from '../../lib/markets';
@@ -25,6 +25,9 @@ const DAILY_POLL_MS = 60_000;
 const QUOTE_TICK_MS = 2_000;
 /** After a failed history load, try the same symbol again this soon. */
 const HISTORY_RETRY_MS = 3_000;
+const CANDLE_PANE_ID = 'candle_pane';
+/** A weekly / monthly chart fitted to its whole history never draws candles wider than this (a young listing has few bars). */
+const MAX_FIT_BAR_SPACE = 12;
 
 const tfOf = (p: Period) => PERIODS.find((x) => x.multiplier === p.multiplier && x.timespan === p.timespan)?.tf ?? '15m';
 
@@ -379,6 +382,7 @@ export function ProChart({
       onLoaded: (ticker) => {
         // Fresh history (a new symbol or timeframe, or leaving replay) ends any replay.
         replay?.reset();
+        fitLongHistory();
         if (ticker !== symbolRef.current) onSymbolChangeRef.current?.(ticker);
       },
       paused: () => replay?.holdsChart() ?? false,
@@ -394,6 +398,22 @@ export function ProChart({
       },
       brokerConnected: () => brokerRef.current,
     });
+    /**
+     * Weekly and monthly charts open on the whole history, first candle to last, as TradingView's do;
+     * shorter intervals keep their usual zoom on the latest bars.
+     */
+    const fitLongHistory = () => {
+      const span = chart.current?.getPeriod().timespan;
+      if (span !== 'week' && span !== 'month') return;
+      requestAnimationFrame(() => {
+        const inner = innerChart(el);
+        const bars = inner?.getDataList().length ?? 0;
+        const width = inner?.getSize(CANDLE_PANE_ID, DomPosition.Main)?.width ?? 0;
+        if (!inner || !bars || !width) return;
+        inner.setBarSpace(Math.min(MAX_FIT_BAR_SPACE, Math.max(1, (width - inner.getOffsetRightDistance()) / bars)));
+        inner.scrollToRealTime();
+      });
+    };
     chart.current = new KLineChartPro({
       container: el,
       theme,
