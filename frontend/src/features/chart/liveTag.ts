@@ -1,6 +1,7 @@
 import { ActionType, DomPosition, init, LineType, type Chart, type DeepPartial, type Styles } from 'klinecharts';
 import type { Period } from '@klinecharts/pro';
 import { candleCloseMs, fmtLeft, NSE_SESSION, type Session } from '../../lib/nse';
+import { parseColor } from './colors';
 import { TV_DOWN, TV_UP } from './tvStyle';
 
 const UP = TV_UP;
@@ -33,6 +34,14 @@ export function innerChart(host: HTMLElement): Chart | null {
   if (!el) return null;
   if (!el.id) el.id = el.getAttribute('k-line-chart-id') ?? '';
   return init(el);
+}
+
+/** Dark text on a light badge (a white "down" candle colour, say), white text otherwise. */
+function inkOn(bg: string): string {
+  const c = parseColor(bg);
+  if (!c) return '#fff';
+  const lum = (0.299 * c.r + 0.587 * c.g + 0.114 * c.b) / 255;
+  return lum > 0.6 ? '#131722' : '#fff';
 }
 
 const fmtPrice = (v: number) => v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -83,7 +92,11 @@ export function attachLiveTag(
     const now = Date.now();
     left.textContent = fmtLeft(candleCloseMs(period.timespan, period.multiplier, now, getSession()) - now);
     tag.style.display = '';
-    tag.style.background = last.close >= last.open ? UP : DOWN;
+    // The candles' colours from the chart Settings (set over LIVE_TAG_STYLES), so the tag matches them.
+    const mark = chart.getStyles().candle.priceMark.last;
+    const bg = last.close >= last.open ? mark.upColor || UP : mark.downColor || DOWN;
+    tag.style.background = bg;
+    tag.style.color = inkOn(bg);
     tag.style.left = `${axisBox.left - hostBox.left}px`;
     tag.style.width = `${axisBox.width}px`;
     tag.style.top = `${paneBox.top - hostBox.top + y - tag.offsetHeight / 2}px`;

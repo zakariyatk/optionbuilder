@@ -1,6 +1,7 @@
 import {
   CandleType,
   LineType,
+  PolygonType,
   TooltipShowRule,
   YAxisPosition,
   YAxisType,
@@ -98,6 +99,18 @@ export function settingsStyles(s: ChartSettings, theme: 'light' | 'dark', legend
       },
     },
     indicator: {
+      // Volume bars take the candles' colours, a little lighter, as TradingView's do.
+      bars: [
+        {
+          style: PolygonType.Fill,
+          borderStyle: LineType.Solid,
+          borderSize: 1,
+          borderDashedValue: [2, 2],
+          upColor: withAlpha(s.upBody, 0.7),
+          downColor: withAlpha(s.downBody, 0.7),
+          noChangeColor: withAlpha(s.upBody, 0.7),
+        },
+      ],
       tooltip: { showRule: s.indicatorLegend ? TooltipShowRule.Always : TooltipShowRule.None, showParams: s.indicatorArgs },
     },
     xAxis: { axisLine, tickText },

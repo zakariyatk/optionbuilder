@@ -3,6 +3,7 @@ import { Logo } from '../../components/Logo';
 import type { PayoffPoint } from '../../domain/payoff';
 import { useTheme } from '../../hooks/useTheme';
 import { DEMO_CHANGE_PCT, DEMO_LEGS, DEMO_SPOT, STRATEGY_CARDS, demoCurve, demoMetrics } from './demo';
+import { assetUrl } from '../../api/client';
 import './landing.css';
 
 const inr = (v: number, digits = 2) =>
@@ -303,6 +304,23 @@ const STEPS = [
   { title: 'Read the risk', text: 'The payoff, breakevens, Greeks and margin update as you go. Save it, or track it as a draft.' },
 ];
 
+/** A screenshot of a real app page (taken on demo data) in a browser frame, in the visitor's theme. */
+function Screenshot({ theme, name, path, width, height, alt }: { theme: string; name: string; path: string; width: number; height: number; alt: string }) {
+  return (
+    <figure className="lp-shot">
+      <div className="lp-shot-bar" aria-hidden="true">
+        <span className="lp-shot-dots">
+          <i />
+          <i />
+          <i />
+        </span>
+        <span className="lp-shot-url">optionbuilder.adddots.com/{path}</span>
+      </div>
+      <img src={assetUrl(`landing/${name}-${theme === 'dark' ? 'dark' : 'light'}.png`)} width={width} height={height} loading="lazy" decoding="async" alt={alt} />
+    </figure>
+  );
+}
+
 export function Landing({ onSignIn }: { onSignIn: () => void }) {
   // Same light / dark choice as the app, remembered across both.
   const { theme, toggle } = useTheme();
@@ -323,7 +341,8 @@ export function Landing({ onSignIn }: { onSignIn: () => void }) {
           </a>
           <nav className="lp-nav" aria-label="Sections">
             <a href="#features">Features</a>
-            <a href="#strategies">Strategies</a>
+            <a href="#portfolio">Portfolio</a>
+            <a href="#charts">Charts</a>
             <a href="#how">How it works</a>
           </nav>
           <div className="lp-header-cta">
@@ -350,42 +369,18 @@ export function Landing({ onSignIn }: { onSignIn: () => void }) {
         <section className="lp-hero" id="top">
           <div className="lp-wrap lp-hero-grid">
             <div className="lp-hero-copy">
-              <span className="lp-pill">Smarter options strategy building</span>
               <h1>
-                Build Options Strategies with <span className="lp-accent">Clarity &amp; Control</span>
+                See the payoff <span className="lp-accent">before you trade.</span>
               </h1>
-              <p className="lp-lead">
-                Visualise payoffs, compare strategies and make data-driven trading decisions with an intuitive options builder on live NSE
-                data.
-              </p>
+              <p className="lp-lead">Options strategies on live NSE data.</p>
               <div className="lp-cta-row">
                 <button type="button" className="lp-btn lp-btn-primary lp-btn-lg" onClick={onSignIn}>
                   Launch Option Builder <Icon d={ICON.arrow} size={20} />
                 </button>
-                <a href="#features" className="lp-btn lp-btn-outline lp-btn-lg">
-                  Explore Features
+                <a href="#features" className="lp-text-link">
+                  Explore features <Icon d={ICON.arrow} size={16} />
                 </a>
               </div>
-              <ul className="lp-points">
-                <li>
-                  <span className="lp-icon-box">
-                    <Icon d={ICON.bars} />
-                  </span>
-                  Live payoff visualisation
-                </li>
-                <li>
-                  <span className="lp-icon-box">
-                    <Icon d={ICON.layers} />
-                  </span>
-                  Multi-leg strategy builder
-                </li>
-                <li>
-                  <span className="lp-icon-box">
-                    <Icon d={ICON.shield} />
-                  </span>
-                  Risk &amp; reward analysis
-                </li>
-              </ul>
             </div>
             <ProductPreview />
           </div>
@@ -407,26 +402,48 @@ export function Landing({ onSignIn }: { onSignIn: () => void }) {
           </div>
         </section>
 
-        <section className="lp-section" id="strategies">
+        <section className="lp-section" id="portfolio">
           <div className="lp-wrap">
             <div className="lp-section-head">
-              <span className="lp-eyebrow">Strategies</span>
-              <h2>One click from idea to position</h2>
-              <p>Every template builds around the current ATM strike with live premiums, then you fine-tune strikes and lots.</p>
+              <span className="lp-eyebrow">Portfolio</span>
+              <h2>Your India + US holdings in one view</h2>
+              <p>Track NSE and US stocks in rupees, see daily P&amp;L, and compare your returns with NIFTY, the Nasdaq-100 and the S&amp;P 500.</p>
             </div>
-            <div className="lp-cards">
-              {STRATEGY_CARDS.map(({ template, curve }) => (
-                <article key={template.id} className="lp-card">
-                  <div className="lp-card-graph">
-                    <Payoff curve={curve} width={240} height={90} />
-                  </div>
-                  <div className="lp-card-head">
-                    <h3>{template.name}</h3>
-                    <span className={`lp-view lp-view-${template.view.toLowerCase()}`}>{template.view}</span>
-                  </div>
-                  <p>{template.description}</p>
-                </article>
-              ))}
+            <Screenshot
+              theme={theme}
+              name="portfolio"
+              path="#portfolio"
+              width={1440}
+              height={1530}
+              alt="The Portfolio page on a sample India + US portfolio: value and P&L cards, allocation, INR vs US dollar, performance against NIFTY, Nasdaq-100 and S&P 500, sector cards and the holdings table"
+            />
+            <div className="lp-shot-cta">
+              <button type="button" className="lp-btn lp-btn-primary lp-btn-lg" onClick={onSignIn}>
+                Open your portfolio <Icon d={ICON.arrow} size={20} />
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <section className="lp-section" id="charts">
+          <div className="lp-wrap">
+            <div className="lp-section-head">
+              <span className="lp-eyebrow">Charts</span>
+              <h2>Pro charts, with your watchlist alongside</h2>
+              <p>Candles on live Upstox data with indicators, drawing tools, alerts and bar replay, next to watchlists that refresh every few seconds.</p>
+            </div>
+            <Screenshot
+              theme={theme}
+              name="chart"
+              path="#chart"
+              width={1414}
+              height={800}
+              alt="The Chart page: a NIFTY 15-minute candle chart with moving averages, drawing tools and volume, beside a watchlist of indices and stocks with live prices"
+            />
+            <div className="lp-shot-cta">
+              <button type="button" className="lp-btn lp-btn-primary lp-btn-lg" onClick={onSignIn}>
+                Open the charts <Icon d={ICON.arrow} size={20} />
+              </button>
             </div>
           </div>
         </section>

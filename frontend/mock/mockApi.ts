@@ -96,7 +96,12 @@ function mockCandles(symbol: string, tf: string, last: number, hasVolume: boolea
     const high = Math.max(open, close) * (1 + rand() * vol * 0.6);
     const low = Math.min(open, close) * (1 - rand() * vol * 0.6);
     const r2 = (v: number) => Math.round(v * 100) / 100;
-    return [time, r2(open), r2(high), r2(low), r2(close), hasVolume ? Math.round(50_000 + rand() * 400_000) : 0];
+    // Volume peaks at the open and close, as NSE sessions do. Indices have none on Upstox; the mock gives them some so the volume pane isn't empty.
+    const ist = new Date((time + 19800) * 1000);
+    const dayPos = intraday ? (ist.getUTCHours() * 60 + ist.getUTCMinutes() - 555) / 375 : 0.5;
+    const shape = 1 + 1.6 * (Math.abs(dayPos - 0.5) * 2) ** 2;
+    const base = hasVolume ? 120_000 : 2_400_000;
+    return [time, r2(open), r2(high), r2(low), r2(close), Math.round(base * shape * (0.5 + rand()))];
   });
 }
 
