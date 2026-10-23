@@ -142,12 +142,15 @@ function Workspace({ showLogout, onLogout }: { showLogout: boolean; onLogout: ()
   const [notice, setNotice] = useState<string | null>(null);
 
   const { status: broker } = useBrokerStatus();
-  const brokerConnected = !!broker?.authenticated;
+  // Live NSE data: today's Upstox login, or the 1-year analytics token on the server.
+  const brokerConnected = !!(broker?.authenticated || broker?.marketData);
+  // Broker margin and positions still need today's login.
+  const brokerSession = !!broker?.authenticated;
   const marketPage = MARKET_PAGES.includes(route.page);
   const spotState = useSpot(symbol);
   const chainState = useOptionChain(symbol, expiry, brokerConnected && (route.page === 'builder' || route.page === 'chain'));
   const chain = chainState.data;
-  const { margin: brokerMargin, loading: marginLoading } = useBrokerMargin(legs, brokerConnected);
+  const { margin: brokerMargin, loading: marginLoading } = useBrokerMargin(legs, brokerSession);
   const draftsState = useAsync(() => api.drafts(), []);
   const drafts = draftsState.data?.drafts ?? null;
 
@@ -378,7 +381,7 @@ function Workspace({ showLogout, onLogout }: { showLogout: boolean; onLogout: ()
 
         {route.page === 'positions' && (
           <ErrorBoundary label="positions">
-            <PositionsPage brokerConnected={brokerConnected} brokerConfigured={!!broker?.configured} />
+            <PositionsPage brokerConnected={brokerSession} brokerConfigured={!!broker?.configured} />
           </ErrorBoundary>
         )}
 

@@ -24,6 +24,11 @@ return [
     // Must match EXACTLY what is registered on the Upstox app, e.g.
     // 'https://optionbuilder.adddots.com/api/auth/upstox/callback'
     'upstox_redirect_uri' => '',
+    // Optional: 1-year read-only Analytics Token (Developer Apps → Analytics →
+    // Generate Token). With it, quotes, charts, option chain and OI work with
+    // no daily Upstox login; broker margin and positions still need Connect.
+    // Treat it like a password.
+    'upstox_analytics_token' => '',
 
     // Supabase sign-in (recommended): a 6-digit email code or magic link, and
     // Google once enabled. When url, key and allowed_emails are set, the

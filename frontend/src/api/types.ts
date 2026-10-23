@@ -73,8 +73,13 @@ export interface OptionChain {
 
 export interface AuthStatus {
   configured: boolean;
+  /** Today's Upstox login is active (needed for margin and positions). */
   authenticated: boolean;
-  token: { user_name: string | null; issued_at: number; expires_at: number } | null;
+  /** Live quotes, candles and chains are available — via the login or the analytics token. */
+  marketData?: boolean;
+  /** The server has a 1-year Upstox analytics token. */
+  analytics?: boolean;
+  token:{ user_name: string | null; issued_at: number; expires_at: number } | null;
   loginUrl: string | null;
 }
 

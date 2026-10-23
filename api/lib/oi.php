@@ -45,10 +45,9 @@ function ob_oi_fetch(array $keys, bool $intraday): array
             : OB_UPSTOX_API_V3 . "/historical-candle/$k/minutes/1/$to/$from";
     }
     $out = [];
-    foreach (ob_http_multi_get($urls, ob_upstox_headers(), 10, 25) as $id => $res) {
+    foreach (ob_http_multi_get($urls, ob_upstox_headers(true), 10, 25) as $id => $res) {
         if ($res['status'] === 401) {
-            ob_clear_token();
-            throw new ObNotAuthenticated('NOT_AUTHENTICATED');
+            ob_upstox_unauthorized();
         }
         $out[$id] = $res['status'] >= 200 && $res['status'] < 300 ? ob_oi_points($res['body']) : [];
     }

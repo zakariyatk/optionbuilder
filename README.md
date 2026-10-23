@@ -94,6 +94,13 @@ In the Supabase dashboard:
 To try it with the mock backend, set `MOCK_SUPABASE_URL` and `MOCK_SUPABASE_KEY`
 before `npm run dev:mock`.
 
+**Upstox without the daily login (optional).** Upstox access tokens die at
+03:30 IST, so Connect is needed once per trading day. Set
+`upstox_analytics_token` to a read-only Analytics Token (Upstox Developer Apps
+→ Analytics → Generate Token, valid one year) and quotes, charts, the option
+chain, OI and the daily report stay live without it. Broker margin and
+positions still need Connect; until then the app shows its margin estimate.
+
 **Password (fallback).** Used only while Supabase sign-in is not set up. Store a
 password **hash**, not the password:
 

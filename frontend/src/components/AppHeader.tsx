@@ -22,6 +22,30 @@ function BrokerBadge({ status }: { status: AuthStatus | null }) {
       </span>
     );
   }
+  if (status?.marketData) {
+    // Analytics token: live data with no daily login; Connect only adds margin and positions.
+    return (
+      <span className="flex items-center gap-2 text-xs text-[var(--text-muted)]">
+        <span className="flex items-center gap-1.5" title="Live market data via the Upstox analytics token">
+          <Dot color="var(--good)" />
+          Live data
+        </span>
+        {status.configured && (
+          <a
+            href={UPSTOX_LOGIN_URL}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center gap-1 rounded-md px-2 py-0.5 font-medium hover:opacity-85 pointer-coarse:min-h-10"
+            style={{ background: 'var(--good-fill)', color: 'var(--good-text)' }}
+            title="Log in to Upstox for real broker margin and positions"
+          >
+            Connect for margin
+            <ExternalLink size={12} aria-hidden="true" />
+          </a>
+        )}
+      </span>
+    );
+  }
   if (status?.configured) {
     return (
       <a

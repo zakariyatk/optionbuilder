@@ -133,6 +133,9 @@ try {
         ob_json([
             'configured' => ob_upstox_configured(),
             'authenticated' => ob_has_valid_token(),
+            // Quotes, candles and chains work: today's login or the 1-year analytics token.
+            'marketData' => ob_has_market_data(),
+            'analytics' => ob_analytics_token() !== '',
             'token' => ob_token_info(),
             'loginUrl' => ob_upstox_configured() ? '/api/auth/upstox/login' : null,
         ]);
@@ -217,7 +220,7 @@ try {
         $live = [];
         // US symbols always come from Yahoo; Upstox has no US market data.
         $nse = array_values(array_filter($symbols, static fn(string $s): bool => !ob_is_us($s)));
-        if ($nse && ob_has_valid_token()) {
+        if ($nse && ob_has_market_data()) {
             try {
                 $live = ob_cached('watch:' . md5(implode(',', $nse)), fn() => ob_upstox_watch_quotes($nse), 2, 0);
             } catch (Throwable) {
@@ -262,7 +265,7 @@ try {
                 ob_error('Failed to fetch candles', 502, $e->getMessage());
             }
         }
-        if (!ob_has_valid_token()) {
+        if (!ob_has_market_data()) {
             ob_error('NOT_AUTHENTICATED', 401);
         }
         try {
@@ -283,7 +286,7 @@ try {
         if (!preg_match('/^[A-Z0-9&_\-]{1,20}$/', $symbol) || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $expiry) || !($max > $min)) {
             ob_error('symbol, expiry and a min < max strike range are required', 400);
         }
-        if (!ob_has_valid_token()) {
+        if (!ob_has_market_data()) {
             ob_error('NOT_AUTHENTICATED', 401);
         }
         try {
@@ -303,7 +306,7 @@ try {
         if ($symbol === '') {
             ob_error('symbol query param is required', 400);
         }
-        if (!ob_has_valid_token()) {
+        if (!ob_has_market_data()) {
             ob_error('Failed to fetch option chain', 502, 'NOT_AUTHENTICATED');
         }
 
@@ -368,7 +371,7 @@ try {
         if (!$keys || count($keys) > 200) {
             ob_error('keys must list 1–200 instrument keys', 400);
         }
-        if (!ob_has_valid_token()) {
+        if (!ob_has_market_data()) {
             ob_error('NOT_AUTHENTICATED', 401);
         }
         sort($keys);
@@ -565,7 +568,7 @@ try {
     // ------------------------------------------------------- daily report
     if ($path === '/api/report/max-oi') {
         $symbol = strtoupper(ob_query('symbol') ?? 'NIFTY');
-        if (!ob_has_valid_token()) {
+        if (!ob_has_market_data()) {
             ob_error('NOT_AUTHENTICATED', 401);
         }
 

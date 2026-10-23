@@ -88,6 +88,22 @@ function ob_has_valid_token(): bool
     return time() < (int) ($t['expires_at'] ?? 0);
 }
 
+/**
+ * Upstox's read-only Analytics Token: generated once on the Developer Apps
+ * page, valid for a year, and enough for quotes, candles and option chains.
+ * It can't reach orders, positions or margin, which still need the daily login.
+ */
+function ob_analytics_token(): string
+{
+    return trim((string) ob_config_get('upstox_analytics_token', ''));
+}
+
+/** Live market data is available: today's broker login, or the analytics token. */
+function ob_has_market_data(): bool
+{
+    return ob_has_valid_token() || ob_analytics_token() !== '';
+}
+
 function ob_token_info(): ?array
 {
     $t = ob_read_token();
@@ -150,26 +166,74 @@ final class ObNotAuthenticated extends RuntimeException
 {
 }
 
-function ob_upstox_headers(): array
+/**
+ * Which token the last ob_upstox_headers() call handed out: 'daily' or
+ * 'analytics'. Decides what a 401 means — see ob_upstox_unauthorized().
+ */
+function ob_upstox_token_kind(?string $set = null): ?string
+{
+    static $kind = null;
+    if ($set !== null) {
+        $kind = $set;
+    }
+    return $kind;
+}
+
+/**
+ * Auth headers. Today's broker login wins; market-data calls fall back to the
+ * analytics token when there is none, so quotes and chains need no daily login.
+ */
+function ob_upstox_headers(bool $marketData = false): array
 {
     $t = ob_read_token();
-    if ($t === null || ($t['access_token'] ?? '') === '') {
+    $daily = ob_has_valid_token() ? (string) ($t['access_token'] ?? '') : '';
+    $analytics = $marketData ? ob_analytics_token() : '';
+
+    if ($daily !== '') {
+        $token = $daily;
+        ob_upstox_token_kind('daily');
+    } elseif ($analytics !== '') {
+        $token = $analytics;
+        ob_upstox_token_kind('analytics');
+    } elseif (($t['access_token'] ?? '') !== '') {
+        // Past its 03:30 expiry: send it anyway and let Upstox's 401 clear it.
+        $token = (string) $t['access_token'];
+        ob_upstox_token_kind('daily');
+    } else {
         throw new ObNotAuthenticated('NOT_AUTHENTICATED');
     }
     return [
         'Accept' => 'application/json',
-        'Authorization' => 'Bearer ' . $t['access_token'],
+        'Authorization' => 'Bearer ' . $token,
     ];
+}
+
+/**
+ * Upstox said 401. A dead daily token is dropped so the app asks to reconnect;
+ * a dead analytics token is a config problem the daily login can't fix.
+ */
+function ob_upstox_unauthorized(): never
+{
+    if (ob_upstox_token_kind() === 'analytics') {
+        throw new RuntimeException('Upstox rejected the analytics token (expired or revoked). Generate a new one on the Upstox Developer Apps page.');
+    }
+    ob_clear_token();
+    throw new ObNotAuthenticated('NOT_AUTHENTICATED');
+}
+
+/** Account endpoints need the broker login; everything else is market data. */
+function ob_upstox_is_market_data(string $path): bool
+{
+    return !str_starts_with($path, '/portfolio') && !str_starts_with($path, '/user') && !str_starts_with($path, '/order');
 }
 
 function ob_upstox_get(string $path, array $params = [], string $base = OB_UPSTOX_API): array
 {
     $url = $base . $path . ($params ? '?' . http_build_query($params) : '');
-    $res = ob_http_request('GET', $url, ob_upstox_headers(), null, 30);
+    $res = ob_http_request('GET', $url, ob_upstox_headers(ob_upstox_is_market_data($path)), null, 30);
 
     if ($res['status'] === 401) {
-        ob_clear_token();
-        throw new ObNotAuthenticated('NOT_AUTHENTICATED');
+        ob_upstox_unauthorized();
     }
     if ($res['status'] < 200 || $res['status'] >= 300) {
         throw new RuntimeException("Upstox $path failed ({$res['status']})");
