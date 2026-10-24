@@ -18,6 +18,7 @@ import { installScaleButtons } from './scaleButtons';
 import { installReplay, type ReplayController } from './replay';
 import { installTimeAxis } from './timeAxis';
 import { installPriceTicks } from './priceAxis';
+import { installChartMemory, savedIndicators } from './chartMemory';
 import { useAlerts } from '../../store/alerts';
 import { signalAlerts } from '../alerts/alertSignals';
 
@@ -364,6 +365,7 @@ export function ProChart({
     el.replaceChildren();
     const info = symbolsRef.current.find((s) => s.symbol === symbol);
     let replay: ReplayController | null = null;
+    let memory: ReturnType<typeof installChartMemory> | null = null;
     // "NIFTY 50 · 15m · NSE", as TradingView titles its legend.
     const legendTitle = () => {
       const c = chart.current;
@@ -384,6 +386,7 @@ export function ProChart({
       onLoaded: (ticker) => {
         // Fresh history (a new symbol or timeframe, or leaving replay) ends any replay.
         replay?.reset();
+        memory?.restore(ticker, chart.current?.getPeriod().text ?? '');
         fitLongHistory();
         if (ticker !== symbolRef.current) onSymbolChangeRef.current?.(ticker);
       },
@@ -415,6 +418,7 @@ export function ProChart({
         inner.scrollToRealTime();
       });
     };
+    const startIndicators = savedIndicators();
     chart.current = new KLineChartPro({
       container: el,
       theme,
@@ -428,8 +432,9 @@ export function ProChart({
       // Phones: no drawing rail until asked for, and the OHLC legend only while the crosshair is on a candle (as in mobile TradingView).
       drawingBarVisible: !compactRef.current,
       styles: { candle: { tooltip: { showRule: compactRef.current ? TooltipShowRule.FollowCross : TooltipShowRule.Always } } },
-      mainIndicators: ['MA'],
-      subIndicators: ['VOL'],
+      // A clean chart at first; the indicators you add are remembered.
+      mainIndicators: startIndicators.main,
+      subIndicators: startIndicators.sub,
       datafeed: feed,
     });
     const removeTools = installDrawingTools(el);
@@ -460,6 +465,9 @@ export function ProChart({
       tag = attachLiveTag(el, inner, () => pro.getPeriod(), () => sessionFor(pro.getSymbol().ticker));
       installTimeAxis(inner, () => ['minute', 'hour'].includes(pro.getPeriod().timespan));
       installPriceTicks(inner);
+      memory = installChartMemory(inner);
+      // History that arrived first still gets its drawings.
+      if (inner.getDataList().length) memory.restore(pro.getSymbol().ticker, pro.getPeriod().text);
       applyLookRef.current();
     };
     attach();
@@ -480,6 +488,7 @@ export function ProChart({
       alertsRef.current = null;
       cancelAnimationFrame(frame);
       tag?.dispose();
+      memory?.dispose();
       el.replaceChildren();
       chart.current = null;
     };
