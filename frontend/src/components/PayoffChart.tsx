@@ -13,6 +13,8 @@ import { Card, LegendSwatch } from './ui';
 // narrower, taller space so axis labels stay readable instead of shrinking to ~5px.
 const LEFT = 56;
 const TOP = 20;
+/** The tallest OI bar reaches this share of the plot's height, so the bars stay a backdrop to the payoff. */
+const OI_BAND = 0.4;
 function geometry(compact: boolean) {
   const W = compact ? 440 : 800;
   const H = compact ? 380 : 410;
@@ -432,8 +434,8 @@ export function PayoffChart({
   const hoverExpiry = hoverPrice !== null ? pnlAtExpiry(legs, hoverPrice) : null;
   const hoverTarget = hoverPrice !== null && targetSeries ? pnlOnDate(priced, hoverPrice, target, fallbackIv) : null;
   const oiBars = oi && oi.peak > 0 ? oi : null;
-  const oiY = (v: number) => BOTTOM - (Math.abs(v) / (oiBars?.peak || 1)) * PLOT_H;
-  const oiTicks = oiBars ? ticks(0, oiBars.peak, 4).filter((v) => v > 0) : [];
+  const oiY = (v: number) => BOTTOM - (Math.abs(v) / (oiBars?.peak || 1)) * PLOT_H * OI_BAND;
+  const oiTicks = oiBars ? ticks(0, oiBars.peak, 2).filter((v) => v > 0) : [];
   const oiBarW = oiBars?.step ? Math.min(Math.max((oiBars.step / (xMax - xMin || 1)) * PLOT_W * 0.38, 1), 12) : 6;
   const hoverOi =
     oiBars && hoverPrice !== null
