@@ -16,6 +16,8 @@ import { installDrawingTools } from './drawingTools';
 import { installPriceAlerts } from './priceAlerts';
 import { installScaleButtons } from './scaleButtons';
 import { installReplay, type ReplayController } from './replay';
+import { installTimeAxis } from './timeAxis';
+import { installPriceTicks } from './priceAxis';
 import { useAlerts } from '../../store/alerts';
 import { signalAlerts } from '../alerts/alertSignals';
 
@@ -26,7 +28,7 @@ const QUOTE_TICK_MS = 2_000;
 /** After a failed history load, try the same symbol again this soon. */
 const HISTORY_RETRY_MS = 3_000;
 const CANDLE_PANE_ID = 'candle_pane';
-/** A weekly / monthly chart fitted to its whole history never draws candles wider than this (a young listing has few bars). */
+/** A monthly chart fitted to its whole history never draws candles wider than this (a young listing has few bars). */
 const MAX_FIT_BAR_SPACE = 12;
 
 const tfOf = (p: Period) => PERIODS.find((x) => x.multiplier === p.multiplier && x.timespan === p.timespan)?.tf ?? '15m';
@@ -399,12 +401,11 @@ export function ProChart({
       brokerConnected: () => brokerRef.current,
     });
     /**
-     * Weekly and monthly charts open on the whole history, first candle to last, as TradingView's do;
-     * shorter intervals keep their usual zoom on the latest bars.
+     * Monthly charts open on the whole history, first candle to last, as TradingView's do;
+     * other intervals (weekly too) keep their usual zoom on the latest bars.
      */
     const fitLongHistory = () => {
-      const span = chart.current?.getPeriod().timespan;
-      if (span !== 'week' && span !== 'month') return;
+      if (chart.current?.getPeriod().timespan !== 'month') return;
       requestAnimationFrame(() => {
         const inner = innerChart(el);
         const bars = inner?.getDataList().length ?? 0;
@@ -457,6 +458,8 @@ export function ProChart({
         return;
       }
       tag = attachLiveTag(el, inner, () => pro.getPeriod(), () => sessionFor(pro.getSymbol().ticker));
+      installTimeAxis(inner, () => ['minute', 'hour'].includes(pro.getPeriod().timespan));
+      installPriceTicks(inner);
       applyLookRef.current();
     };
     attach();
