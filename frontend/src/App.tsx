@@ -323,7 +323,10 @@ function Workspace({ showLogout, onLogout }: { showLogout: boolean; onLogout: ()
       <AppHeader route={route} onNavigate={navigate} broker={broker} onLogout={onLogout} showLogout={showLogout} />
       <AlertMonitor />
 
-      <main className="safe-x w-full pt-4 md:py-5" style={{ paddingBottom: 'calc(var(--tabbar-h) + 1.25rem)' }}>
+      <main
+        className={`safe-x w-full pt-4 ${route.page === 'chart' ? 'md:py-3' : 'md:py-5'}`}
+        style={{ paddingBottom: `calc(var(--tabbar-h) + ${route.page === 'chart' ? '0.75rem' : '1.25rem'})` }}
+      >
         {marketPage && (
           <div className="mb-4 flex flex-col gap-2">
             <MarketBar
@@ -506,7 +509,7 @@ function Workspace({ showLogout, onLogout }: { showLogout: boolean; onLogout: ()
         )}
 
         <footer
-          className={`mt-8 border-t border-[var(--border)] pt-3 text-[10px] leading-relaxed text-[var(--text-muted)] ${route.page === 'chart' ? 'max-md:hidden' : ''}`}
+          className={`mt-8 border-t border-[var(--border)] pt-3 text-[10px] leading-relaxed text-[var(--text-muted)] ${route.page === 'chart' ? 'hidden' : ''}`}
         >
           Option Builder is an analysis tool, not investment advice. Prices, margins and Greeks are estimates — verify with your broker before trading.
         </footer>

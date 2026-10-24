@@ -160,6 +160,8 @@ label,
 /* Page gutters that also clear device notches (the viewport uses viewport-fit=cover). */
 :root {
   --gutter: 1rem;
+  /* Height of the app header (below any notch). */
+  --header-h: 2.75rem;
   /* Height of the mobile tab bar, so content and toasts can clear it. */
   --tabbar-h: calc(3.75rem + env(safe-area-inset-bottom));
 }

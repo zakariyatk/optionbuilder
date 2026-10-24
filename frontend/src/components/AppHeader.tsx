@@ -258,10 +258,10 @@ export function AppHeader({
   return (
     <>
     <header className="safe-top sticky top-0 z-30 border-b border-[var(--border)] bg-[var(--surface-raised)]">
-      <div className="safe-x flex h-14 w-full items-center gap-x-4">
-        <div className="flex h-14 min-w-0 items-center gap-2.5">
+      <div className="safe-x flex h-[var(--header-h)] w-full items-center gap-x-4">
+        <div className="flex h-full min-w-0 items-center gap-2.5">
           <a className="ob-logo" href="https://www.adddots.com/" aria-label="ADD DOTS home">
-            <Logo size={36} />
+            <Logo size={28} />
           </a>
           <button type="button" onClick={() => go('builder')} className="ob-title hidden !text-base sm:block">
             Option Builder
@@ -312,7 +312,7 @@ export function AppHeader({
           )}
         </nav>
 
-        <div className="ml-auto flex h-14 shrink-0 items-center gap-3 md:ml-0">
+        <div className="ml-auto flex h-full shrink-0 items-center gap-3 md:ml-0">
           <span className="hidden lg:block">
             <BrokerBadge status={broker} />
           </span>
@@ -321,7 +321,7 @@ export function AppHeader({
             align="right"
             trigger={(open) => (
               <span className="flex min-h-11 items-center gap-1 text-[var(--text-secondary)]">
-                <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--accent)] text-xs font-bold text-[var(--accent-text)]">
+                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--accent)] text-xs font-bold text-[var(--accent-text)]">
                   {initials(userName)}
                 </span>
                 <Chevron open={open} />

@@ -119,7 +119,8 @@ export function ChartPage({
     );
   }
 
-  const panelHeight = 'max(520px, calc(100dvh - 7rem))';
+  // Fills the window under the header (less <main>'s padding), so the page itself never scrolls.
+  const panelHeight = 'max(420px, calc(100dvh - var(--header-h) - 1px - env(safe-area-inset-top) - 1.5rem))';
   const layout = layoutById(layoutId);
   const count = chartCount(layout);
   const act = () => actionsFor(active).current;
@@ -415,8 +416,8 @@ function PhoneChart({
       className="flex flex-col bg-[var(--surface-card)]"
       style={{
         // Full-bleed: cancel <main>'s gutters and fill the screen between the header and the tab bar.
-        margin: 'calc(-1 * 1rem) calc(-1 * max(var(--gutter), env(safe-area-inset-right))) calc(-1 * 1.25rem) calc(-1 * max(var(--gutter), env(safe-area-inset-left)))',
-        height: 'calc(100dvh - 3.5rem - 1px - env(safe-area-inset-top) - var(--tabbar-h))',
+        margin: 'calc(-1 * 1rem) calc(-1 * max(var(--gutter), env(safe-area-inset-right))) calc(-1 * 0.75rem) calc(-1 * max(var(--gutter), env(safe-area-inset-left)))',
+        height: 'calc(100dvh - var(--header-h) - 1px - env(safe-area-inset-top) - var(--tabbar-h))',
         minHeight: 360,
       }}
     >
