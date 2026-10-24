@@ -13,8 +13,12 @@ import { Card, LegendSwatch } from './ui';
 // narrower, taller space so axis labels stay readable instead of shrinking to ~5px.
 const LEFT = 56;
 const TOP = 20;
-/** The tallest OI bar reaches this share of the plot's height, so the bars stay a backdrop to the payoff. */
-const OI_BAND = 0.4;
+/**
+ * OI bars grow up from the ₹0 line, the tallest reaching this share of the room above it.
+ * With bars on, the fitted P&L range keeps at least OI_ROOM of the plot above ₹0 for them.
+ */
+const OI_BAND = 0.9;
+const OI_ROOM = 0.35;
 function geometry(compact: boolean) {
   const W = compact ? 440 : 800;
   const H = compact ? 380 : 410;
@@ -221,16 +225,19 @@ export function PayoffChart({
     };
   }, [legs, priced, xMin, xMax, target, fallbackIv]);
 
-  const autoSpan = autoY.max - autoY.min || 1;
-  const yBounds = { min: autoY.min - autoSpan * 10, max: autoY.max + autoSpan * 10 };
-  const yView = yZoom ?? autoY;
-  const yMin = yView.min;
-  const yMax = yView.max;
-
   const oi = useMemo(
     () => (oiRows?.length && oiMode !== 'off' ? strikeOi(oiRows, xMin, xMax, oiMode) : null),
     [oiRows, oiMode, xMin, xMax],
   );
+  const oiBars = oi && oi.peak > 0 ? oi : null;
+  // Room above ₹0 for the OI bars, however far below it the payoff runs.
+  const fitY = oiBars && autoY.min < 0 ? { min: autoY.min, max: Math.max(autoY.max, (-autoY.min * OI_ROOM) / (1 - OI_ROOM)) } : autoY;
+
+  const autoSpan = fitY.max - fitY.min || 1;
+  const yBounds = { min: fitY.min - autoSpan * 10, max: fitY.max + autoSpan * 10 };
+  const yView = yZoom ?? fitY;
+  const yMin = yView.min;
+  const yMax = yView.max;
   const hasOi = !!oiRows?.some((r) => r.call || r.put);
 
   const toPrice = (x: number) => xMin + ((x - LEFT) / PLOT_W) * (xMax - xMin);
@@ -433,8 +440,9 @@ export function PayoffChart({
   const hoverPrice = hoverX === null ? null : toPrice(hoverX);
   const hoverExpiry = hoverPrice !== null ? pnlAtExpiry(legs, hoverPrice) : null;
   const hoverTarget = hoverPrice !== null && targetSeries ? pnlOnDate(priced, hoverPrice, target, fallbackIv) : null;
-  const oiBars = oi && oi.peak > 0 ? oi : null;
-  const oiY = (v: number) => BOTTOM - (Math.abs(v) / (oiBars?.peak || 1)) * PLOT_H * OI_BAND;
+  // Bars stand on the ₹0 line; zoomed so that little of the plot is left above it, they stand on the bottom instead.
+  const oiBase = zeroY > BOTTOM || zeroY - TOP < PLOT_H * 0.2 ? BOTTOM : zeroY;
+  const oiY = (v: number) => oiBase - (Math.abs(v) / (oiBars?.peak || 1)) * (oiBase - TOP) * OI_BAND;
   const oiTicks = oiBars ? ticks(0, oiBars.peak, 2).filter((v) => v > 0) : [];
   const oiBarW = oiBars?.step ? Math.min(Math.max((oiBars.step / (xMax - xMin || 1)) * PLOT_W * 0.38, 1), 12) : 6;
   const hoverOi =
@@ -615,7 +623,7 @@ export function PayoffChart({
                     x={x}
                     y={oiY(v)}
                     width={oiBarW}
-                    height={BOTTOM - oiY(v)}
+                    height={oiBase - oiY(v)}
                     fill={v > 0 ? color : 'none'}
                     stroke={v > 0 ? 'none' : color}
                     strokeWidth={1}
