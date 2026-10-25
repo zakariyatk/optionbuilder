@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AddStock</title>
+<meta name="description" content="Your Stocks. Your Strategy. Build options strategies on live NSE data and see the payoff before you trade. Option chain, open interest, charts, a daily report and your portfolio.">
+<meta property="og:title" content="AddStock">
+<meta property="og:description" content="Your Stocks. Your Strategy.">
+<meta property="og:image" content="img/banner.webp">
+<meta name="theme-color" content="#07080B">
+<link rel="icon" href="img/logo.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="img/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root { --violet: #7B61FF; --dark: #07080B; --light: #FBFCFD; --grey: #F5F5F7; --ink: #1D1D1F; --dim: #6E6E73 }
+  * { box-sizing: border-box; margin: 0; padding: 0 }
+  body { background: #fff; color: var(--ink); font: 400 17px/1.47 Inter, 'Segoe UI', system-ui, sans-serif; -webkit-font-smoothing: antialiased; overflow-x: hidden }
+  a { color: inherit; text-decoration: none }
+  img { display: block; width: 100%; height: auto }
+  :focus-visible { outline: 2px solid var(--violet); outline-offset: 3px; border-radius: 6px }
+
+  /* the bar along the top: thin and quiet */
+  .nav { position: sticky; top: 0; z-index: 10; height: 48px; background: rgba(251,252,253,.8); backdrop-filter: saturate(180%) blur(20px);
+    border-bottom: 1px solid rgba(0,0,0,.06) }
+  .nav div { max-width: 1024px; height: 100%; margin: 0 auto; padding: 0 16px; display: flex; align-items: center; gap: 32px; font-size: 13px }
+  .nav .logo { display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 14px }
+  .nav .logo img { width: 22px }
+  .nav .sp { flex: 1 }
+  .nav a:not(.logo) { color: #424245 } .nav a:not(.logo):hover { color: var(--ink) }
+  .nav .get { background: var(--violet); color: #fff !important; padding: 4px 12px; border-radius: 980px; font-weight: 500 }
+
+  /* the tiles */
+  main { display: grid; gap: 12px; padding: 12px 0 }
+  .tile { position: relative; overflow: hidden; text-align: center; display: flex; flex-direction: column }
+  .tile.dark { background: var(--dark); color: #F5F5F7 }
+  .tile.light { background: var(--light) }
+  .tile .copy { padding: 52px 20px 26px }
+  h1, h2 { font-weight: 600; letter-spacing: -.015em; line-height: 1.07 }
+  h1 { font-size: clamp(40px, 6vw, 56px) }
+  h2 { font-size: clamp(32px, 4.6vw, 48px) }
+  .tile p { font-size: clamp(19px, 2.2vw, 24px); margin-top: 6px; letter-spacing: .005em }
+  .dark p { color: #C7C7CC } .light p { color: var(--ink) }
+  .acts { display: flex; gap: 14px; justify-content: center; margin-top: 18px; flex-wrap: wrap }
+  .btn { display: inline-block; font-size: 17px; padding: 11px 22px; border-radius: 980px; border: 1px solid var(--violet); min-width: 28px }
+  .btn.fill { background: var(--violet); color: #fff }
+  .btn.fill:hover { background: #8D77FF }
+  .btn.line { color: #6A4FF0 }
+  .dark .btn.line { color: #B3A6FF; border-color: #B3A6FF }
+  .btn.line:hover { background: rgba(123,97,255,.08) }
+  .tile .pic { margin-top: auto }
+  .hero .copy { padding-top: 64px }
+  .wide .pic { max-width: 1600px; margin: auto auto 0 }
+
+  .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 0 12px }
+  .pair .tile .copy { padding-top: 46px }
+  .pair h2 { font-size: clamp(30px, 3.4vw, 40px) }
+  .pair p { font-size: clamp(17px, 1.8vw, 21px) }
+
+  .phones { display: flex; gap: 2vw; justify-content: center; padding: 0 3vw }
+  .phones img { width: min(30%, 380px) }
+
+  .tile p.note { font-size: 12px; color: var(--dim); max-width: 520px; margin: 28px auto 0; line-height: 1.5 }
+
+  footer { background: var(--grey); color: var(--dim); font-size: 12px; padding: 18px 16px 34px }
+  footer div { max-width: 1024px; margin: 0 auto; display: flex; gap: 20px; flex-wrap: wrap; align-items: center }
+  footer .sp { flex: 1 }
+  footer a:hover { color: var(--ink); text-decoration: underline }
+
+  @media (max-width: 734px) {
+    .nav .hide { display: none }
+    .pair { grid-template-columns: 1fr; padding: 0 }
+    .tile .copy { padding-top: 44px }
+    .phones { overflow-x: auto; justify-content: flex-start; scroll-snap-type: x mandatory; padding: 0 16px; gap: 10px; scrollbar-width: none }
+    .phones img { width: 70%; flex: none; scroll-snap-align: center }
+  }
+</style>
+</head>
+<body>
+
+<nav class="nav" aria-label="AddStock">
+  <div>
+    <a class="logo" href="#"><img src="img/logo.svg" alt="">AddStock</a>
+    <span class="sp"></span>
+    <a class="hide" href="#get">Windows</a>
+    <a class="hide" href="#android">Android</a>
+    <a class="hide" href="https://optionbuilder.adddots.com/">Web</a>
+    <a class="get" href="#get">Get</a>
+  </div>
+</nav>
+
+<main>
+  <section class="tile dark hero wide">
+    <div class="copy">
+      <h1>AddStock</h1>
+      <p>Your Stocks. Your Strategy.</p>
+      <div class="acts">
+        <a class="btn fill" href="https://optionbuilder.adddots.com/">Open AddStock</a>
+        <!-- placeholder: the Microsoft Store link goes here once the app is listed -->
+        <a class="btn line" href="#">Get for Windows</a>
+        <a class="btn line" href="https://play.google.com/store/apps/details?id=com.adddots.optionbuilder">Get on Google Play</a>
+      </div>
+    </div>
+    <img class="pic" src="img/t-win-01.webp" alt="An iron condor and its payoff chart in the Strategy Builder" width="1600" height="653">
+  </section>
+
+  <section class="tile light wide">
+    <div class="copy"><h2>Track it live.</h2><p>Every strategy, leg by leg.</p></div>
+    <img class="pic" loading="lazy" src="img/t-win-02.webp" alt="A saved strategy with its live P&amp;L" width="1600" height="653">
+  </section>
+
+  <div class="pair">
+    <section class="tile dark">
+      <div class="copy"><h2>Option chain.</h2><p>At a glance.</p></div>
+      <img class="pic" loading="lazy" src="img/t-win-03.webp" alt="The option chain with OI, volume and IV" width="1600" height="653">
+    </section>
+    <section class="tile light">
+      <div class="copy"><h2>Open interest.</h2><p>By strike, by the minute.</p></div>
+      <img class="pic" loading="lazy" src="img/t-win-04.webp" alt="OI change by strike" width="1600" height="653">
+    </section>
+  </div>
+
+  <section class="tile dark wide">
+    <div class="copy"><h2>Charts.</h2><p>Indicators and drawings.</p></div>
+    <img class="pic" loading="lazy" src="img/t-win-05.webp" alt="A candlestick chart with a watchlist" width="1600" height="653">
+  </section>
+
+  <div class="pair">
+    <section class="tile light">
+      <div class="copy"><h2>Daily report.</h2><p>Ready to share.</p></div>
+      <img class="pic" loading="lazy" src="img/t-win-06.webp" alt="The daily market report and its Instagram post" width="1600" height="653">
+    </section>
+    <section class="tile dark">
+      <div class="copy"><h2>Portfolio.</h2><p>India and US.</p></div>
+      <img class="pic" loading="lazy" src="img/t-win-07.webp" alt="The portfolio with allocation and benchmarks" width="1600" height="653">
+    </section>
+  </div>
+
+  <section class="tile dark" id="android">
+    <div class="copy">
+      <h2>In your pocket.</h2>
+      <p>On your Android phone.</p>
+      <div class="acts">
+        <a class="btn fill" href="https://play.google.com/store/apps/details?id=com.adddots.optionbuilder">Get on Google Play</a>
+      </div>
+    </div>
+    <div class="phones pic">
+      <img src="img/t-phone-01.webp" alt="The Strategy Builder on a phone" width="1080" height="1320">
+      <img src="img/t-phone-03.webp" alt="A live draft on a phone" width="1080" height="1320">
+      <img src="img/t-phone-07.webp" alt="The daily report on a phone" width="1080" height="1320">
+    </div>
+  </section>
+
+  <section class="tile light" id="get">
+    <div class="copy" style="padding-bottom:56px">
+      <h2>Get AddStock.</h2>
+      <p>Windows, Android and the web.</p>
+      <div class="acts">
+        <!-- placeholder: the Microsoft Store link goes here once the app is listed -->
+        <a class="btn fill" href="#">Windows</a>
+        <a class="btn fill" href="https://play.google.com/store/apps/details?id=com.adddots.optionbuilder">Android</a>
+        <a class="btn line" href="https://optionbuilder.adddots.com/">Web</a>
+      </div>
+      <p class="note">AddStock is an analysis tool, not investment advice. Prices, margins and Greeks are estimates; verify with your broker before trading.</p>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div>
+    <span>© <span id="y">2026</span> Add Dots</span>
+    <span class="sp"></span>
+    <a href="https://www.adddots.com/adddotsmain/about.html">About</a>
+    <a href="https://www.adddots.com/">adddots.com</a>
+  </div>
+</footer>
+<script>document.getElementById('y').textContent = new Date().getFullYear();</script>
+</body>
+</html>
