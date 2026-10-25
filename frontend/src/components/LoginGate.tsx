@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { ArrowLeft, ArrowRight, Check, Lock, Mail } from 'lucide-react';
 import { api, errorMessage } from '../api/client';
-import { authRedirectUrl, clearAuthRedirect, isAuthRedirect, isDesktopApp, supabaseAuth } from '../api/supabase';
+import { authRedirectUrl, clearAuthRedirect, isAuthRedirect, supabaseAuth } from '../api/supabase';
 import type { SupabaseConfig } from '../api/types';
 import { Logo } from './Logo';
 
@@ -61,20 +61,6 @@ function Shell({ subtitle, children }: { subtitle: string; children: ReactNode }
       </div>
       <p className="absolute right-0 bottom-3 left-0 text-center text-[11px] text-[var(--text-muted)]">An analysis tool, not investment advice.</p>
     </main>
-  );
-}
-
-/** Google's four-colour "G", on a white disc so it reads on the accent button. */
-function GoogleMark() {
-  return (
-    <span className="flex h-5 w-5 items-center justify-center rounded-full bg-white" aria-hidden="true">
-      <svg viewBox="0 0 48 48" width="14" height="14">
-        <path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9 3.6l6.7-6.7C35.6 2.4 30.2 0 24 0 14.6 0 6.6 5.4 2.7 13.2l7.8 6C12.4 13.6 17.7 9.5 24 9.5z" />
-        <path fill="#4285F4" d="M46.5 24.5c0-1.6-.1-3.1-.4-4.5H24v9h12.7c-.6 2.9-2.2 5.4-4.7 7.1l7.6 5.9c4.4-4.1 6.9-10.1 6.9-17.5z" />
-        <path fill="#FBBC05" d="M10.5 28.8c-.5-1.5-.8-3.1-.8-4.8s.3-3.3.8-4.8l-7.8-6C1 16.5 0 20.1 0 24s1 7.5 2.7 10.8l7.8-6z" />
-        <path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.6-5.9c-2.1 1.4-4.9 2.3-8.3 2.3-6.3 0-11.6-4.1-13.5-9.7l-7.8 6C6.6 42.6 14.6 48 24 48z" />
-      </svg>
-    </span>
   );
 }
 
@@ -168,8 +154,6 @@ export function LoginGate({
   const [busy, setBusy] = useState(false);
   /** Seconds until another code may be sent. */
   const [wait, setWait] = useState(0);
-  /** Google sign-in was handed to the system browser and hasn't come back yet. */
-  const [waitingForBrowser, setWaitingForBrowser] = useState(false);
 
   useEffect(() => {
     if (wait <= 0) return;
@@ -275,20 +259,6 @@ export function LoginGate({
     }, 'Code not accepted');
   };
 
-  /** Windows app: the shell sends Supabase's authorize page to the system browser, since Google refuses embedded webviews. */
-  const signInWithGoogle = () =>
-    run(async () => {
-      if (!supabase) return;
-      const sb = await supabaseAuth(supabase);
-      const { data, error: err } = await sb.auth.signInWithOAuth({
-        provider: 'google',
-        options: { redirectTo: authRedirectUrl(), skipBrowserRedirect: true },
-      });
-      if (err) throw err;
-      setWaitingForBrowser(true);
-      window.location.assign(data.url);
-    }, 'Could not start Google sign-in');
-
   const errorBox = error && (
     <p id="login-error" role="alert" className="mt-2 text-left text-xs text-[var(--critical)]">
       {error}
@@ -299,22 +269,6 @@ export function LoginGate({
       <ArrowLeft size={13} aria-hidden="true" /> Back
     </button>
   );
-
-  if (supabase && isDesktopApp()) {
-    return (
-      <Shell subtitle="to your AddStock workspace">
-        {errorBox}
-        <button type="button" onClick={() => void signInWithGoogle()} disabled={busy} className={`${PRIMARY} mt-5`}>
-          <GoogleMark />
-          {busy ? 'Signing in…' : waitingForBrowser ? 'Open Google again' : 'Continue with Google'}
-        </button>
-        <p className="mt-3 flex items-center gap-1.5 text-xs text-[var(--text-muted)]">
-          <Lock size={13} aria-hidden="true" />
-          {waitingForBrowser ? 'Finish signing in in your browser, then come back here' : 'Only approved Google accounts can sign in'}
-        </p>
-      </Shell>
-    );
-  }
 
   if (supabase && !passwordLogin) {
     return (

@@ -3,10 +3,14 @@
 A Tauri 2 shell that opens <https://optionbuilder.adddots.com/> in its own window. The site isn't bundled, so
 the backend's session cookie works unchanged and every deploy reaches the app.
 
-Sign-in is Google only. Google refuses embedded webviews, so the shell sends Supabase's authorize page to the
-system browser; Google comes back through an `addstock://auth/callback?code=…` link, and the shell reopens
-the site with that code for supabase-js to finish. Upstox pages stay in the window; any other link opens in
+The app opens on its own start screen instead of the website's landing page: the app's sections down the
+side, a sign-in banner and shortcuts (`frontend/src/features/landing/DesktopHome.tsx`). Each shortcut signs in
+and then opens its page. Sign-in is the same email code as the website, typed into the app. Upstox pages stay in the window; any other link opens in
 the browser.
+
+The shell already handles Google for later (branch `google-sign-in`): Google refuses embedded webviews, so
+Supabase's authorize page goes to the system browser and Google comes back through an
+`addstock://auth/callback?code=…` link, which the shell reopens on the site for supabase-js to finish.
 
 ## Build
 
@@ -21,7 +25,7 @@ npm run build    # installers in src-tauri/target/release/bundle/{nsis,msi}
 npm run icons    # regenerate icons from the web app's logo
 ```
 
-## Google sign-in setup (once)
+## Google sign-in setup (for the `google-sign-in` branch)
 
 1. Google Cloud Console → APIs & Services → Credentials → OAuth client ID (Web application). Authorized
    redirect URI: `https://zqwuztvbpfifmkwtjyyk.supabase.co/auth/v1/callback`.

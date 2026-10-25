@@ -37,6 +37,8 @@ const PAGE_KEY = 'option-builder-tab';
 const ChartPage = lazy(() => import('./features/chart/ChartPage').then((m) => ({ default: m.ChartPage })));
 // Only visitors who aren't signed in see the landing page.
 const Landing = lazy(() => import('./features/landing/Landing').then((m) => ({ default: m.Landing })));
+// The Windows app's start screen in place of the landing page.
+const DesktopHome = lazy(() => import('./features/landing/DesktopHome').then((m) => ({ default: m.DesktopHome })));
 
 function initialRoute(): Route {
   const fromHash = parseRoute(window.location.hash);
@@ -57,9 +59,8 @@ const MARKET_PAGES: PageId[] = ['builder', 'chain', 'report'];
 export default function App() {
   const [session, setSession] = useState<Session | null>(null);
   const [unreachable, setUnreachable] = useState(false);
-  // Coming back from a magic link or Google goes straight to the login gate, which finishes the sign-in.
-  // The Windows app has no landing page: it always opens on the gate.
-  const [signingIn, setSigningIn] = useState(() => isAuthRedirect() || isDesktopApp());
+  // Coming back from a magic link goes straight to the login gate, which finishes the sign-in.
+  const [signingIn, setSigningIn] = useState(isAuthRedirect);
 
   const check = useCallback(() => {
     api
@@ -92,8 +93,21 @@ export default function App() {
           supabase={session.supabase ?? null}
           passwordLogin={session.passwordLogin ?? true}
           onSuccess={check}
-          onBack={isDesktopApp() ? undefined : () => setSigningIn(false)}
+          onBack={() => setSigningIn(false)}
         />
+      );
+    }
+    if (isDesktopApp()) {
+      return (
+        <Suspense fallback={null}>
+          <DesktopHome
+            onSignIn={(page) => {
+              // The workspace opens on the page in the address bar once signed in.
+              if (page) history.replaceState(null, '', routeHash({ page }));
+              setSigningIn(true);
+            }}
+          />
+        </Suspense>
       );
     }
     return (
