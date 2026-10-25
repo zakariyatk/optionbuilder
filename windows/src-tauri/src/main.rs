@@ -7,20 +7,26 @@
 // Closing the window hides it to the tray, so price alerts keep running; they reach Windows as native
 // notifications through the `notify` command, which the page's Notification API is pointed at.
 //
+// Updates come from the repo's GitHub Releases (latest.json, signed with the updater key): checked shortly
+// after start, twice a day, and from the tray menu, and installed only when the user says so.
+//
 // Google refuses to sign in inside embedded webviews, so Supabase's authorize page is sent to the system
 // browser; Google then comes back through an addstock://auth/callback link, which reopens the site's root
 // with the ?code= for supabase-js to exchange in the window that started the sign-in.
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::time::Duration;
 
 use tauri::menu::{CheckMenuItem, Menu, MenuItem, PredefinedMenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
 use tauri::{AppHandle, Manager, Url, WebviewUrl, WebviewWindowBuilder, WindowEvent};
 use tauri_plugin_autostart::{MacosLauncher, ManagerExt as _};
 use tauri_plugin_deep_link::DeepLinkExt;
+use tauri_plugin_dialog::{DialogExt, MessageDialogButtons};
 use tauri_plugin_notification::NotificationExt;
 use tauri_plugin_opener::OpenerExt;
+use tauri_plugin_updater::UpdaterExt;
 use tauri_plugin_window_state::StateFlags;
 
 const SITE: &str = "https://optionbuilder.adddots.com/";
@@ -49,6 +55,10 @@ const PAGE_SCRIPT: &str = r#"
 
 /// Shown once per run, the first time closing the window only hides it.
 static TRAY_HINT_SHOWN: AtomicBool = AtomicBool::new(false);
+
+/// The first automatic update check waits for the window to settle; later ones run twice a day.
+const FIRST_UPDATE_CHECK: Duration = Duration::from_secs(15);
+const UPDATE_CHECK_EVERY: Duration = Duration::from_secs(12 * 60 * 60);
 
 /// A Windows notification, for price alerts fired on the site.
 #[tauri::command]
@@ -108,6 +118,46 @@ fn show_main(app: &AppHandle) {
     }
 }
 
+/// Looks for a newer release and asks before installing it; the installer then closes and restarts the
+/// app. A `quiet` check (the automatic ones) says nothing when there's no update or the check fails.
+async fn check_for_update(app: AppHandle, quiet: bool) {
+    let found = match app.updater() {
+        Ok(updater) => updater.check().await,
+        Err(err) => Err(err),
+    };
+    match found {
+        Ok(Some(update)) => {
+            let message = format!(
+                "AddStock {} is available (you have {}). Install it now? AddStock closes and reopens when it's done.",
+                update.version, update.current_version
+            );
+            let handle = app.clone();
+            app.dialog()
+                .message(message)
+                .title("Update available")
+                .buttons(MessageDialogButtons::OkCancelCustom("Install".into(), "Later".into()))
+                .show(move |install| {
+                    if !install {
+                        return;
+                    }
+                    tauri::async_runtime::spawn(async move {
+                        if let Err(err) = update.download_and_install(|_, _| {}, || {}).await {
+                            handle.dialog().message(format!("The update couldn't be installed: {err}")).title("Update failed").show(|_| {});
+                        }
+                    });
+                });
+        }
+        Ok(None) if !quiet => {
+            let message = format!("AddStock {} is the latest version.", app.package_info().version);
+            app.dialog().message(message).title("No updates").show(|_| {});
+        }
+        Err(err) if !quiet => {
+            app.dialog().message(format!("Couldn't check for updates: {err}")).title("Update check failed").show(|_| {});
+        }
+        _ => {}
+    }
+}
+
 fn handle_links(app: &AppHandle, links: Vec<Url>) {
     let Some(window) = app.get_webview_window(MAIN) else { return };
     if let Some(target) = links.iter().find_map(callback_target) {
@@ -121,8 +171,9 @@ fn build_tray(app: &tauri::App) -> tauri::Result<()> {
     let open = MenuItem::with_id(app, "open", "Open AddStock", true, None::<&str>)?;
     let autostart_on = app.autolaunch().is_enabled().unwrap_or(false);
     let autostart = CheckMenuItem::with_id(app, "autostart", "Start with Windows", true, autostart_on, None::<&str>)?;
+    let update = MenuItem::with_id(app, "update", "Check for updates…", true, None::<&str>)?;
     let quit = MenuItem::with_id(app, "quit", "Quit AddStock", true, None::<&str>)?;
-    let menu = Menu::with_items(app, &[&open, &autostart, &PredefinedMenuItem::separator(app)?, &quit])?;
+    let menu = Menu::with_items(app, &[&open, &autostart, &update, &PredefinedMenuItem::separator(app)?, &quit])?;
 
     let mut tray = TrayIconBuilder::with_id("main")
         .tooltip("AddStock")
@@ -135,6 +186,9 @@ fn build_tray(app: &tauri::App) -> tauri::Result<()> {
                 let on = launcher.is_enabled().unwrap_or(false);
                 let _ = if on { launcher.disable() } else { launcher.enable() };
                 let _ = autostart.set_checked(launcher.is_enabled().unwrap_or(!on));
+            }
+            "update" => {
+                tauri::async_runtime::spawn(check_for_update(app.clone(), false));
             }
             "quit" => app.exit(0),
             _ => {}
@@ -158,6 +212,8 @@ fn main() {
         .plugin(tauri_plugin_deep_link::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_notification::init())
+        .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_autostart::init(MacosLauncher::LaunchAgent, Some(vec![HIDDEN_ARG])))
         // Size and position only: the window is shown or hidden by how the app was started.
         .plugin(
@@ -191,6 +247,15 @@ fn main() {
                 .build()?;
 
             build_tray(app)?;
+
+            let handle = app.handle().clone();
+            std::thread::spawn(move || {
+                std::thread::sleep(FIRST_UPDATE_CHECK);
+                loop {
+                    tauri::async_runtime::block_on(check_for_update(handle.clone(), true));
+                    std::thread::sleep(UPDATE_CHECK_EVERY);
+                }
+            });
 
             let handle = app.handle().clone();
             app.deep_link().on_open_url(move |event| handle_links(&handle, event.urls()));

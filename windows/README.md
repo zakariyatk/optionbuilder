@@ -30,9 +30,31 @@ Needs Node 20+, Rust (`winget install Rustlang.Rustup`) and the Visual Studio C+
 npm install
 npm test         # Rust unit tests: link handling and navigation rules
 npm run dev      # run the app
-npm run build    # installers in src-tauri/target/release/bundle/{nsis,msi}
+npm run build    # installers in src-tauri/target/release/bundle/{nsis,msi}; needs the updater key, below
 npm run icons    # regenerate icons from the web app's logo
 ```
+
+## Releases and updates
+
+Installed apps check the repo's latest GitHub release for `latest.json` 15 seconds after starting, then
+twice a day, and from **Check for updates…** in the tray menu. When there's a newer version they ask
+before installing; the installer closes AddStock and reopens it.
+
+Updates are signed with a free updater key (not Windows code signing). The public half is in
+`src-tauri/tauri.conf.json`; the private half is `C:\Users\zak\.tauri\addstock-updater.key` on the PC that
+made it. Keep a backup: without it, installed apps can't take updates from a new key.
+
+Once, in GitHub → Settings → Secrets and variables → Actions → New repository secret: name
+`TAURI_SIGNING_PRIVATE_KEY`, value the whole contents of that key file.
+
+To release a version:
+1. Raise `version` in `src-tauri/tauri.conf.json`, `src-tauri/Cargo.toml` and `package.json`.
+2. Commit, then tag and push: `git tag windows-v0.3.0` and `git push origin windows-v0.3.0`.
+3. The **Windows app** workflow builds the installers and publishes the release with `latest.json`.
+
+A local `npm run build` needs the key too: set `TAURI_SIGNING_PRIVATE_KEY` to the file's contents and
+`TAURI_SIGNING_PRIVATE_KEY_PASSWORD` to an empty string. `node scripts/latest-json.mjs` then writes
+`latest.json` next to the installers.
 
 ## Google sign-in setup (for the `google-sign-in` branch)
 
