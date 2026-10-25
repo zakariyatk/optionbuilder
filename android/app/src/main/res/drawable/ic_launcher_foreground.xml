@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  The Option Builder logo (frontend/src/components/Logo.tsx, public/favicon.svg),
+  The AddStock logo (frontend/src/components/Logo.tsx, public/favicon.svg),
   scaled so its tile fills the 72dp visible area of the adaptive icon.
   The tile itself is the icon background (@color/logo_tile).
 -->

@@ -127,8 +127,8 @@ function page(w, h, theme, inner) {
 }
 
 const DESK = [
-  { file: '01-strategy-builder', theme: 'dark', screen: 'd1-builder', eyebrow: 'Option Builder',
-    title: 'Build options strategies.<br><em>See the payoff first.</em>', hsize: 72,
+  { file: '01-strategy-builder', theme: 'dark', screen: 'd1-builder', eyebrow: 'AddStock',
+    title: 'Your Stocks.<br><em>Your Strategy.</em>', hsize: 72,
     extra: badge('builder', 300, 500, 168) },
   { file: '02-drafts', theme: 'light', screen: 'd2-draft-live', eyebrow: 'Draft portfolios',
     title: 'Track every strategy <em>live.</em>', sub: 'Save a strategy to drafts and follow its P&amp;L, leg by leg.',
@@ -183,8 +183,8 @@ function phoneSlide(o) {
 }
 
 const PHONE = [
-  { file: '01-strategy-builder', theme: 'dark', screen: 'p1-builder', eyebrow: 'Option Builder', title: 'See the payoff<br><em>before you trade.</em>',
-    sub: 'Options strategies on live NSE data.', extra: badge('builder', 92, 1040, 168) },
+  { file: '01-strategy-builder', theme: 'dark', screen: 'p1-builder', eyebrow: 'AddStock', title: 'Your Stocks.<br><em>Your Strategy.</em>',
+    sub: 'See the payoff before you trade.', extra: badge('builder', 92, 1040, 168) },
   { file: '02-greeks', theme: 'light', screen: 'p2-metrics', eyebrow: 'Risk &amp; Greeks', title: 'Know your risk<br><em>to the rupee.</em>',
     sub: 'Max profit and loss, breakevens, margin and Greeks.', extra: badge('greeks', 92, 1040, 168) },
   { file: '03-drafts', theme: 'dark', screen: 'p3-draft-live', eyebrow: 'Draft portfolios', title: 'Track strategies<br><em>live.</em>',
@@ -206,9 +206,9 @@ const PHONE = [
 function feature() {
   const inner = `
     <div style="position:absolute;left:64px;top:90px;z-index:3;width:420px">
-      <div class="brand" style="font-size:22px;gap:14px">${LOGO.replace('<svg ', '<svg width="58" height="58" ')}<span>Option Builder</span></div>
-      <h1 style="font-size:46px;margin-top:28px;white-space:nowrap">See the payoff<br><em>before you trade.</em></h1>
-      <p class="sub" style="font-size:20px;margin-top:18px;max-width:370px;line-height:1.4">Options strategies on live NSE data.</p>
+      <div class="brand" style="font-size:22px;gap:14px">${LOGO.replace('<svg ', '<svg width="58" height="58" ')}<span>AddStock</span></div>
+      <h1 style="font-size:46px;margin-top:28px;white-space:nowrap">Your Stocks.<br><em>Your Strategy.</em></h1>
+      <p class="sub" style="font-size:20px;margin-top:18px;max-width:370px;line-height:1.4">See the payoff before you trade, on live NSE data.</p>
     </div>
     <div style="position:absolute;left:520px;top:70px;width:620px;height:400px;border-radius:16px;overflow:hidden;z-index:2;
       background:#fff url('${img('d1-builder')}') 0 0 / 640px 400px no-repeat;box-shadow:0 0 0 1px rgba(255,255,255,.14), 0 40px 90px rgba(0,0,0,.6)"></div>

@@ -62,7 +62,7 @@ fun LoginScreen(onOpen: () -> Unit) {
         ) {
             Logo(64.dp)
             Spacer(Modifier.size(18.dp))
-            Text("Option Builder", fontSize = 26.sp, fontWeight = FontWeight.Bold, color = Ob.colors.textPrimary)
+            Text("AddStock", fontSize = 26.sp, fontWeight = FontWeight.Bold, color = Ob.colors.textPrimary)
             Text("ADD DOTS · Enter your password", Modifier.padding(top = 6.dp, bottom = 26.dp), fontSize = 12.sp, color = Ob.colors.textSecondary, textAlign = TextAlign.Center)
             Text("PASSWORD", Modifier.fillMaxWidth(), fontSize = 9.sp, letterSpacing = 1.4.sp, color = Ob.colors.textSecondary)
             OutlinedTextField(

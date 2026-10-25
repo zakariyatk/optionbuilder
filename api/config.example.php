@@ -1,6 +1,6 @@
 <?php
 /**
- * Option Builder configuration template.
+ * AddStock configuration template.
  *
  * RECOMMENDED: copy this file to the directory ABOVE your web root and name it
  * optionbuilder-config.php, e.g.

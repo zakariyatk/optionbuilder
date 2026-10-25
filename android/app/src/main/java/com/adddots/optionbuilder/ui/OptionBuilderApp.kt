@@ -147,7 +147,7 @@ private fun Shell(state: AppState, dark: Boolean) {
                         Logo(36.dp)
                         Column {
                             Text(state.page.label, fontSize = 16.sp, fontWeight = FontWeight.Bold)
-                            Text("OPTION BUILDER · ADD DOTS", fontSize = 9.sp, letterSpacing = 1.2.sp, color = Ob.colors.textMuted)
+                            Text("ADDSTOCK · ADD DOTS", fontSize = 9.sp, letterSpacing = 1.2.sp, color = Ob.colors.textMuted)
                         }
                     }
                 },

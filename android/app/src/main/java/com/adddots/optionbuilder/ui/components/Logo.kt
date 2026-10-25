@@ -28,7 +28,7 @@ private fun roundRect(x: Float, y: Float, w: Float, h: Float, r: Float) =
 private val LogoAccent = Color(0xFF7B61FF)
 
 /**
- * The Option Builder mark: an "A" with rising candles and a violet trend arrow,
+ * The AddStock mark: an "A" with rising candles and a violet trend arrow,
  * on a rounded tile. Same drawing as the web's components/Logo.tsx
  * (viewBox 162 157 928 935); the launcher icon is res/drawable/ic_launcher_foreground.xml.
  */

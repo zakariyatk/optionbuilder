@@ -1,6 +1,6 @@
 # Store screenshots
 
-The Microsoft Store and Google Play images in `design/store`, made from the real app on its recorded market data.
+The Microsoft Store and Google Play images in `design/store`, made from the real AddStock app on its recorded market data.
 
 ```bash
 cd frontend && npm run dev:mock -- --port 5174     # in one terminal

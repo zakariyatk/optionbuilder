@@ -77,7 +77,7 @@ export default function App() {
   if (unreachable) {
     return (
       <main className="mx-auto flex min-h-[60vh] max-w-md flex-col items-center justify-center gap-3 px-4 text-center">
-        <div className="text-sm text-[var(--critical)]">Cannot reach the Option Builder server.</div>
+        <div className="text-sm text-[var(--critical)]">Cannot reach the AddStock server.</div>
         <div className="text-xs text-[var(--text-muted)]">Check your connection, or that the backend is running.</div>
         <Button onClick={check}>Retry</Button>
       </main>
@@ -511,7 +511,7 @@ function Workspace({ showLogout, onLogout }: { showLogout: boolean; onLogout: ()
         <footer
           className={`mt-8 border-t border-[var(--border)] pt-3 text-[10px] leading-relaxed text-[var(--text-muted)] ${route.page === 'chart' ? 'hidden' : ''}`}
         >
-          Option Builder is an analysis tool, not investment advice. Prices, margins and Greeks are estimates — verify with your broker before trading.
+          AddStock is an analysis tool, not investment advice. Prices, margins and Greeks are estimates — verify with your broker before trading.
         </footer>
       </main>
     </>

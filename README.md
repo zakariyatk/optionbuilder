@@ -1,4 +1,6 @@
-# Option Builder · ADD DOTS
+# AddStock · ADD DOTS
+
+*Your Stocks. Your Strategy.*
 
 A workspace for building and analysing NSE options strategies: live option chains
 via Upstox, payoff graphs at expiry and on any target date, position Greeks,
@@ -138,4 +140,4 @@ The server needs PHP 8.1+ with cURL, and `api/data/` (or your `data_dir`) writab
 - Broker token and cache live in `api/data/` (blocked from the web) or a `data_dir`
   outside the web root.
 
-*Option Builder is an analysis tool, not investment advice.*
+*AddStock is an analysis tool, not investment advice.*

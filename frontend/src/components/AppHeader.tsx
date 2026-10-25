@@ -264,7 +264,7 @@ export function AppHeader({
             <Logo size={28} />
           </a>
           <button type="button" onClick={() => go('builder')} className="ob-title hidden !text-base sm:block">
-            Option Builder
+            AddStock
           </button>
           <span className="hidden text-xl font-light text-[var(--text-muted)] sm:inline" aria-hidden="true">
             /

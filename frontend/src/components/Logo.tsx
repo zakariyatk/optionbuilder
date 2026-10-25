@@ -1,5 +1,5 @@
 /**
- * The Option Builder mark: an "A" with rising candles and a violet trend arrow,
+ * The AddStock mark: an "A" with rising candles and a violet trend arrow,
  * on a rounded tile. Colours come from --logo-tile, --logo-ink and --logo-accent
  * in styles/index.css; the arrow is outlined in the tile colour so it reads
  * cleanly where it crosses the "A". public/favicon.svg is the same drawing.

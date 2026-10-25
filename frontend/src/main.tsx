@@ -7,7 +7,7 @@ import './styles/index.css';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <ErrorBoundary label="Option Builder">
+    <ErrorBoundary label="AddStock">
       <App />
       <DialogHost />
     </ErrorBoundary>

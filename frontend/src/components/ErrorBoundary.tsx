@@ -12,7 +12,7 @@ export class ErrorBoundary extends Component<{ children: ReactNode; label?: stri
   }
 
   componentDidCatch(error: Error, info: ErrorInfo) {
-    console.error(`[Option Builder] ${this.props.label ?? 'panel'} crashed`, error, info.componentStack);
+    console.error(`[AddStock] ${this.props.label ?? 'panel'} crashed`, error, info.componentStack);
   }
 
   render() {

@@ -42,7 +42,7 @@ var TEAL = '#2dd4bf';
 
 var M = 96;              // left margin
 var RM = W - M;          // right margin
-var BRAND = 'ZAK TRADE · OPTION BUILDER';
+var BRAND = 'ZAK TRADE · ADDSTOCK';
 var SOURCE = 'Source: optionbuilder.adddots.com';
 
 // Ambient colour wash per slide. Kept as data so the deck reads as a set

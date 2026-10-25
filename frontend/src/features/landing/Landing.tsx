@@ -145,7 +145,7 @@ function ProductPreview() {
       <div className="lp-preview-bar">
         <Logo size={32} className="lp-mark lp-mark-sm" />
         <span className="lp-brand-sm">
-          <b>AD OPTION</b> BUILDER
+          <b>ADD</b>STOCK
         </span>
         <span className="lp-preview-tabs">
           <span className="is-active">Strategy Builder</span>
@@ -333,10 +333,10 @@ export function Landing({ onSignIn }: { onSignIn: () => void }) {
       </a>
       <header className="lp-header">
         <div className="lp-wrap lp-header-row">
-          <a href="#top" className="lp-logo" aria-label="AD Option Builder home">
+          <a href="#top" className="lp-logo" aria-label="AddStock home">
             <Logo size={52} className="lp-mark" />
             <span className="lp-brand">
-              <b>AD OPTION</b> BUILDER
+              <b>ADD</b>STOCK
             </span>
           </a>
           <nav className="lp-nav" aria-label="Sections">
@@ -370,12 +370,12 @@ export function Landing({ onSignIn }: { onSignIn: () => void }) {
           <div className="lp-wrap lp-hero-grid">
             <div className="lp-hero-copy">
               <h1>
-                See the payoff <span className="lp-accent">before you trade.</span>
+                Your Stocks. <span className="lp-accent">Your Strategy.</span>
               </h1>
-              <p className="lp-lead">Options strategies on live NSE data.</p>
+              <p className="lp-lead">See the payoff before you trade, on live NSE data.</p>
               <div className="lp-cta-row">
                 <button type="button" className="lp-btn lp-btn-primary lp-btn-lg" onClick={onSignIn}>
-                  Launch Option Builder <Icon d={ICON.arrow} size={20} />
+                  Launch AddStock <Icon d={ICON.arrow} size={20} />
                 </button>
                 <a href="#features" className="lp-text-link">
                   Explore features <Icon d={ICON.arrow} size={16} />
@@ -493,7 +493,7 @@ export function Landing({ onSignIn }: { onSignIn: () => void }) {
             </h2>
             <p>Open the builder and see the payoff of your idea before you place a single order.</p>
             <button type="button" className="lp-btn lp-btn-primary lp-btn-lg" onClick={onSignIn}>
-              Launch Option Builder <Icon d={ICON.arrow} size={20} />
+              Launch AddStock <Icon d={ICON.arrow} size={20} />
             </button>
           </div>
         </section>
@@ -504,11 +504,11 @@ export function Landing({ onSignIn }: { onSignIn: () => void }) {
           <span className="lp-logo">
             <Logo size={32} className="lp-mark lp-mark-sm" />
             <span className="lp-brand">
-              <b>AD OPTION</b> BUILDER
+              <b>ADD</b>STOCK
             </span>
           </span>
           <p>
-            Options trading involves substantial risk. Option Builder is an analysis tool, not investment advice. © {new Date().getFullYear()} ADD
+            Options trading involves substantial risk. AddStock is an analysis tool, not investment advice. © {new Date().getFullYear()} ADD
             DOTS
           </p>
         </div>

@@ -1,6 +1,6 @@
 {
-  "name": "Option Builder · ADD DOTS",
-  "short_name": "Option Builder",
+  "name": "AddStock · ADD DOTS",
+  "short_name": "AddStock",
   "description": "Build and analyse NSE options strategies with live chains, payoff graphs, Greeks and a daily market report.",
   "id": "/",
   "start_url": "/",

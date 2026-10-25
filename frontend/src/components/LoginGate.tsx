@@ -46,7 +46,7 @@ function Shell({ subtitle, children }: { subtitle: string; children: ReactNode }
       <Backdrop />
       <div className="absolute top-4 left-4 flex items-center gap-2">
         <Logo size={28} />
-        <span className="text-[13px] font-semibold tracking-[0.06em]">OPTION BUILDER</span>
+        <span className="text-[13px] font-semibold tracking-[0.06em]">ADDSTOCK</span>
       </div>
       <span className="absolute top-4 right-4 text-xs text-[var(--text-muted)]">ADD DOTS</span>
       <div className="relative w-full max-w-[22rem] rounded-2xl border border-[var(--border-strong)] bg-[color-mix(in_srgb,var(--surface-card)_86%,transparent)] p-6 backdrop-blur-sm">
@@ -272,7 +272,7 @@ export function LoginGate({
 
   if (supabase && !passwordLogin) {
     return (
-      <Shell subtitle="to your Option Builder workspace">
+      <Shell subtitle="to your AddStock workspace">
         <Steps step={step} />
         {step === 'email' ? (
           <form

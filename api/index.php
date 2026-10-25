@@ -95,7 +95,7 @@ try {
         $accessToken = (string) (ob_body()['access_token'] ?? '');
         if (!ob_login_supabase($accessToken)) {
             ob_login_record_failure();
-            ob_error('This account is not allowed to open Option Builder', 401);
+            ob_error('This account is not allowed to open AddStock', 401);
         }
         ob_login_clear_failures();
         ob_json(['ok' => true]);
@@ -632,6 +632,6 @@ try {
     ob_error('Not found: ' . $path, 404);
 } catch (Throwable $e) {
     // Last-resort net: never emit a stack trace to the client.
-    error_log('Option Builder: ' . $e->getMessage());
+    error_log('AddStock: ' . $e->getMessage());
     ob_error('Server error', 500);
 }

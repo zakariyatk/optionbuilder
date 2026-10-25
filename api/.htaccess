@@ -1,4 +1,4 @@
-# Option Builder API — Apache/LiteSpeed config for shared hosting.
+# AddStock API — Apache/LiteSpeed config for shared hosting.
 
 # --- protect everything that isn't meant to be fetched -----------------------
 # config.php holds the Upstox secret and app password; data/ holds the live

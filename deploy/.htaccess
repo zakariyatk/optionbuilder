@@ -1,4 +1,4 @@
-# Option Builder — web-root config for Apache / LiteSpeed shared hosting.
+# AddStock — web-root config for Apache / LiteSpeed shared hosting.
 # Copied into the release folder by scripts/package-release.mjs.
 
 Options -Indexes

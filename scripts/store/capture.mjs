@@ -1,6 +1,6 @@
 /* Store screenshots, step 1: the real app, driven through each page.
 
-   Opens Option Builder on its recorded market data (cd frontend; npm run
+   Opens AddStock on its recorded market data (cd frontend; npm run
    dev:mock -- --port 5174), signs in (the mock takes any password), builds an
    iron condor from the templates, saves it as a draft, and saves one raw
    screen per scene to out/raw, plus close-ups of the parts the layouts zoom in
