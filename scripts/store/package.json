@@ -1,0 +1,13 @@
+{
+  "name": "option-builder-store-shots",
+  "private": true,
+  "type": "module",
+  "description": "Microsoft Store and Google Play screenshots of Option Builder, from the real app on its mock data",
+  "scripts": {
+    "capture": "node capture.mjs",
+    "compose": "node compose.mjs"
+  },
+  "devDependencies": {
+    "playwright-core": "1.56.1"
+  }
+}
