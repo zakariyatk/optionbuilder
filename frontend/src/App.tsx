@@ -57,7 +57,7 @@ const MARKET_PAGES: PageId[] = ['builder', 'chain', 'report'];
 export default function App() {
   const [session, setSession] = useState<Session | null>(null);
   const [unreachable, setUnreachable] = useState(false);
-  // Coming back from a magic link or Google goes straight to the login gate, which finishes the sign-in.
+  // Coming back from Google goes straight to the login gate, which finishes the sign-in.
   // The Windows app has no landing page: it always opens on the gate.
   const [signingIn, setSigningIn] = useState(() => isAuthRedirect() || isDesktopApp());
 

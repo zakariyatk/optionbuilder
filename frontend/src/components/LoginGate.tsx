@@ -1,21 +1,15 @@
-import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
-import { ArrowLeft, ArrowRight, Check, Lock, Mail } from 'lucide-react';
+import { useCallback, useEffect, useState, type FormEvent, type ReactNode } from 'react';
+import { ArrowLeft, ArrowRight, Lock } from 'lucide-react';
 import { api, errorMessage } from '../api/client';
 import { authRedirectUrl, clearAuthRedirect, isAuthRedirect, isDesktopApp, supabaseAuth } from '../api/supabase';
 import type { SupabaseConfig } from '../api/types';
 import { Logo } from './Logo';
-
-const CODE_LENGTH = 6;
-/** Supabase refuses a new code for about a minute after the last one. */
-const RESEND_AFTER_S = 60;
 
 const FIELD =
   'h-[42px] w-full rounded-lg border border-[var(--border-strong)] bg-[var(--surface-page)] pl-9 pr-3 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:border-[var(--accent)] focus:outline-none focus:ring-2 focus:ring-[color-mix(in_srgb,var(--accent)_30%,transparent)]';
 const PRIMARY =
   'mt-3 flex h-[42px] w-full items-center justify-center gap-2 rounded-lg bg-[var(--accent)] text-sm font-medium text-[var(--accent-text)] hover:opacity-90 disabled:opacity-50';
 const LINK = 'inline-flex items-center gap-1 text-xs text-[var(--text-muted)] hover:text-[var(--text-primary)] disabled:hover:text-[var(--text-muted)]';
-
-type Step = 'email' | 'code';
 
 /** Faint candles behind the card, in the theme's blue and its ink colour. Fixed, so the page doesn't shift between renders. */
 const CANDLES = Array.from({ length: 42 }, (_, i) => {
@@ -78,77 +72,6 @@ function GoogleMark() {
   );
 }
 
-/** "1 · Enter email  2 · Enter code", with the done step ticked. */
-function Steps({ step }: { step: Step }) {
-  const items: { key: Step; label: string }[] = [
-    { key: 'email', label: 'Enter email' },
-    { key: 'code', label: 'Enter code' },
-  ];
-  const current = items.findIndex((s) => s.key === step);
-  return (
-    <ol className="mt-[18px] mb-4 flex gap-2 text-xs">
-      {items.map((s, i) => (
-        <li
-          key={s.key}
-          aria-current={i === current ? 'step' : undefined}
-          className={`flex flex-1 items-center gap-1 rounded-md px-2 py-1.5 ${
-            i === current
-              ? 'bg-[color-mix(in_srgb,var(--accent)_18%,transparent)] text-[var(--accent)]'
-              : i < current
-                ? 'border border-[var(--border-strong)] text-[var(--good-text)]'
-                : 'border border-[var(--border-strong)] text-[var(--text-muted)]'
-          }`}
-        >
-          {i < current ? <Check size={13} aria-hidden="true" /> : `${i + 1} ·`} {s.label}
-        </li>
-      ))}
-    </ol>
-  );
-}
-
-/** Six boxes over one real input, so typing, pasting and the phone's "from Messages" autofill all just work. */
-function CodeBoxes({ value, onChange, invalid }: { value: string; onChange: (v: string) => void; invalid: boolean }) {
-  const ref = useRef<HTMLInputElement>(null);
-  const [focused, setFocused] = useState(true);
-  return (
-    <div className="relative" onClick={() => ref.current?.focus()}>
-      <input
-        ref={ref}
-        value={value}
-        onChange={(e) => onChange(e.target.value.replace(/\D/g, '').slice(0, CODE_LENGTH))}
-        onFocus={() => setFocused(true)}
-        onBlur={() => setFocused(false)}
-        autoFocus
-        inputMode="numeric"
-        autoComplete="one-time-code"
-        aria-label={`${CODE_LENGTH}-digit code`}
-        aria-invalid={invalid || undefined}
-        aria-describedby={invalid ? 'login-error' : undefined}
-        className="absolute inset-0 h-full w-full cursor-text opacity-0"
-      />
-      <div className="flex justify-between gap-2" aria-hidden="true">
-        {Array.from({ length: CODE_LENGTH }, (_, i) => {
-          const active = focused && (i === value.length || (i === CODE_LENGTH - 1 && value.length === CODE_LENGTH));
-          return (
-            <span
-              key={i}
-              className={`flex h-[46px] w-[40px] items-center justify-center rounded-lg border bg-[var(--surface-page)] text-xl font-semibold tabular ${
-                active
-                  ? 'border-[var(--accent)] ring-2 ring-[color-mix(in_srgb,var(--accent)_30%,transparent)]'
-                  : invalid
-                    ? 'border-[var(--critical)]'
-                    : 'border-[var(--border-strong)]'
-              }`}
-            >
-              {value[i] ?? ''}
-            </span>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
 export function LoginGate({
   supabase,
   passwordLogin = true,
@@ -161,21 +84,10 @@ export function LoginGate({
   onBack?: () => void;
 }) {
   const [password, setPassword] = useState('');
-  const [email, setEmail] = useState('');
-  const [code, setCode] = useState('');
-  const [step, setStep] = useState<Step>('email');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  /** Seconds until another code may be sent. */
-  const [wait, setWait] = useState(0);
-  /** Google sign-in was handed to the system browser and hasn't come back yet. */
+  /** Windows app: Google sign-in was handed to the system browser and hasn't come back yet. */
   const [waitingForBrowser, setWaitingForBrowser] = useState(false);
-
-  useEffect(() => {
-    if (wait <= 0) return;
-    const t = window.setTimeout(() => setWait((w) => w - 1), 1000);
-    return () => window.clearTimeout(t);
-  }, [wait]);
 
   /** Hand the Supabase token to the backend, which opens the app session; then drop Supabase's own. */
   const finish = useCallback(
@@ -192,7 +104,7 @@ export function LoginGate({
     [supabase, onSuccess],
   );
 
-  // Return leg of a sign-in link (still sent alongside the code): supabase-js exchanges the ?code= on load.
+  // Return leg of Google sign-in: supabase-js exchanges the ?code= on load.
   useEffect(() => {
     if (!supabase || !isAuthRedirect()) return;
     let cancelled = false;
@@ -205,7 +117,7 @@ export function LoginGate({
         const sb = await supabaseAuth(supabase);
         const { data, error: err } = await sb.auth.getSession();
         if (err) throw err;
-        if (!data.session) throw new Error('The sign-in link has expired. Request a new code.');
+        if (!data.session) throw new Error('Google sign-in did not finish. Try again.');
         await finish(data.session.access_token);
       } catch (err) {
         if (!cancelled) setError(errorMessage(err) || 'Sign-in failed');
@@ -245,37 +157,10 @@ export function LoginGate({
     }, 'Login failed');
   };
 
-  const sendCode = () =>
-    run(async () => {
-      if (!supabase) return;
-      const sb = await supabaseAuth(supabase);
-      const { error: err } = await sb.auth.signInWithOtp({
-        email: email.trim(),
-        // The Supabase project serves other apps too: never create accounts from here.
-        options: { shouldCreateUser: false, emailRedirectTo: authRedirectUrl() },
-      });
-      if (err) throw err;
-      setCode('');
-      setStep('code');
-      setWait(RESEND_AFTER_S);
-    }, 'Could not send the code');
-
-  const verifyCode = (e?: FormEvent) => {
-    e?.preventDefault();
-    if (!supabase || code.length !== CODE_LENGTH) return;
-    void run(async () => {
-      const sb = await supabaseAuth(supabase);
-      const { data, error: err } = await sb.auth.verifyOtp({ email: email.trim(), token: code, type: 'email' });
-      if (err) {
-        setCode('');
-        throw err;
-      }
-      if (!data.session) throw new Error('Code not accepted. Request a new one.');
-      await finish(data.session.access_token);
-    }, 'Code not accepted');
-  };
-
-  /** Windows app: the shell sends Supabase's authorize page to the system browser, since Google refuses embedded webviews. */
+  /**
+   * On the web the page goes to Google and comes back to the app's root. In the Windows app the shell sends
+   * Supabase's authorize page to the system browser, since Google refuses embedded webviews.
+   */
   const signInWithGoogle = () =>
     run(async () => {
       if (!supabase) return;
@@ -285,7 +170,7 @@ export function LoginGate({
         options: { redirectTo: authRedirectUrl(), skipBrowserRedirect: true },
       });
       if (err) throw err;
-      setWaitingForBrowser(true);
+      if (isDesktopApp()) setWaitingForBrowser(true);
       window.location.assign(data.url);
     }, 'Could not start Google sign-in');
 
@@ -300,7 +185,7 @@ export function LoginGate({
     </button>
   );
 
-  if (supabase && isDesktopApp()) {
+  if (supabase && !passwordLogin) {
     return (
       <Shell subtitle="to your AddStock workspace">
         {errorBox}
@@ -312,85 +197,6 @@ export function LoginGate({
           <Lock size={13} aria-hidden="true" />
           {waitingForBrowser ? 'Finish signing in in your browser, then come back here' : 'Only approved Google accounts can sign in'}
         </p>
-      </Shell>
-    );
-  }
-
-  if (supabase && !passwordLogin) {
-    return (
-      <Shell subtitle="to your AddStock workspace">
-        <Steps step={step} />
-        {step === 'email' ? (
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              if (email.trim()) void sendCode();
-            }}
-          >
-            <label htmlFor="login-email" className="mb-1.5 block text-xs text-[var(--text-secondary)]">
-              Email
-            </label>
-            <div className="relative">
-              <Mail size={16} className="pointer-events-none absolute top-[13px] left-3 text-[var(--text-muted)]" aria-hidden="true" />
-              <input
-                id="login-email"
-                type="email"
-                value={email}
-                autoFocus
-                autoComplete="email"
-                inputMode="email"
-                placeholder="you@gmail.com"
-                onChange={(e) => setEmail(e.target.value)}
-                aria-invalid={error ? true : undefined}
-                aria-describedby={error ? 'login-error' : undefined}
-                className={FIELD}
-              />
-            </div>
-            {errorBox}
-            <button type="submit" disabled={busy || email.trim() === ''} className={PRIMARY}>
-              {busy ? 'Sending…' : 'Send code'}
-              {!busy && <ArrowRight size={16} aria-hidden="true" />}
-            </button>
-            <p className="mt-3 flex items-center gap-1.5 text-xs text-[var(--text-muted)]">
-              <Lock size={13} aria-hidden="true" /> Only approved emails can sign in
-            </p>
-          </form>
-        ) : (
-          <form onSubmit={verifyCode}>
-            <p className="mb-3 text-[13px] text-[var(--text-secondary)]">
-              We sent a {CODE_LENGTH}-digit code to <span className="text-[var(--text-primary)]">{email.trim()}</span>
-            </p>
-            <CodeBoxes
-              value={code}
-              invalid={!!error}
-              onChange={(v) => {
-                setCode(v);
-                if (error) setError(null);
-              }}
-            />
-            {errorBox}
-            <button type="submit" disabled={busy || code.length !== CODE_LENGTH} className={PRIMARY}>
-              {busy ? 'Checking…' : 'Verify & open'}
-              {!busy && <ArrowRight size={16} aria-hidden="true" />}
-            </button>
-            <div className="mt-3 flex items-center justify-between">
-              <button
-                type="button"
-                onClick={() => {
-                  setStep('email');
-                  setCode('');
-                  setError(null);
-                }}
-                className={LINK}
-              >
-                <ArrowLeft size={13} aria-hidden="true" /> Change email
-              </button>
-              <button type="button" disabled={busy || wait > 0} onClick={() => void sendCode()} className={LINK}>
-                {wait > 0 ? `Resend in 0:${String(wait).padStart(2, '0')}` : 'Resend code'}
-              </button>
-            </div>
-          </form>
-        )}
         {back}
       </Shell>
     );

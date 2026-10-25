@@ -3,7 +3,7 @@
 export interface Session {
   authRequired: boolean;
   loggedIn: boolean;
-  /** Set when Supabase sign-in is configured; the login gate then offers email code / Google. */
+  /** Set when Supabase sign-in is configured; the login gate then offers Google sign-in. */
   supabase?: SupabaseConfig | null;
   /** False once Supabase sign-in has replaced the password. */
   passwordLogin?: boolean;
