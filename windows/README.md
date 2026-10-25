@@ -5,8 +5,17 @@ the backend's session cookie works unchanged and every deploy reaches the app.
 
 The app opens on its own start screen instead of the website's landing page: the app's sections down the
 side, a sign-in banner and shortcuts (`frontend/src/features/landing/DesktopHome.tsx`). Each shortcut signs in
-and then opens its page. Sign-in is the same email code as the website, typed into the app. Upstox pages stay in the window; any other link opens in
-the browser.
+and then opens its page. Sign-in is the same email code as the website, typed into the app. Upstox pages
+stay in the window; any other link opens in the browser.
+
+Desktop extras:
+- **Offline screen.** The window starts on `web/index.html`, which opens the site as soon as it answers and
+  otherwise says you're offline and retries every 5 seconds.
+- **Tray.** Closing the window hides it to the tray, so price alerts keep running. Click the tray icon to
+  open it again; its menu has "Start with Windows" (starts hidden in the tray) and Quit.
+- **Notifications.** Price alerts show as Windows notifications: the page's `Notification` API is pointed at
+  the shell's `notify` command, the only command the site may call (`src-tauri/capabilities/remote.json`).
+  While hidden, WebView2 slows the page's timers, so alerts can arrive up to a minute late.
 
 The shell already handles Google for later (branch `google-sign-in`): Google refuses embedded webviews, so
 Supabase's authorize page goes to the system browser and Google comes back through an
