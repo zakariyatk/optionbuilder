@@ -1,0 +1,25 @@
+[package]
+name = "addstock"
+version = "0.1.0"
+description = "AddStock: Option Builder for Windows"
+authors = ["ADD DOTS"]
+edition = "2021"
+publish = false
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+serde_json = "1" # used by tauri::generate_context! for the plugins' config
+tauri = { version = "2", features = [] }
+tauri-plugin-deep-link = "2"
+tauri-plugin-opener = "2"
+tauri-plugin-single-instance = { version = "2", features = ["deep-link"] }
+tauri-plugin-window-state = "2"
+
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = "s"
+panic = "abort"
+strip = true

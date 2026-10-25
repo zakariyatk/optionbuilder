@@ -7,7 +7,7 @@ import { parseRoute, routeHash, type PageId, type Route } from './components/tab
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { LegsTable } from './components/LegsTable';
 import { LoginGate } from './components/LoginGate';
-import { isAuthRedirect } from './api/supabase';
+import { isAuthRedirect, isDesktopApp } from './api/supabase';
 import { MarketBar } from './components/MarketBar';
 import { MetricsPanel } from './components/MetricsPanel';
 import { OptionChainTable } from './components/OptionChainTable';
@@ -58,7 +58,8 @@ export default function App() {
   const [session, setSession] = useState<Session | null>(null);
   const [unreachable, setUnreachable] = useState(false);
   // Coming back from a magic link or Google goes straight to the login gate, which finishes the sign-in.
-  const [signingIn, setSigningIn] = useState(isAuthRedirect);
+  // The Windows app has no landing page: it always opens on the gate.
+  const [signingIn, setSigningIn] = useState(() => isAuthRedirect() || isDesktopApp());
 
   const check = useCallback(() => {
     api
@@ -91,7 +92,7 @@ export default function App() {
           supabase={session.supabase ?? null}
           passwordLogin={session.passwordLogin ?? true}
           onSuccess={check}
-          onBack={() => setSigningIn(false)}
+          onBack={isDesktopApp() ? undefined : () => setSigningIn(false)}
         />
       );
     }

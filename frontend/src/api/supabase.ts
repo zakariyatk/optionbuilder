@@ -18,8 +18,15 @@ export function supabaseAuth(config: SupabaseConfig): Promise<SupabaseClient> {
   return client;
 }
 
-/** Where magic links and Google send the browser back to: the app's own root. */
-export const authRedirectUrl = () => `${window.location.origin}${APP_BASE}/`;
+/** True inside the AddStock Windows app, whose shell sets this flag before the page loads. */
+export const isDesktopApp = () => typeof window !== 'undefined' && '__ADDSTOCK__' in window;
+
+/**
+ * Where magic links and Google send the browser back to: the app's own root. In the Windows app Google runs
+ * in the system browser, which hands the ?code= back through the addstock:// link; the shell then reopens
+ * the app's root with it, so supabase-js finishes the exchange as it does on the web.
+ */
+export const authRedirectUrl = () => (isDesktopApp() ? 'addstock://auth/callback' : `${window.location.origin}${APP_BASE}/`);
 
 /** True when this page load is the return leg of a magic link or Google sign-in. */
 export function isAuthRedirect(): boolean {
