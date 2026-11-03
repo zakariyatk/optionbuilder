@@ -82,12 +82,13 @@ interface FeedHooks {
  * what was loaded (or retries a load that failed).
  */
 function upstoxDatafeed(symbols: () => SymbolInfo[], hooks: FeedHooks): Datafeed & { dispose: () => void; loading: () => boolean } {
-  const subs = new Map<string, { timers: number[]; alive: boolean }>();
+  const subs = new Map<string, { timers: number[]; alive: boolean; cleanup: () => void }>();
   const stop = (k: string) => {
     const sub = subs.get(k);
     if (!sub) return;
     sub.alive = false;
     sub.timers.forEach((t) => window.clearInterval(t));
+    sub.cleanup();
     subs.delete(k);
   };
   const key = (s: ProSymbol, p: Period) => `${s.ticker}|${p.multiplier}${p.timespan}`;
@@ -96,6 +97,8 @@ function upstoxDatafeed(symbols: () => SymbolInfo[], hooks: FeedHooks): Datafeed
     return !c || key(c.symbol, c.period) === key(s, p);
   };
   let disposed = false;
+  /** The newest bar each history load handed the chart, so live polling knows where to carry on from. */
+  const historyEnd = new Map<string, number>();
   /** A history load is in flight — Pro must not be handed a new symbol or period until it settles. */
   let loading = false;
   let retry = 0;
@@ -144,16 +147,19 @@ function upstoxDatafeed(symbols: () => SymbolInfo[], hooks: FeedHooks): Datafeed
         else hooks.onLoaded(symbol.ticker);
       }, 0);
       const first = all[0]?.timestamp ?? 0;
-      return to < first ? [] : all.filter((c) => c.timestamp <= to);
+      const bars = to < first ? [] : all.filter((c) => c.timestamp <= to);
+      if (bars.length) historyEnd.set(key(symbol, period), bars[bars.length - 1].timestamp);
+      return bars;
     },
     subscribe(symbol, period, callback) {
       // A load that finishes after the chart was torn down still subscribes; don't start polling for a chart that's gone.
       if (disposed) return;
       const k = key(symbol, period);
       stop(k);
-      const sub = { timers: [] as number[], alive: true };
+      const sub = { timers: [] as number[], alive: true, cleanup: () => {} };
       subs.set(k, sub);
-      let last = 0;
+      /** The newest bar the chart has from the poll; it starts where the history load ended. */
+      let last = historyEnd.get(k) ?? 0;
       /** The forming bar, as last sent to the chart. */
       let bar: KLineData | null = null;
       const send = (b: KLineData) => {
@@ -167,7 +173,11 @@ function upstoxDatafeed(symbols: () => SymbolInfo[], hooks: FeedHooks): Datafeed
         if (document.visibilityState !== 'visible') return;
         try {
           const bars = await loadCandles(symbol.ticker, period);
-          for (const b of bars.slice(-2)) if (b.timestamp >= last && (!bar || b.timestamp >= bar.timestamp)) send(b);
+          // Every bar from the newest one the chart has onwards, not just the latest two: after the tab was hidden
+          // (polling pauses) or the network dropped, the bars missed meanwhile must fill in, or the chart shows a gap.
+          // With no starting point, only the latest two, so a first poll never replays the whole history.
+          const from = Math.max(last, bar?.timestamp ?? 0);
+          for (const b of from ? bars.filter((x) => x.timestamp >= from) : bars.slice(-2)) send(b);
           last = bars[bars.length - 1]?.timestamp ?? last;
         } catch {
           /* keep the chart as is; the next poll retries */
@@ -196,6 +206,10 @@ function upstoxDatafeed(symbols: () => SymbolInfo[], hooks: FeedHooks): Datafeed
       const intraday = period.timespan === 'minute' || period.timespan === 'hour';
       void tick();
       sub.timers = [window.setInterval(tick, intraday ? INTRADAY_POLL_MS : DAILY_POLL_MS), window.setInterval(quoteTick, QUOTE_TICK_MS)];
+      // Polling pauses while the tab is hidden; catch up the moment it's back instead of on the next interval.
+      const onVisible = () => document.visibilityState === 'visible' && void tick();
+      document.addEventListener('visibilitychange', onVisible);
+      sub.cleanup = () => document.removeEventListener('visibilitychange', onVisible);
     },
     unsubscribe(symbol, period) {
       stop(key(symbol, period));
