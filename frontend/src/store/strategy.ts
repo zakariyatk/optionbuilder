@@ -38,15 +38,15 @@ const newId = () => crypto.randomUUID();
 const withIds = (legs: NewLeg[]): Leg[] => legs.map((l) => ({ ...l, id: newId() }));
 
 /**
- * The working strategy and the user's saved strategies. Persisted to
+ * A working strategy and the user's saved strategies. Persisted to
  * localStorage so a reload — or the daily Upstox reconnect — doesn't wipe the
- * position being built.
+ * position being built. India and US each keep their own.
  */
-export const useStrategy = create<StrategyState>()(
-  persist(
+function createStrategyStore(storageKey: string, defaults: { symbol: string; lotSize: number }) {
+  return create<StrategyState>()(persist(
     (set, get) => ({
-      symbol: 'NIFTY',
-      lotSize: 65,
+      symbol: defaults.symbol,
+      lotSize: defaults.lotSize,
       legs: [],
       saved: [],
 
@@ -80,10 +80,38 @@ export const useStrategy = create<StrategyState>()(
       deleteStrategy: (id) => set((s) => ({ saved: s.saved.filter((x) => x.id !== id) })),
     }),
     {
-      name: 'option-builder-strategy',
+      name: storageKey,
       version: 1,
       storage: createJSONStorage(() => localStorage),
       partialize: ({ symbol, lotSize, legs, saved }) => ({ symbol, lotSize, legs, saved }),
     },
-  ),
-);
+  ));
+}
+
+/** The NSE builder's strategy (key kept from before the US builder existed). */
+export const useStrategy = createStrategyStore('option-builder-strategy', { symbol: 'NIFTY', lotSize: 65 });
+
+/** The US builder's strategy: US:<ticker> symbols, 100-share contracts. */
+export const useUsStrategy = createStrategyStore('option-builder-us-strategy', { symbol: 'US:SPY', lotSize: 100 });
+
+export type StrategyStore = typeof useStrategy;
+
+export type BuilderMarket = 'IN' | 'US';
+
+const MARKET_KEY = 'option-builder-market';
+
+export function loadBuilderMarket(): BuilderMarket {
+  try {
+    return localStorage.getItem(MARKET_KEY) === 'US' ? 'US' : 'IN';
+  } catch {
+    return 'IN';
+  }
+}
+
+export function saveBuilderMarket(m: BuilderMarket): void {
+  try {
+    localStorage.setItem(MARKET_KEY, m);
+  } catch {
+    /* ignore */
+  }
+}

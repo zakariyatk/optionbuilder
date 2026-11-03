@@ -1,5 +1,6 @@
 import { bsGreeks, bsPrice, impliedVol } from './blackScholes';
 import { yearsToExpiry } from './dates';
+import { NSE_MODEL, type PricingModel } from './pricing';
 import { isLinear, type Greeks, type Leg, type StrategyMetrics } from './types';
 
 const direction = (leg: Leg) => (leg.action === 'BUY' ? 1 : -1);
@@ -26,7 +27,7 @@ export function pnlAtExpiry(legs: Leg[], price: number): number {
  * Returns null when no option leg could be priced — the curve would just
  * duplicate the expiry line and mislead.
  */
-export function pnlOnDate(legs: Leg[], price: number, date: Date, fallbackIv: number | null): number | null {
+export function pnlOnDate(legs: Leg[], price: number, date: Date, fallbackIv: number | null, model: PricingModel = NSE_MODEL): number | null {
   let pricedAny = false;
   const total = legs.reduce((sum, leg) => {
     if (isLinear(leg.type)) return sum + legPnlAtExpiry(leg, price);
@@ -34,7 +35,7 @@ export function pnlOnDate(legs: Leg[], price: number, date: Date, fallbackIv: nu
     const years = leg.expiry ? yearsToExpiry(date, leg.expiry) : null;
     if (years === null || vol <= 0) return sum + legPnlAtExpiry(leg, price);
     pricedAny = true;
-    const value = bsPrice(leg.type as 'CE' | 'PE', price, leg.strike, years, vol);
+    const value = bsPrice(leg.type as 'CE' | 'PE', price, leg.strike, years, vol, model.rate, model.dividendYield);
     return sum + direction(leg) * quantity(leg) * (value - leg.premium);
   }, 0);
   return pricedAny ? total : null;
@@ -47,12 +48,18 @@ export function pnlOnDate(legs: Leg[], price: number, date: Date, fallbackIv: nu
  * spot and time, P&L is exactly (market − entry) × quantity, as a broker shows
  * it, instead of a model-vs-market gap. Legs that can't be solved keep their IV.
  */
-export function calibrateLegs(legs: Leg[], spot: number | null, now: Date, marks?: (number | null | undefined)[]): Leg[] {
+export function calibrateLegs(
+  legs: Leg[],
+  spot: number | null,
+  now: Date,
+  marks?: (number | null | undefined)[],
+  model: PricingModel = NSE_MODEL,
+): Leg[] {
   if (!spot || spot <= 0) return legs;
   return legs.map((leg, i) => {
     if (isLinear(leg.type) || !leg.expiry) return leg;
     const mark = marks?.[i] ?? leg.premium;
-    const vol = impliedVol(leg.type as 'CE' | 'PE', spot, leg.strike, yearsToExpiry(now, leg.expiry), mark);
+    const vol = impliedVol(leg.type as 'CE' | 'PE', spot, leg.strike, yearsToExpiry(now, leg.expiry), mark, model.rate, model.dividendYield);
     return vol === null ? leg : { ...leg, iv: vol * 100 };
   });
 }
@@ -86,9 +93,10 @@ export function targetDateCurve(
   prices: number[],
   date: Date,
   fallbackIv: number | null,
+  model: PricingModel = NSE_MODEL,
 ): PayoffPoint[] | null {
   if (legs.length === 0) return null;
-  const points = prices.map((price) => ({ price, pnl: pnlOnDate(legs, price, date, fallbackIv) }));
+  const points = prices.map((price) => ({ price, pnl: pnlOnDate(legs, price, date, fallbackIv, model) }));
   return points.some((p) => p.pnl === null) ? null : (points as PayoffPoint[]);
 }
 
@@ -193,9 +201,10 @@ export function strategyGreeks(
   spot: number,
   fallbackIv: number | null,
   now = new Date(),
+  model: PricingModel = NSE_MODEL,
 ): Greeks | null {
   if (legs.length === 0 || spot <= 0) return null;
-  const total: Greeks = { delta: 0, gamma: 0, theta: 0, vega: 0 };
+  const total: Greeks = { delta: 0, gamma: 0, theta: 0, vega: 0, rho: 0 };
   for (const leg of legs) {
     const units = direction(leg) * quantity(leg);
     if (isLinear(leg.type)) {
@@ -204,11 +213,12 @@ export function strategyGreeks(
     }
     const vol = (leg.iv || fallbackIv || 0) / 100;
     const years = leg.expiry ? yearsToExpiry(now, leg.expiry) : 0;
-    const g = bsGreeks(leg.type as 'CE' | 'PE', spot, leg.strike, years, vol);
+    const g = bsGreeks(leg.type as 'CE' | 'PE', spot, leg.strike, years, vol, model.rate, model.dividendYield);
     total.delta += units * g.delta;
     total.gamma += units * g.gamma;
     total.theta += units * g.theta;
     total.vega += units * g.vega;
+    total.rho += units * g.rho;
   }
   return total;
 }
