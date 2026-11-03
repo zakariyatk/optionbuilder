@@ -1,6 +1,6 @@
 import type { ChainRow, ChainSide, OptionChain } from '../api/types';
 import { US_SESSION } from '../lib/nse';
-import { bsPrice } from './blackScholes';
+import { bsPrice, impliedVol } from './blackScholes';
 import { yearsToExpiry } from './dates';
 import { US_CONTRACT_SIZE, usStrikeStep, type PricingModel } from './pricing';
 
@@ -30,6 +30,30 @@ export function stampUsChain(chain: OptionChain): OptionChain {
     expiryDates: chain.expiryDates.map(usExpiryStamp),
     expiry: chain.expiry ? usExpiryStamp(chain.expiry) : null,
   };
+}
+
+/** Yahoo IVs below this (in %) are treated as missing — it sends ~0% while the US market is closed. */
+export const MIN_PLAUSIBLE_IV = 3;
+
+/**
+ * Fills in IVs Yahoo left missing or implausibly low by solving them from each
+ * strike's last traded price with the US model. Sides that can't be solved
+ * (no trade, or a stale price below intrinsic) get IV 0 — "missing" — so ATM
+ * IV skips them rather than pricing at ~0%. Returns how many sides
+ * were repaired.
+ */
+export function repairUsChain(chain: OptionChain, spot: number, model: PricingModel, now = new Date()): { chain: OptionChain; repaired: number } {
+  if (!chain.expiry || !(spot > 0)) return { chain, repaired: 0 };
+  const years = yearsToExpiry(now, chain.expiry);
+  let repaired = 0;
+  const fix = (type: 'CE' | 'PE', strike: number, side: ChainSide | null): ChainSide | null => {
+    if (!side || side.iv >= MIN_PLAUSIBLE_IV) return side;
+    const vol = side.ltp > 0 ? impliedVol(type, spot, strike, years, side.ltp, model.rate, model.dividendYield) : null;
+    if (vol !== null) repaired++;
+    return { ...side, iv: vol !== null ? Number((vol * 100).toFixed(2)) : 0 };
+  };
+  const rows = chain.rows.map((r) => ({ ...r, call: fix('CE', r.strike, r.call), put: fix('PE', r.strike, r.put) }));
+  return { chain: { ...chain, rows }, repaired };
 }
 
 /** The next `weeklies` Friday expiries plus `monthlies` third-Friday monthly expiries, stamped at the US close. */
