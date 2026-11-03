@@ -16,7 +16,7 @@ android {
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.adddots.optionbuilder"
+        applicationId = "com.optionbuilder"
         minSdk = 26
         targetSdk = 36
         versionCode = 1
