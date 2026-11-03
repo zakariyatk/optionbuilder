@@ -80,18 +80,20 @@ or point `OB_CONFIG_FILE` at it.
 
 **Supabase sign-in (recommended).** Set `supabase_url`, `supabase_key` (the
 project's publishable or anon key, never the secret one) and `allowed_emails`.
-The login page then asks for an email and sends a sign-in code / magic link, and
-the password login is switched off. The backend checks each Supabase access
-token with Supabase and only lets in the listed addresses, so the project can
-be shared with other apps. Accounts are never created from this app.
+The login page then offers **Continue with Google** only (on the web, in the
+Windows app and in the Android app), and the password login is switched off. The
+backend checks each Supabase access token with Supabase and only lets in the
+listed addresses, so the project can be shared with other apps. Note that Google
+sign-in creates a Supabase user the first time someone signs in, even when the
+allowlist then refuses them.
 
 In the Supabase dashboard:
+- Authentication → Sign In / Providers → **Google**: enable it with a Google Cloud
+  OAuth client (Web application) whose redirect URI is
+  `https://<project-ref>.supabase.co/auth/v1/callback`.
 - Authentication → URL Configuration → **Redirect URLs**: add
-  `https://optionbuilder.adddots.com/**` (and `http://localhost:5173/**` for development).
-- Optional, for a typed code instead of only a link: Authentication → Emails →
-  *Magic Link* template, include `{{ .Token }}`.
-- Optional, Google: enable the Google provider (it needs a Google Cloud OAuth
-  client with the Supabase callback URL), then set `supabase_google => true`.
+  `https://optionbuilder.adddots.com/**`, `addstock://auth/callback` (Windows app)
+  and `http://localhost:5173/**` for development.
 
 To try it with the mock backend, set `MOCK_SUPABASE_URL` and `MOCK_SUPABASE_KEY`
 before `npm run dev:mock`.
@@ -128,9 +130,9 @@ The server needs PHP 8.1+ with cURL, and `api/data/` (or your `data_dir`) writab
 
 ## Security model
 
-- Supabase sign-in (email code / magic link, optional Google) limited to an email
+- Google sign-in through Supabase, limited to an email
   allowlist, the token checked server-side with Supabase, or a single shared password
-  (bcrypt hash supported) when Google is not set up. Sessions expire after 12 h,
+  (bcrypt hash supported) when Supabase is not set up. Sessions expire after 12 h,
   5 failed logins per IP lock that IP out for 15 minutes.
 - The backend refuses remote requests if no login method is configured.
 - Upstox OAuth uses a `state` parameter bound to the session.
