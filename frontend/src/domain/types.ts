@@ -46,4 +46,6 @@ export interface Greeks {
   theta: number;
   /** Per 1 vol point, in rupees for the position. */
   vega: number;
+  /** Per 1% change in the risk-free rate, in currency for the position. */
+  rho: number;
 }
