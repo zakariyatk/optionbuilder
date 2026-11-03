@@ -9,7 +9,7 @@ import { US_CONTRACT_SIZE, usModel } from '../../domain/pricing';
 import { shareUrl } from '../../domain/shareLink';
 import { buildFromTemplate, type StrategyTemplate } from '../../domain/templates';
 import type { LegAction } from '../../domain/types';
-import { modelChain, stampUsChain } from '../../domain/usChain';
+import { modelChain, repairUsChain, stampUsChain } from '../../domain/usChain';
 import { useSpot } from '../../hooks/market';
 import { useAsync } from '../../hooks/useAsync';
 import { confirmDialog } from '../../lib/dialog';
@@ -38,11 +38,14 @@ export function UsBuilder({ marketSwitch, onNotice }: { marketSwitch: ReactNode;
   const spotState = useSpot(symbol);
   // The backend takes the calendar date; the app keeps US expiries stamped at the 16:00 New York close.
   const chainState = useAsync(() => api.usOptionChain(symbol, expiry?.slice(0, 10)), [symbol, expiry], { pollMs: US_CHAIN_POLL_MS });
-  const live = chainState.data?.rows?.length ? stampUsChain(chainState.data) : null;
-  const spot = spotState.data?.price ?? live?.underlyingValue ?? null;
-  const fallingBack = !live && !chainState.loading && spot !== null;
-  const dividendYield = live?.dividendYield ?? 0;
+  const stamped = useMemo(() => (chainState.data?.rows?.length ? stampUsChain(chainState.data) : null), [chainState.data]);
+  const spot = spotState.data?.price ?? stamped?.underlyingValue ?? null;
+  const fallingBack = !stamped && !chainState.loading && spot !== null;
+  const dividendYield = stamped?.dividendYield ?? 0;
   const market = useMemo(() => usView(dividendYield), [dividendYield]);
+  // Outside US hours Yahoo sends ~0% IVs; solve those from last traded prices instead.
+  const repair = useMemo(() => (stamped && spot ? repairUsChain(stamped, spot, usModel(dividendYield)) : null), [stamped, spot, dividendYield]);
+  const live = repair?.chain ?? stamped;
   const modelled = useMemo(
     () => (fallingBack && spot ? modelChain(symbol, spot, modelIv, expiry ?? null, usModel(dividendYield)) : null),
     [fallingBack, spot, symbol, modelIv, expiry, dividendYield],
@@ -133,7 +136,12 @@ export function UsBuilder({ marketSwitch, onNotice }: { marketSwitch: ReactNode;
       chain={chain}
       chainLoading={chainState.loading}
       chainNotice={notice}
-      quoteSource={live ? 'Yahoo option quotes, ~15 min delayed' : fallingBack ? 'Model prices (Black-Scholes)' : 'Loading the option chain…'}
+      quoteSource={
+        live
+          ? repair?.repaired
+            ? 'Yahoo option quotes, ~15 min delayed · IV from last prices (market closed)'
+            : 'Yahoo option quotes, ~15 min delayed'
+          : fallingBack ? 'Model prices (Black-Scholes)' : 'Loading the option chain…'}
       expiry={activeExpiry}
       onExpiryChange={setExpiry}
       updatedAt={chainState.updatedAt ?? spotState.updatedAt}

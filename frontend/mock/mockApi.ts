@@ -172,9 +172,11 @@ function usStrikeStep(price: number): number {
  * A synthetic Yahoo-shaped chain: weekly Fridays plus third-Friday monthlies,
  * Black-Scholes premiums off a volatility smile, bid / ask around them.
  * MOCK_US_CHAIN_FAIL=1 makes it fail, to exercise the builder's model fallback.
+ * MOCK_US_MARKET_CLOSED=1 mimics Yahoo outside US hours: zero bid / ask, IVs near 0%.
  */
 function mockUsChain(symbol: string, expiry: string | null): unknown {
   const info = US_PRICES[symbol] ?? { price: 100, prev: 100, q: 0 };
+  const closed = process.env.MOCK_US_MARKET_CLOSED === '1';
   const day = 86_400_000;
   const fridays: string[] = [];
   const d = new Date();
@@ -216,11 +218,11 @@ function mockUsChain(symbol: string, expiry: string | null): unknown {
         oi: Math.round(rand() * 40000 * Math.exp(-Math.abs(i - 20) / 8)),
         oiChange: 0,
         volume: Math.round(rand() * 9000 * Math.exp(-Math.abs(i - 20) / 6)),
-        iv: Math.round(v * 10000) / 100,
+        iv: closed ? Math.round(rand() * 300) / 100 : Math.round(v * 10000) / 100,
         delta: null,
         theta: null,
-        bid: Math.round((mid - spread / 2) * 100) / 100,
-        ask: Math.round((mid + spread / 2) * 100) / 100,
+        bid: closed ? 0 : Math.round((mid - spread / 2) * 100) / 100,
+        ask: closed ? 0 : Math.round((mid + spread / 2) * 100) / 100,
       };
     };
     return { strike: K, call: side(true), put: side(false) };
