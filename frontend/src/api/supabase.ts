@@ -18,9 +18,6 @@ export function supabaseAuth(config: SupabaseConfig): Promise<SupabaseClient> {
   return client;
 }
 
-/** True inside the AddStock Windows app, whose shell sets this flag before the page loads. */
-export const isDesktopApp = () => typeof window !== 'undefined' && '__ADDSTOCK__' in window;
-
 /**
  * Where Google sends the browser back to: the app's own root. In the Windows app Google runs
  * in the system browser, which hands the ?code= back through the addstock:// link; the shell then reopens
@@ -38,3 +35,6 @@ export function isAuthRedirect(): boolean {
 export function clearAuthRedirect(): void {
   window.history.replaceState(null, '', `${APP_BASE}/`);
 }
+
+/** True inside the AddStock Windows app, whose shell sets this flag before the page loads. */
+export const isDesktopApp = () => typeof window !== 'undefined' && '__ADDSTOCK__' in window;

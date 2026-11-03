@@ -5,22 +5,23 @@ import type { ChainSide, Draft, Session } from './api/types';
 import { AppHeader } from './components/AppHeader';
 import { parseRoute, routeHash, type PageId, type Route } from './components/tabs';
 import { ErrorBoundary } from './components/ErrorBoundary';
-import { LegsTable } from './components/LegsTable';
 import { LoginGate } from './components/LoginGate';
 import { isAuthRedirect, isDesktopApp } from './api/supabase';
 import { MarketBar } from './components/MarketBar';
-import { MetricsPanel } from './components/MetricsPanel';
 import { OptionChainTable } from './components/OptionChainTable';
-import { PayoffChart } from './components/PayoffChart';
-import { StrategyToolbar } from './components/StrategyToolbar';
-import { StrikeChain } from './components/StrikeChain';
 import { Button, Card, Notice } from './components/ui';
 import { atmIv, generateStrikes } from './domain/chain';
 import { legToDraftLeg } from './domain/drafts';
-import { strategyGreeks, strategyMetrics } from './domain/payoff';
+import { strategyMetrics } from './domain/payoff';
+import { readShared, shareUrl } from './domain/shareLink';
 import { buildFromTemplate, type StrategyTemplate } from './domain/templates';
 import type { LegAction } from './domain/types';
 import { AlertMonitor } from './features/alerts/AlertMonitor';
+import { BuilderPage, MarketSwitch } from './features/builder/BuilderPage';
+import { INDIA_VIEW } from './features/builder/market';
+import { NseSymbolSelect } from './features/builder/SymbolPickers';
+import { UsBuilder } from './features/builder/UsBuilder';
+import { isUs } from './lib/markets';
 import { DraftMonitor } from './features/drafts/DraftMonitor';
 import { DraftsPage } from './features/drafts/DraftsPage';
 import { OpenInterestPage } from './features/oi/OpenInterestPage';
@@ -29,7 +30,7 @@ import { DailyReport } from './features/report/DailyReport';
 import { useBrokerMargin, useBrokerStatus, useOptionChain, useSpot, useSymbols } from './hooks/market';
 import { useAsync } from './hooks/useAsync';
 import { confirmDialog } from './lib/dialog';
-import { useStrategy } from './store/strategy';
+import { loadBuilderMarket, saveBuilderMarket, useStrategy, useUsStrategy, type BuilderMarket } from './store/strategy';
 
 const PAGE_KEY = 'option-builder-tab';
 
@@ -37,6 +38,8 @@ const PAGE_KEY = 'option-builder-tab';
 const ChartPage = lazy(() => import('./features/chart/ChartPage').then((m) => ({ default: m.ChartPage })));
 // Only visitors who aren't signed in see the landing page.
 const Landing = lazy(() => import('./features/landing/Landing').then((m) => ({ default: m.Landing })));
+// The Windows app's start screen in place of the landing page.
+const DesktopHome = lazy(() => import('./features/landing/DesktopHome').then((m) => ({ default: m.DesktopHome })));
 
 function initialRoute(): Route {
   const fromHash = parseRoute(window.location.hash);
@@ -58,8 +61,7 @@ export default function App() {
   const [session, setSession] = useState<Session | null>(null);
   const [unreachable, setUnreachable] = useState(false);
   // Coming back from Google goes straight to the login gate, which finishes the sign-in.
-  // The Windows app has no landing page: it always opens on the gate.
-  const [signingIn, setSigningIn] = useState(() => isAuthRedirect() || isDesktopApp());
+  const [signingIn, setSigningIn] = useState(isAuthRedirect);
 
   const check = useCallback(() => {
     api
@@ -92,8 +94,21 @@ export default function App() {
           supabase={session.supabase ?? null}
           passwordLogin={session.passwordLogin ?? true}
           onSuccess={check}
-          onBack={isDesktopApp() ? undefined : () => setSigningIn(false)}
+          onBack={() => setSigningIn(false)}
         />
+      );
+    }
+    if (isDesktopApp()) {
+      return (
+        <Suspense fallback={null}>
+          <DesktopHome
+            onSignIn={(page) => {
+              // The workspace opens on the page in the address bar once signed in.
+              if (page) history.replaceState(null, '', routeHash({ page }));
+              setSigningIn(true);
+            }}
+          />
+        </Suspense>
       );
     }
     return (
@@ -133,11 +148,15 @@ function Workspace({ showLogout, onLogout }: { showLogout: boolean; onLogout: ()
     removeLeg,
     removeLegs,
     clearLegs,
-    toggleLegAction,
     deleteStrategy,
   } = useStrategy();
 
   const [route, setRoute] = useState<Route>(initialRoute);
+  const [builderMarket, setBuilderMarketState] = useState<BuilderMarket>(loadBuilderMarket);
+  const setBuilderMarket = useCallback((m: BuilderMarket) => {
+    setBuilderMarketState(m);
+    saveBuilderMarket(m);
+  }, []);
   const [expiry, setExpiry] = useState<string | undefined>(undefined);
   const [notice, setNotice] = useState<string | null>(null);
 
@@ -148,9 +167,10 @@ function Workspace({ showLogout, onLogout }: { showLogout: boolean; onLogout: ()
   const brokerSession = !!broker?.authenticated;
   const marketPage = MARKET_PAGES.includes(route.page);
   const spotState = useSpot(symbol);
-  const chainState = useOptionChain(symbol, expiry, brokerConnected && (route.page === 'builder' || route.page === 'chain'));
+  const indiaBuilder = route.page === 'builder' && builderMarket === 'IN';
+  const chainState = useOptionChain(symbol, expiry, brokerConnected && (indiaBuilder || route.page === 'chain'));
   const chain = chainState.data;
-  const { margin: brokerMargin, loading: marginLoading } = useBrokerMargin(legs, brokerSession);
+  const { margin: brokerMargin, loading: marginLoading } = useBrokerMargin(legs, brokerSession && indiaBuilder);
   const draftsState = useAsync(() => api.drafts(), []);
   const drafts = draftsState.data?.drafts ?? null;
 
@@ -199,7 +219,6 @@ function Workspace({ showLogout, onLogout }: { showLogout: boolean; onLogout: ()
 
   const metrics = useMemo(() => strategyMetrics(legs, spot ?? 0, symbol), [legs, spot, symbol]);
   const fallbackIv = useMemo(() => atmIv(chain?.rows ?? [], spot), [chain, spot]);
-  const greeks = useMemo(() => strategyGreeks(legs, spot ?? 0, fallbackIv), [legs, spot, fallbackIv]);
   // Live LTP of each leg from the chain (same expiry only), so the payoff projection starts from the market.
   const marks = useMemo(
     () =>
@@ -260,6 +279,41 @@ function Workspace({ showLogout, onLogout }: { showLogout: boolean; onLogout: ()
       return;
     replaceLegs(built);
     if (!chain?.rows?.length) setNotice(`${t.name} added — enter premiums manually (no live chain).`);
+  };
+
+  // A shared link (?sym=…&legs=…) loads its strategy once, then the query is dropped from the address.
+  useEffect(() => {
+    const shared = readShared(window.location.search);
+    if (!shared) return;
+    history.replaceState(null, '', `${window.location.pathname}${window.location.hash}`);
+    void (async () => {
+      const us = isUs(shared.symbol);
+      const store = us ? useUsStrategy : useStrategy;
+      const { legs: current, symbol: currentSymbol } = store.getState();
+      if (
+        current.length > 0 &&
+        !(await confirmDialog({
+          title: 'Open the shared strategy?',
+          message: `It replaces the ${current.length} leg${current.length > 1 ? 's' : ''} in your current ${currentSymbol} strategy.`,
+          confirmLabel: 'Yes, Open',
+        }))
+      )
+        return;
+      store.getState().setSymbol(shared.symbol, shared.legs[0]?.lotSize ?? 1);
+      store.getState().replaceLegs(shared.legs);
+      setBuilderMarket(us ? 'US' : 'IN');
+      setRoute({ page: 'builder' });
+    })();
+  }, [setBuilderMarket]);
+
+  const share = async () => {
+    const url = shareUrl(window.location, symbol, legs);
+    try {
+      await navigator.clipboard.writeText(url);
+      setNotice('Link copied — anyone with it can open this strategy');
+    } catch {
+      window.prompt('Copy this link', url);
+    }
   };
 
   const confirmClear = async () => {
@@ -328,7 +382,7 @@ function Workspace({ showLogout, onLogout }: { showLogout: boolean; onLogout: ()
         className={`safe-x w-full pt-4 ${route.page === 'chart' ? 'md:py-3' : 'md:py-5'}`}
         style={{ paddingBottom: `calc(var(--tabbar-h) + ${route.page === 'chart' ? '0.75rem' : '1.25rem'})` }}
       >
-        {marketPage && (
+        {marketPage && route.page !== 'builder' && (
           <div className="mb-4 flex flex-col gap-2">
             <MarketBar
               symbols={symbols}
@@ -447,66 +501,46 @@ function Workspace({ showLogout, onLogout }: { showLogout: boolean; onLogout: ()
           </section>
         )}
 
-        {route.page === 'builder' && (
-          <section className="grid grid-cols-1 gap-4 lg:grid-cols-[460px_minmax(0,1fr)] 2xl:grid-cols-[540px_minmax(0,1fr)]">
-            <div className="order-2 lg:order-1 lg:sticky lg:top-[4.5rem] lg:self-start">
-              <ErrorBoundary label="the option chain">
-                {chain?.rows?.length ? (
-                  <StrikeChain
-                    rows={chain.rows}
-                    spot={spot}
-                    symbol={symbol}
-                    lotSize={effectiveLot}
-                    expiry={chain.expiry ?? null}
-                    legs={legs}
-                    maxHeight={720}
-                    onAddLeg={addFromChain}
-                    onRemoveLegs={removeLegs}
-                    onClear={confirmClear}
-                  />
-                ) : (
-                  <OptionChainTable {...chainProps} />
-                )}
-              </ErrorBoundary>
-            </div>
-            <div className="order-1 flex min-w-0 flex-col gap-4 lg:order-2">
-              <StrategyToolbar
-                canBuild={spot !== null}
-                hasLegs={legs.length > 0}
-                symbol={symbol}
-                draftCount={drafts?.filter((d) => d.closedAt === null).length ?? 0}
-                onTemplate={applyTemplate}
-                onSaveDraft={saveDraft}
-                onViewDrafts={() => navigate({ page: 'drafts' })}
-              />
-              <ErrorBoundary label="the payoff chart">
-                <PayoffChart
-                  legs={legs}
-                  spot={spot}
-                  symbol={symbol}
-                  metrics={metrics}
-                  fallbackIv={fallbackIv}
-                  oiRows={chain?.rows ?? null}
-                  capital={brokerMargin ?? metrics.marginEstimate}
-                  marks={marks}
-                />
-              </ErrorBoundary>
-              <MetricsPanel metrics={metrics} greeks={greeks} hasLegs={legs.length > 0} brokerMargin={brokerMargin} marginLoading={marginLoading} />
-              <LegsTable
-                legs={legs}
-                onUpdate={updateLeg}
-                onRemove={removeLeg}
-                onToggleAction={toggleLegAction}
-                onClear={confirmClear}
-                onAddBlank={() =>
-                  addLeg({ action: 'BUY', type: 'CE', strike: Math.round(spot ?? 100), premium: 0, lots: 1, lotSize: effectiveLot, expiry: chain?.expiry ?? null })
-                }
-                onAddEquity={() =>
-                  addLeg({ action: 'BUY', type: 'EQ', strike: 0, premium: Number((spot ?? 0).toFixed(2)), lots: 1, lotSize: effectiveLot })
-                }
-              />
-            </div>
-          </section>
+        {route.page === 'builder' && builderMarket === 'US' && (
+          <UsBuilder marketSwitch={<MarketSwitch value="US" onChange={setBuilderMarket} />} onNotice={setNotice} />
+        )}
+
+        {indiaBuilder && (
+          <BuilderPage
+            market={INDIA_VIEW}
+            marketSwitch={<MarketSwitch value="IN" onChange={setBuilderMarket} />}
+            picker={<NseSymbolSelect symbols={symbols} symbol={symbol} onChange={(s) => void changeSymbol(s)} />}
+            symbol={symbol}
+            spotQuote={spotState.data}
+            spotError={spotState.error}
+            spot={spot}
+            chain={chain}
+            chainLoading={chainState.loading}
+            chainNotice={brokerConnected && chainState.error && !chain ? <Notice tone="critical">Option chain: {chainState.error}</Notice> : null}
+            quoteSource={chain?.rows?.length ? 'Live Upstox quotes' : 'No live chain — premiums are manual'}
+            expiry={activeExpiry}
+            onExpiryChange={setExpiry}
+            updatedAt={chainState.updatedAt ?? spotState.updatedAt}
+            legs={legs}
+            lotSize={effectiveLot}
+            metrics={metrics}
+            fallbackIv={fallbackIv}
+            marks={marks}
+            brokerMargin={brokerMargin}
+            marginLoading={marginLoading}
+            draftCount={drafts?.filter((d) => d.closedAt === null).length ?? 0}
+            onTemplate={applyTemplate}
+            onAddFromChain={addFromChain}
+            onAddLeg={addLeg}
+            onUpdateLeg={updateLeg}
+            onRemoveLeg={removeLeg}
+            onRemoveLegs={removeLegs}
+            onClear={confirmClear}
+            onSaveDraft={saveDraft}
+            onShare={() => void share()}
+            onViewDrafts={() => navigate({ page: 'drafts' })}
+            onOpenChainPage={() => navigate({ page: 'chain' })}
+          />
         )}
 
         <footer

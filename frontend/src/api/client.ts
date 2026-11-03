@@ -125,6 +125,12 @@ export const api = {
     if (expiry) q.set('expiry', expiry);
     return get<OptionChain>(`/api/option-chain?${q}`);
   },
+  /** US listed options from Yahoo (delayed), for US:<ticker> symbols. */
+  usOptionChain: (symbol: string, expiry?: string) => {
+    const q = new URLSearchParams({ symbol });
+    if (expiry) q.set('expiry', expiry);
+    return get<OptionChain>(`/api/us/option-chain?${q}`);
+  },
   margin: (legs: { instrumentKey: string; quantity: number; action: 'BUY' | 'SELL' }[]) =>
     post<BrokerMargin>('/api/margin', { legs }),
 

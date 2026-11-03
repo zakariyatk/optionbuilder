@@ -14,6 +14,7 @@ require_once __DIR__ . '/lib/http.php';
 require_once __DIR__ . '/lib/symbols.php';
 require_once __DIR__ . '/lib/upstox.php';
 require_once __DIR__ . '/lib/chain.php';
+require_once __DIR__ . '/lib/us_options.php';
 require_once __DIR__ . '/lib/markets.php';
 require_once __DIR__ . '/lib/us.php';
 require_once __DIR__ . '/lib/india.php';
@@ -327,6 +328,24 @@ try {
             ob_error('Failed to fetch option chain', 502, 'NOT_AUTHENTICATED');
         } catch (Throwable $e) {
             ob_error('Failed to fetch option chain', 502, $e->getMessage());
+        }
+    }
+
+    // US listed options from Yahoo (delayed). No broker login needed.
+    if ($path === '/api/us/option-chain') {
+        $symbol = strtoupper(ob_query('symbol') ?? '');
+        $expiry = ob_query('expiry');
+        if (!ob_is_us($symbol) || !ob_symbol_ok($symbol)) {
+            ob_error('symbol must be a US:<ticker> symbol', 400);
+        }
+        if ($expiry !== null && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $expiry)) {
+            ob_error('expiry must be YYYY-MM-DD', 400);
+        }
+        try {
+            // A minute fresh; up to 15 minutes stale while Yahoo is failing (its data is delayed anyway).
+            ob_json(ob_cached("uschain:$symbol:" . ($expiry ?? 'default'), fn() => ob_us_option_chain($symbol, $expiry), 60, 900));
+        } catch (Throwable $e) {
+            ob_error('Failed to fetch US option chain', 502, $e->getMessage());
         }
     }
 

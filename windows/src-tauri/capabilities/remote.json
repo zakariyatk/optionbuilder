@@ -1,0 +1,8 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "site",
+  "description": "The live site may show Windows notifications for its price alerts, and nothing else.",
+  "windows": ["main"],
+  "remote": { "urls": ["https://optionbuilder.adddots.com/*"] },
+  "permissions": ["allow-notify"]
+}

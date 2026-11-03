@@ -61,7 +61,8 @@ export interface ChainRow {
 }
 
 export interface OptionChain {
-  source: 'upstox';
+  /** 'yahoo' and 'model' are the US builder's live chain and its Black-Scholes fallback. */
+  source: 'upstox' | 'yahoo' | 'model';
   symbol: string;
   lotSize: number;
   underlyingValue: number | null;
@@ -69,6 +70,8 @@ export interface OptionChain {
   expiryDates: string[];
   expiry: string | null;
   rows: ChainRow[];
+  /** US chains: the underlying's dividend yield (decimal) for pricing. */
+  dividendYield?: number;
 }
 
 export interface AuthStatus {

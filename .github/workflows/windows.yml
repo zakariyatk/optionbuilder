@@ -1,0 +1,103 @@
+name: Windows app
+
+# Tests the AddStock shell when windows/ changes. Pushing a tag like `windows-v0.3.0` also builds the
+# installers and publishes them as a GitHub release with latest.json, which installed apps update from.
+#
+# Needs the repository secret TAURI_SIGNING_PRIVATE_KEY: the contents of the updater private key
+# (windows/README.md says how to make one). Only GitHub's own actions are used.
+
+on:
+  push:
+    branches: [main]
+    tags: ['windows-v*'] # tags always run; the paths filter only applies to branches
+    paths: ['windows/**', '.github/workflows/windows.yml']
+  pull_request:
+    paths: ['windows/**', '.github/workflows/windows.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: windows-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Shell tests
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
+        working-directory: windows
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            windows/src-tauri/target
+          key: cargo-${{ runner.os }}-${{ hashFiles('windows/src-tauri/Cargo.lock') }}
+          restore-keys: cargo-${{ runner.os }}-
+      - run: cargo test --manifest-path src-tauri/Cargo.toml
+
+  release:
+    name: Build and publish installers
+    needs: test
+    if: startsWith(github.ref, 'refs/tags/windows-v')
+    runs-on: windows-latest
+    permissions:
+      contents: write # create the release
+    defaults:
+      run:
+        shell: bash
+        working-directory: windows
+    env:
+      TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+      TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ''
+      GH_TOKEN: ${{ github.token }}
+      TAG: ${{ github.ref_name }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: windows/package-lock.json
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            windows/src-tauri/target
+          key: cargo-release-${{ runner.os }}-${{ hashFiles('windows/src-tauri/Cargo.lock') }}
+          restore-keys: cargo-release-${{ runner.os }}-
+
+      - name: Check the tag matches the app version
+        run: |
+          version=$(node -p "require('./src-tauri/tauri.conf.json').version")
+          if [ "$TAG" != "windows-v$version" ]; then
+            echo "::error::Tag $TAG doesn't match the version $version in src-tauri/tauri.conf.json"
+            exit 1
+          fi
+          if [ -z "$TAURI_SIGNING_PRIVATE_KEY" ]; then
+            echo "::error::The TAURI_SIGNING_PRIVATE_KEY secret isn't set, so updates can't be signed."
+            exit 1
+          fi
+
+      - run: npm ci
+      - run: npm run build
+      - run: node scripts/latest-json.mjs
+
+      - name: Publish the release
+        run: |
+          version=${TAG#windows-v}
+          bundle=src-tauri/target/release/bundle
+          gh release create "$TAG" \
+            "$bundle/nsis/AddStock_${version}_x64-setup.exe" \
+            "$bundle/nsis/AddStock_${version}_x64-setup.exe.sig" \
+            "$bundle/msi/AddStock_${version}_x64_en-US.msi" \
+            "$bundle/latest.json" \
+            --title "AddStock for Windows $version" \
+            --notes "Download **AddStock_${version}_x64-setup.exe** and run it. Windows may say it protected your PC, because the installer isn't code-signed: choose More info, then Run anyway. Installed apps update themselves."

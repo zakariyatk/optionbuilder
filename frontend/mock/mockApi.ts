@@ -148,7 +148,87 @@ const US_LISTINGS = [
   { symbol: 'US:MSFT', ticker: 'MSFT', name: 'Microsoft Corporation', exchange: 'NASDAQ', type: 'EQUITY' },
   { symbol: 'US:NVDA', ticker: 'NVDA', name: 'NVIDIA Corporation', exchange: 'NASDAQ', type: 'EQUITY' },
   { symbol: 'US:VOO', ticker: 'VOO', name: 'Vanguard S&P 500 ETF', exchange: 'NYSE Arca', type: 'ETF' },
+  { symbol: 'US:SPY', ticker: 'SPY', name: 'SPDR S&P 500 ETF Trust', exchange: 'NYSE Arca', type: 'ETF' },
+  { symbol: 'US:QQQ', ticker: 'QQQ', name: 'Invesco QQQ Trust', exchange: 'NASDAQ', type: 'ETF' },
+  { symbol: 'US:TSLA', ticker: 'TSLA', name: 'Tesla, Inc.', exchange: 'NASDAQ', type: 'EQUITY' },
 ];
+
+/** Mock US prices — shared by /spot, /watch and the US option chain. */
+const US_PRICES: Record<string, { price: number; prev: number; q: number }> = {
+  'US:SPY': { price: 683.4, prev: 685.1, q: 0.011 },
+  'US:QQQ': { price: 618.2, prev: 615.9, q: 0.005 },
+  'US:AAPL': { price: 342, prev: 339.6, q: 0.004 },
+  'US:MSFT': { price: 520, prev: 523.8, q: 0.007 },
+  'US:NVDA': { price: 185, prev: 181.2, q: 0.0002 },
+  'US:TSLA': { price: 446.3, prev: 452.1, q: 0 },
+  'US:VOO': { price: 615, prev: 617.2, q: 0.012 },
+};
+
+function usStrikeStep(price: number): number {
+  return price < 25 ? 0.5 : price < 100 ? 1 : price < 250 ? 2.5 : 5;
+}
+
+/**
+ * A synthetic Yahoo-shaped chain: weekly Fridays plus third-Friday monthlies,
+ * Black-Scholes premiums off a volatility smile, bid / ask around them.
+ * MOCK_US_CHAIN_FAIL=1 makes it fail, to exercise the builder's model fallback.
+ * MOCK_US_MARKET_CLOSED=1 mimics Yahoo outside US hours: zero bid / ask, IVs near 0%.
+ */
+function mockUsChain(symbol: string, expiry: string | null): unknown {
+  const info = US_PRICES[symbol] ?? { price: 100, prev: 100, q: 0 };
+  const closed = process.env.MOCK_US_MARKET_CLOSED === '1';
+  const day = 86_400_000;
+  const fridays: string[] = [];
+  const d = new Date();
+  d.setUTCHours(0, 0, 0, 0);
+  d.setUTCDate(d.getUTCDate() + ((5 - d.getUTCDay() + 7) % 7 || 7));
+  for (let i = 0; i < 8; i++) fridays.push(new Date(d.getTime() + i * 7 * day).toISOString().slice(0, 10));
+  for (let m = 2; m < 8; m++) {
+    const first = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + m, 1));
+    const third = new Date(first.getTime() + (((5 - first.getUTCDay() + 7) % 7) + 14) * day);
+    fridays.push(third.toISOString().slice(0, 10));
+  }
+  const expiries = Array.from(new Set(fridays)).sort();
+  const target = expiry && expiries.includes(expiry) ? expiry : expiries[0];
+  const years = Math.max((Date.parse(`${target}T20:00:00Z`) - Date.now()) / (365 * day), 1 / 365);
+  const S = info.price;
+  const r = 0.0405;
+  const step = usStrikeStep(S);
+  const atm = Math.round(S / step) * step;
+  const N = (x: number) => 0.5 * (1 + Math.tanh(0.7978845608 * (x + 0.044715 * x ** 3)));
+  const price = (call: boolean, K: number, v: number) => {
+    const d1 = (Math.log(S / K) + (r - info.q + (v * v) / 2) * years) / (v * Math.sqrt(years));
+    const d2 = d1 - v * Math.sqrt(years);
+    return call
+      ? S * Math.exp(-info.q * years) * N(d1) - K * Math.exp(-r * years) * N(d2)
+      : K * Math.exp(-r * years) * N(-d2) - S * Math.exp(-info.q * years) * N(-d1);
+  };
+  const rows = Array.from({ length: 41 }, (_, i) => {
+    const K = Math.round((atm + (i - 20) * step) * 100) / 100;
+    const m = Math.log(K / S);
+    const v = 0.22 + 0.6 * m * m - 0.12 * m;
+    const side = (call: boolean) => {
+      const mid = Math.max(price(call, K, v), 0.01);
+      const spread = Math.max(0.01, mid * 0.03);
+      const rand = seededRandom(`${symbol}${target}${K}${call}`);
+      return {
+        instrumentKey: null,
+        ltp: Math.round(mid * (1 + (rand() - 0.5) * 0.02) * 100) / 100,
+        change: Math.round((rand() - 0.5) * mid * 20) / 100,
+        oi: Math.round(rand() * 40000 * Math.exp(-Math.abs(i - 20) / 8)),
+        oiChange: 0,
+        volume: Math.round(rand() * 9000 * Math.exp(-Math.abs(i - 20) / 6)),
+        iv: closed ? Math.round(rand() * 300) / 100 : Math.round(v * 10000) / 100,
+        delta: null,
+        theta: null,
+        bid: closed ? 0 : Math.round((mid - spread / 2) * 100) / 100,
+        ask: closed ? 0 : Math.round((mid + spread / 2) * 100) / 100,
+      };
+    };
+    return { strike: K, call: side(true), put: side(false) };
+  });
+  return { source: 'yahoo', symbol, lotSize: 100, underlyingValue: S, timestamp: new Date().toISOString(), expiryDates: expiries, expiry: target, rows, dividendYield: info.q };
+}
 
 function seededRandom(seed: string) {
   let h = 2166136261;
@@ -425,10 +505,20 @@ export function mockApi(base: string): Plugin {
             });
           case '/symbols':
             return send(SYMBOLS);
-          case '/spot':
+          case '/spot': {
+            const symbol = url.searchParams.get('symbol') ?? '';
+            const us = US_PRICES[symbol];
+            if (symbol.startsWith('US:')) {
+              if (!us) return send({ error: 'Failed to fetch spot price' }, 502);
+              return send({ symbol, ticker: symbol.slice(3), price: us.price, previousClose: us.prev, currency: 'USD', marketTime: Math.floor(now / 1000) });
+            }
             return send(fixture('spot'));
+          }
           case '/option-chain':
             return send(freshChain());
+          case '/us/option-chain':
+            if (process.env.MOCK_US_CHAIN_FAIL === '1') return send({ error: 'Failed to fetch US option chain', detail: 'mock failure' }, 502);
+            return send(mockUsChain(url.searchParams.get('symbol') ?? 'US:SPY', url.searchParams.get('expiry')));
           case '/margin':
             return send({ required_margin: 152340.5, final_margin: 148210.25 });
           case '/report/max-oi':

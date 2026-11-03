@@ -3,10 +3,23 @@
 A Tauri 2 shell that opens <https://optionbuilder.adddots.com/> in its own window. The site isn't bundled, so
 the backend's session cookie works unchanged and every deploy reaches the app.
 
-Sign-in is Google only. Google refuses embedded webviews, so the shell sends Supabase's authorize page to the
-system browser; Google comes back through an `addstock://auth/callback?code=…` link, and the shell reopens
-the site with that code for supabase-js to finish. Upstox pages stay in the window; any other link opens in
-the browser.
+The app opens on its own start screen instead of the website's landing page: the app's sections down the
+side, a sign-in banner and shortcuts (`frontend/src/features/landing/DesktopHome.tsx`). Each shortcut signs in
+and then opens its page. Sign-in is the same email code as the website, typed into the app. Upstox pages
+stay in the window; any other link opens in the browser.
+
+Desktop extras:
+- **Offline screen.** The window starts on `web/index.html`, which opens the site as soon as it answers and
+  otherwise says you're offline and retries every 5 seconds.
+- **Tray.** Closing the window hides it to the tray, so price alerts keep running. Click the tray icon to
+  open it again; its menu has "Start with Windows" (starts hidden in the tray) and Quit.
+- **Notifications.** Price alerts show as Windows notifications: the page's `Notification` API is pointed at
+  the shell's `notify` command, the only command the site may call (`src-tauri/capabilities/remote.json`).
+  While hidden, WebView2 slows the page's timers, so alerts can arrive up to a minute late.
+
+The shell already handles Google for later (branch `google-sign-in`): Google refuses embedded webviews, so
+Supabase's authorize page goes to the system browser and Google comes back through an
+`addstock://auth/callback?code=…` link, which the shell reopens on the site for supabase-js to finish.
 
 ## Build
 
@@ -17,11 +30,33 @@ Needs Node 20+, Rust (`winget install Rustlang.Rustup`) and the Visual Studio C+
 npm install
 npm test         # Rust unit tests: link handling and navigation rules
 npm run dev      # run the app
-npm run build    # installers in src-tauri/target/release/bundle/{nsis,msi}
+npm run build    # installers in src-tauri/target/release/bundle/{nsis,msi}; needs the updater key, below
 npm run icons    # regenerate icons from the web app's logo
 ```
 
-## Google sign-in setup (once)
+## Releases and updates
+
+Installed apps check the repo's latest GitHub release for `latest.json` 15 seconds after starting, then
+twice a day, and from **Check for updates…** in the tray menu. When there's a newer version they ask
+before installing; the installer closes AddStock and reopens it.
+
+Updates are signed with a free updater key (not Windows code signing). The public half is in
+`src-tauri/tauri.conf.json`; the private half is `C:\Users\zak\.tauri\addstock-updater.key` on the PC that
+made it. Keep a backup: without it, installed apps can't take updates from a new key.
+
+Once, in GitHub → Settings → Secrets and variables → Actions → New repository secret: name
+`TAURI_SIGNING_PRIVATE_KEY`, value the whole contents of that key file.
+
+To release a version:
+1. Raise `version` in `src-tauri/tauri.conf.json`, `src-tauri/Cargo.toml` and `package.json`.
+2. Commit, then tag and push: `git tag windows-v0.3.0` and `git push origin windows-v0.3.0`.
+3. The **Windows app** workflow builds the installers and publishes the release with `latest.json`.
+
+A local `npm run build` needs the key too: set `TAURI_SIGNING_PRIVATE_KEY` to the file's contents and
+`TAURI_SIGNING_PRIVATE_KEY_PASSWORD` to an empty string. `node scripts/latest-json.mjs` then writes
+`latest.json` next to the installers.
+
+## Google sign-in setup (for the `google-sign-in` branch)
 
 1. Google Cloud Console → APIs & Services → Credentials → OAuth client ID (Web application). Authorized
    redirect URI: `https://zqwuztvbpfifmkwtjyyk.supabase.co/auth/v1/callback`.

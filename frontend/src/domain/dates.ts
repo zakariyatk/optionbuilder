@@ -8,6 +8,11 @@ const MONTHS: Record<string, number> = {
  * down to the actual settlement moment.
  */
 export function parseExpiry(s: string): Date | null {
+  // US expiries carry their own close time (16:00 New York) as a UTC timestamp.
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2})?Z$/.test(s)) {
+    const t = Date.parse(s);
+    return Number.isFinite(t) ? new Date(t) : null;
+  }
   const iso = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
   if (iso) {
     const [, y, m, d] = iso;
@@ -47,7 +52,8 @@ export function formatExpiry(expiry: string, now = new Date()): string {
     day: 'numeric',
     month: 'short',
     ...(d.getUTCFullYear() !== now.getFullYear() ? { year: 'numeric' } : {}),
-    timeZone: 'Asia/Kolkata',
+    // A timestamped (US) expiry reads as its New York calendar date.
+    timeZone: expiry.includes('T') ? 'America/New_York' : 'Asia/Kolkata',
   });
 }
 
