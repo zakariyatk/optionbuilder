@@ -2,7 +2,7 @@ import { Fragment, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { ChevronDown, ChevronRight, FlaskConical, Pencil, Plus, Trash2 } from 'lucide-react';
 import { errorMessage } from '../../api/client';
 import type { PortfolioTxn, SymbolInfo } from '../../api/types';
-import { Button, Notice, Skeleton } from '../../components/ui';
+import { Button, Notice } from '../../components/ui';
 import { daysToExpiry, formatExpiry } from '../../domain/dates';
 import {
   benchmarkSeries,
@@ -29,6 +29,8 @@ import { nameOf } from '../../lib/symbolNames';
 import { marketOpen, NSE_SESSION, US_SESSION } from '../../lib/nse';
 import { buildDemoTransactions } from './demo';
 import { FxPanel } from './FxPanel';
+import { ChartLoader, CountUp, PortfolioLoader, Spinner } from './motion';
+import { stagger } from './stagger';
 import { PerformanceChart, type ChartLine } from './PerformanceChart';
 import { SectorCards } from './SectorCards';
 import { TransactionDialog, type TxnDraft } from './TransactionDialog';
@@ -112,9 +114,9 @@ const thBase = 'whitespace-nowrap bg-[var(--surface-sunken)] px-3 py-2 text-[10p
 const th = `${thBase} text-right`;
 const td = 'whitespace-nowrap px-3 py-2.5 text-right tabular';
 
-function Panel({ title, right, children, className = '' }: { title: string; right?: ReactNode; children: ReactNode; className?: string }) {
+function Panel({ title, right, children, className = '', i = 0 }: { title: string; right?: ReactNode; children: ReactNode; className?: string; i?: number }) {
   return (
-    <section className={`rounded-lg border border-[var(--border)] bg-[var(--surface-card)] ${className}`}>
+    <section className={`pf-rise rounded-lg border border-[var(--border)] bg-[var(--surface-card)] ${className}`} style={stagger(i)}>
       <div className="flex flex-wrap items-center justify-between gap-2 px-4 pt-3 pb-2">
         <h2 className="text-[11px] font-bold uppercase tracking-[0.1em]">{title}</h2>
         {right}
@@ -124,9 +126,9 @@ function Panel({ title, right, children, className = '' }: { title: string; righ
   );
 }
 
-function Kpi({ label, value, sub, accent, valueColor }: { label: string; value: ReactNode; sub?: ReactNode; accent: string; valueColor?: string }) {
+function Kpi({ label, value, sub, accent, valueColor, i = 0 }: { label: string; value: ReactNode; sub?: ReactNode; accent: string; valueColor?: string; i?: number }) {
   return (
-    <div className="min-w-0 rounded-r-lg border border-l-[3px] border-[var(--border)] bg-[var(--surface-card)] px-4 py-3" style={{ borderLeftColor: accent }}>
+    <div className="pf-rise pf-card min-w-0 rounded-r-lg border border-l-[3px] border-[var(--border)] bg-[var(--surface-card)] px-4 py-3" style={{ borderLeftColor: accent, ...stagger(i) }}>
       <div className="text-[10px] uppercase tracking-[0.12em] text-[var(--text-muted)]">{label}</div>
       <div className="mt-0.5 truncate text-xl font-semibold tabular" style={{ color: valueColor }}>
         {value}
@@ -184,7 +186,7 @@ function Donut({ slices, center, caption }: { slices: { value: number; color: st
       <circle cx="21" cy="21" r="15.9155" fill="none" stroke="var(--gridline)" strokeWidth="5" />
       {slices.map((s, i) => {
         const len = (s.value / total) * 100;
-        const el = <circle key={i} cx="21" cy="21" r="15.9155" fill="none" stroke={s.color} strokeWidth="5" strokeDasharray={`${len} ${100 - len}`} strokeDashoffset={offset} />;
+        const el = <circle key={i} className="pf-slice" style={stagger(i)} cx="21" cy="21" r="15.9155" fill="none" stroke={s.color} strokeWidth="5" strokeDasharray={`${len} ${100 - len}`} strokeDashoffset={offset} />;
         offset -= len;
         return el;
       })}
@@ -375,22 +377,19 @@ export function PortfolioPage({ brokerConnected, symbols }: { brokerConnected: b
         Portfolios: {store.error}
       </Notice>
     ) : (
-      <div className="flex flex-col gap-3" aria-busy="true">
-        <Skeleton className="h-20 w-full" />
-        <Skeleton className="h-72 w-full" />
-      </div>
+      <PortfolioLoader />
     );
   }
 
   const demoButton = (
     <Button onClick={loadDemo} disabled={demoBusy} title="Adds a separate “Demo portfolio” with sample Indian and US stocks — your own portfolios aren’t touched">
-      <FlaskConical size={14} aria-hidden="true" /> {demoBusy ? 'Loading demo…' : 'Load demo portfolio'}
+      {demoBusy ? <Spinner /> : <FlaskConical size={14} aria-hidden="true" />} {demoBusy ? 'Loading demo…' : 'Load demo portfolio'}
     </Button>
   );
 
   if (!portfolio) {
     return (
-      <section className="flex flex-col items-center gap-3 rounded-lg border border-[var(--border)] bg-[var(--surface-card)] px-6 py-12 text-center">
+      <section className="pf-rise flex flex-col items-center gap-3 rounded-lg border border-[var(--border)] bg-[var(--surface-card)] px-6 py-12 text-center">
         <div className="text-base font-semibold">Track your investments</div>
         <div className="max-w-md text-sm text-[var(--text-muted)]">
           Add Indian and US stocks and futures to see total and daily P&amp;L, and how your portfolio performs against NIFTY 50, the Nasdaq-100 and the S&amp;P 500.
@@ -479,7 +478,7 @@ export function PortfolioPage({ brokerConnected, symbols }: { brokerConnected: b
   return (
     <div className="flex flex-col gap-3">
       {/* ---------- header bar */}
-      <div className="flex flex-wrap items-center gap-2 border-b border-[var(--border)] pb-3">
+      <div className="pf-rise flex flex-wrap items-center gap-2 border-b border-[var(--border)] pb-3">
         <label className="sr-only" htmlFor="portfolio-select">
           Portfolio
         </label>
@@ -506,7 +505,7 @@ export function PortfolioPage({ brokerConnected, symbols }: { brokerConnected: b
         </Button>
         {!store.portfolios.some((p) => p.name === 'Demo portfolio') && (
           <Button variant="ghost" onClick={loadDemo} disabled={demoBusy} title="Adds a separate “Demo portfolio” with sample Indian and US stocks — your own portfolios aren’t touched">
-            <FlaskConical size={14} aria-hidden="true" /> {demoBusy ? 'Loading…' : 'Demo'}
+            {demoBusy ? <Spinner /> : <FlaskConical size={14} aria-hidden="true" />} {demoBusy ? 'Loading…' : 'Demo'}
           </Button>
         )}
         {txns.length > 0 && (
@@ -535,7 +534,7 @@ export function PortfolioPage({ brokerConnected, symbols }: { brokerConnected: b
       )}
 
       {txns.length === 0 ? (
-        <section className="flex flex-col items-center gap-3 rounded-lg border border-[var(--border)] bg-[var(--surface-card)] px-6 py-10 text-center">
+        <section className="pf-rise flex flex-col items-center gap-3 rounded-lg border border-[var(--border)] bg-[var(--surface-card)] px-6 py-10 text-center">
           <div className="text-base font-semibold">Add your first transaction</div>
           <div className="max-w-md text-sm text-[var(--text-muted)]">
             Record a stock buy or a futures trade with its date and price. Holdings, P&amp;L and performance are worked out from your transactions.
@@ -552,30 +551,33 @@ export function PortfolioPage({ brokerConnected, symbols }: { brokerConnected: b
           {/* ---------- KPI cards */}
           <div className="grid grid-cols-1 gap-3 min-[480px]:grid-cols-2 lg:grid-cols-4">
             <Kpi
+              i={1}
               label="Current value"
               accent="var(--series-blue)"
-              value={inr(v.currentValue)}
+              value={<CountUp value={v.currentValue} format={inr} />}
               sub={`${openStocks.length} holding${openStocks.length === 1 ? '' : 's'}${openFutures.length ? ` · ${openFutures.length} future${openFutures.length === 1 ? '' : 's'}` : ''}`}
             />
-            <Kpi label="Invested" accent="var(--series-violet)" value={inr(v.invested)} sub={v.realized !== 0 ? `Realised ${signedInr(v.realized)}` : 'Cost of holdings'} />
+            <Kpi i={2} label="Invested" accent="var(--series-violet)" value={<CountUp value={v.invested} format={inr} />} sub={v.realized !== 0 ? `Realised ${signedInr(v.realized)}` : 'Cost of holdings'} />
             <Kpi
+              i={3}
               label="Total P&L"
               accent="var(--good)"
               valueColor={pnlColor(v.totalPnl)}
               value={
                 <>
-                  {signedInr(v.totalPnl)} <span className="text-xs">{pct(v.totalPnlPct, 1)}</span>
+                  <CountUp value={v.totalPnl} format={signedInr} /> <span className="text-xs">{pct(v.totalPnlPct, 1)}</span>
                 </>
               }
               sub={Math.abs(v.currencyGain) >= 1 ? `incl. ${signedInr(v.currencyGain)} from USD/INR` : 'Unrealised + realised'}
             />
             <Kpi
+              i={4}
               label="Today’s P&L"
               accent="var(--warning)"
               valueColor={pnlColor(v.dayPnl)}
               value={
                 <>
-                  {signedInr(v.dayPnl)} <span className="text-xs">{pct(v.dayPnlPct)}</span>
+                  <CountUp value={v.dayPnl} format={signedInr} /> <span className="text-xs">{pct(v.dayPnlPct)}</span>
                 </>
               }
               sub={`NSE ${nseOpen ? 'open' : 'closed'} · US ${usOpen ? 'open' : 'closed'}`}
@@ -585,6 +587,7 @@ export function PortfolioPage({ brokerConnected, symbols }: { brokerConnected: b
           {/* ---------- allocation + performance */}
           <div className="grid grid-cols-1 gap-3 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.55fr)]">
             <Panel
+              i={5}
               title="Allocation"
               right={
                 <Segmented
@@ -608,10 +611,10 @@ export function PortfolioPage({ brokerConnected, symbols }: { brokerConnected: b
                   <div className="flex items-center gap-4 px-4 pb-3">
                     <Donut slices={slices} center={allocCenter} caption={`${allocHoldings.length} HOLDING${allocHoldings.length === 1 ? '' : 'S'}`} />
                     <ul className="flex min-w-0 flex-1 flex-col gap-2">
-                      {slices.map((s) => {
+                      {slices.map((s, si) => {
                         const share = allocTotal ? (s.value / allocTotal) * 100 : 0;
                         return (
-                          <li key={s.label} className="min-w-0">
+                          <li key={s.label} className="pf-row min-w-0" style={stagger(si)}>
                             <div className="flex items-baseline justify-between gap-2 text-xs">
                               <span className="truncate">
                                 <span style={{ color: s.color }}>■</span> <span className="font-semibold">{s.label}</span>
@@ -622,7 +625,7 @@ export function PortfolioPage({ brokerConnected, symbols }: { brokerConnected: b
                               </span>
                             </div>
                             <div className="mt-1 h-0.5 bg-[var(--gridline)]">
-                              <div className="h-0.5" style={{ width: `${Math.min(100, share * 2)}%`, background: s.color }} />
+                              <div className="pf-bar h-0.5" style={{ width: `${Math.min(100, share * 2)}%`, background: s.color, ...stagger(si) }} />
                             </div>
                           </li>
                         );
@@ -639,6 +642,7 @@ export function PortfolioPage({ brokerConnected, symbols }: { brokerConnected: b
             </Panel>
 
             <Panel
+              i={6}
               title="Performance vs benchmarks"
               right={
                 <div className="flex flex-wrap gap-1" role="radiogroup" aria-label="Period">
@@ -706,7 +710,7 @@ export function PortfolioPage({ brokerConnected, symbols }: { brokerConnected: b
                     Price history: {history.error}
                   </Notice>
                 ) : !perf ? (
-                  <Skeleton className="h-64 w-full" />
+                  <ChartLoader />
                 ) : (
                   <PerformanceChart lines={perf.lines} />
                 )}
@@ -769,6 +773,7 @@ export function PortfolioPage({ brokerConnected, symbols }: { brokerConnected: b
 
           {/* ---------- holdings */}
           <Panel
+            i={7}
             title="Holdings & P&L"
             right={
               <span className="flex flex-wrap items-center gap-2">
@@ -809,14 +814,14 @@ export function PortfolioPage({ brokerConnected, symbols }: { brokerConnected: b
                   </tr>
                 </thead>
                 <tbody>
-                  {tableStocks.map((h) => {
+                  {tableStocks.map((h, ri) => {
                     const q = live[h.symbol];
                     const hv = values.get(h.symbol)!;
                     const open = expanded.has(h.symbol);
                     const dot = colorOf(h.symbol);
                     return (
                       <Fragment key={h.symbol}>
-                        <tr className="cursor-pointer border-t border-[var(--gridline)] hover:bg-[var(--surface-sunken)]" onClick={() => toggleRow(h.symbol)}>
+                        <tr className="pf-row cursor-pointer border-t border-[var(--gridline)] transition-colors hover:bg-[var(--surface-sunken)]" style={stagger(Math.min(ri, 12))} onClick={() => toggleRow(h.symbol)}>
                           <td className="px-3 py-2.5 text-left">
                             <span className="inline-flex items-center gap-1.5">
                               {open ? <ChevronDown size={14} aria-hidden="true" className="text-[var(--text-muted)]" /> : <ChevronRight size={14} aria-hidden="true" className="text-[var(--text-muted)]" />}
@@ -864,7 +869,7 @@ export function PortfolioPage({ brokerConnected, symbols }: { brokerConnected: b
                           </td>
                         </tr>
                         {open && (
-                          <tr className="bg-[var(--surface-sunken)]">
+                          <tr className="pf-rise bg-[var(--surface-sunken)]">
                             <td colSpan={9} className="px-4 py-2">
                               <TxnList txns={h.txns} onDelete={deleteTxn} onEdit={editTxn} />
                               {h.realized !== 0 && (
@@ -879,7 +884,7 @@ export function PortfolioPage({ brokerConnected, symbols }: { brokerConnected: b
                     );
                   })}
 
-                  {tableFutures.map((f) => {
+                  {tableFutures.map((f, fi) => {
                     const own = f.instrumentKey ? futQuotes.data?.[f.instrumentKey] : undefined;
                     const price = futurePrice(f, futQuotes.data ?? {}, live);
                     const mtm = price === null ? null : f.lots * f.lotSize * (price - f.avgEntry);
@@ -891,7 +896,7 @@ export function PortfolioPage({ brokerConnected, symbols }: { brokerConnected: b
                     const open = expanded.has(f.key);
                     return (
                       <Fragment key={f.key}>
-                        <tr className="cursor-pointer border-t border-[var(--gridline)] hover:bg-[var(--surface-sunken)]" onClick={() => toggleRow(f.key)}>
+                        <tr className="pf-row cursor-pointer border-t border-[var(--gridline)] transition-colors hover:bg-[var(--surface-sunken)]" style={stagger(Math.min(tableStocks.length + fi, 12))} onClick={() => toggleRow(f.key)}>
                           <td className="px-3 py-2.5 text-left">
                             <span className="inline-flex items-center gap-1.5">
                               {open ? <ChevronDown size={14} aria-hidden="true" className="text-[var(--text-muted)]" /> : <ChevronRight size={14} aria-hidden="true" className="text-[var(--text-muted)]" />}
@@ -923,7 +928,7 @@ export function PortfolioPage({ brokerConnected, symbols }: { brokerConnected: b
                           </td>
                         </tr>
                         {open && (
-                          <tr className="bg-[var(--surface-sunken)]">
+                          <tr className="pf-rise bg-[var(--surface-sunken)]">
                             <td colSpan={9} className="px-4 py-2">
                               <TxnList txns={f.txns} onDelete={deleteTxn} onEdit={editTxn} />
                             </td>
@@ -993,8 +998,10 @@ export function PortfolioPage({ brokerConnected, symbols }: { brokerConnected: b
           )}
 
           {/* ---------- status line */}
-          <div className="flex flex-wrap gap-x-5 gap-y-1 border-t border-[var(--border)] px-1 pt-2 text-[10px] uppercase tracking-[0.06em] text-[var(--text-muted)] tabular">
-            <span style={{ color: quotes.error ? 'var(--warning)' : 'var(--good-text)' }}>● {quotes.error ? 'Prices delayed' : 'Prices live'}</span>
+          <div className="pf-rise flex flex-wrap gap-x-5 gap-y-1 border-t border-[var(--border)] px-1 pt-2 text-[10px] uppercase tracking-[0.06em] text-[var(--text-muted)] tabular">
+            <span style={{ color: quotes.error ? 'var(--warning)' : 'var(--good-text)' }}>
+              <span className={quotes.error ? '' : 'pf-pulse'}>●</span> {quotes.error ? 'Prices delayed' : 'Prices live'}
+            </span>
             {secsAgo !== null && <span>Updated {secsAgo < 60 ? `${secsAgo}s` : `${Math.floor(secsAgo / 60)}m`} ago</span>}
             {firstDate && <span>Since {formatExpiry(firstDate)}</span>}
             <span className="ml-auto">US data · Yahoo Finance{fx ? ` · USD/INR ₹${fx.toFixed(2)}` : ''}</span>
