@@ -586,3 +586,190 @@ input[type='number']::-webkit-inner-spin-button {
   opacity: 1;
   pointer-events: auto;
 }
+
+/* ---------- portfolio motion (features/portfolio/motion.tsx) ----------
+   --i on an element staggers it after the ones before it. */
+@keyframes pf-rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.985);
+  }
+}
+.pf-rise {
+  animation: pf-rise 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  animation-delay: calc(var(--i, 0) * 70ms);
+}
+@keyframes pf-row {
+  from {
+    opacity: 0;
+    transform: translateX(-8px);
+  }
+}
+.pf-row {
+  animation: pf-row 0.45s ease-out both;
+  animation-delay: calc(0.25s + var(--i, 0) * 40ms);
+}
+/* donut slices sweep round from nothing */
+@keyframes pf-sweep {
+  from {
+    stroke-dasharray: 0 100;
+  }
+}
+.pf-slice {
+  animation: pf-sweep 1s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  animation-delay: calc(0.2s + var(--i, 0) * 90ms);
+}
+/* allocation bars grow from the left, and glide when the market switch changes them */
+@keyframes pf-grow {
+  from {
+    transform: scaleX(0);
+  }
+}
+.pf-bar {
+  transform-origin: left;
+  animation: pf-grow 0.9s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  animation-delay: calc(0.3s + var(--i, 0) * 80ms);
+  transition: width 0.5s ease;
+}
+/* KPI cards lift a little under the pointer */
+.pf-card {
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
+}
+.pf-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px -8px var(--border-strong);
+}
+/* the live-prices dot breathes */
+@keyframes pf-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.35;
+    transform: scale(0.75);
+  }
+}
+.pf-pulse {
+  display: inline-block;
+  animation: pf-pulse 1.6s ease-in-out infinite;
+}
+
+/* loading: a line chart that draws itself, its area fading in behind it */
+@keyframes pf-draw {
+  0% {
+    stroke-dashoffset: 100;
+  }
+  55%,
+  80% {
+    stroke-dashoffset: 0;
+  }
+  100% {
+    stroke-dashoffset: -100;
+  }
+}
+.pf-loader-line {
+  stroke-dasharray: 100;
+  animation: pf-draw 2.2s cubic-bezier(0.65, 0, 0.35, 1) infinite;
+}
+@keyframes pf-area {
+  0%,
+  20% {
+    opacity: 0;
+  }
+  55%,
+  80% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+.pf-loader-area {
+  animation: pf-area 2.2s ease-in-out infinite;
+}
+@keyframes pf-dot {
+  0%,
+  45% {
+    opacity: 0;
+    transform: scale(0);
+  }
+  55%,
+  80% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0);
+  }
+}
+.pf-loader-dot {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: pf-dot 2.2s ease-in-out infinite;
+}
+/* "Loading…" with dots that count up */
+@keyframes pf-dots {
+  0% {
+    content: '';
+  }
+  25% {
+    content: '.';
+  }
+  50% {
+    content: '..';
+  }
+  75% {
+    content: '...';
+  }
+}
+.pf-dots::after {
+  content: '...';
+  display: inline-block;
+  width: 1.2em;
+  text-align: left;
+  animation: pf-dots 1.2s steps(1) infinite;
+}
+@keyframes pf-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.pf-spin {
+  display: inline-block;
+  width: 13px;
+  height: 13px;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: pf-spin 0.7s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pf-rise,
+  .pf-row,
+  .pf-slice,
+  .pf-bar,
+  .pf-pulse,
+  .pf-loader-line,
+  .pf-loader-area,
+  .pf-loader-dot,
+  .pf-dots::after {
+    animation: none;
+  }
+  .pf-loader-line {
+    stroke-dasharray: none;
+  }
+  .pf-card,
+  .pf-card:hover {
+    transition: none;
+    transform: none;
+  }
+  .pf-spin {
+    animation-duration: 1.6s;
+  }
+}
