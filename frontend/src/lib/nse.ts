@@ -1,4 +1,4 @@
-import { isUs } from './markets';
+import { globalSymbol, isUs } from './markets';
 
 /**
  * Exchange sessions: when a market trades and when the candle running now
@@ -7,7 +7,9 @@ import { isUs } from './markets';
  * modelled.
  */
 export interface Session {
-  name: 'NSE' | 'US';
+  name: 'NSE' | 'US' | '24x5' | '24x7' | 'XETRA' | 'TSE';
+  /** Trades every day of the week (crypto), not Mon–Fri. */
+  everyDay?: boolean;
   /** Minutes after local midnight. */
   open: number;
   close: number;
@@ -19,20 +21,46 @@ const DAY_MS = 86_400_000;
 
 export const NSE_SESSION: Session = { name: 'NSE', open: 9 * 60 + 15, close: 15 * 60 + 30, offsetMs: () => 330 * 60_000 };
 
-const nyOffset = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', timeZoneName: 'shortOffset' });
-/** New York's UTC offset at an instant ("GMT-4" in summer, "GMT-5" in winter). */
-function newYorkOffsetMs(ms: number): number {
-  const name = nyOffset.formatToParts(new Date(ms)).find((p) => p.type === 'timeZoneName')?.value ?? 'GMT-5';
-  const m = name.match(/GMT([+-])(\d{1,2})(?::(\d{2}))?/);
-  if (!m) return -5 * 3_600_000;
-  const minutes = Number(m[2]) * 60 + Number(m[3] ?? 0);
-  return (m[1] === '-' ? -1 : 1) * minutes * 60_000;
+/** A time zone's UTC offset at an instant, daylight saving included ("GMT-4", "GMT+1", "GMT+9"). */
+function zoneOffset(timeZone: string, fallbackHours: number): (ms: number) => number {
+  const fmt = new Intl.DateTimeFormat('en-US', { timeZone, timeZoneName: 'shortOffset' });
+  return (ms) => {
+    const name = fmt.formatToParts(new Date(ms)).find((p) => p.type === 'timeZoneName')?.value ?? '';
+    if (name === 'GMT') return 0;
+    const m = name.match(/GMT([+-])(\d{1,2})(?::(\d{2}))?/);
+    if (!m) return fallbackHours * 3_600_000;
+    const minutes = Number(m[2]) * 60 + Number(m[3] ?? 0);
+    return (m[1] === '-' ? -1 : 1) * minutes * 60_000;
+  };
 }
+
+const newYorkOffsetMs = zoneOffset('America/New_York', -5);
 
 export const US_SESSION: Session = { name: 'US', open: 9 * 60 + 30, close: 16 * 60, offsetMs: newYorkOffsetMs };
 
+/**
+ * Forex, metals and energy futures trade nearly round the clock on weekdays,
+ * on New York days (Sunday evening's open and the daily hour off aren't modelled).
+ */
+export const ROUND_CLOCK_SESSION: Session = { name: '24x5', open: 0, close: 24 * 60, offsetMs: newYorkOffsetMs };
+
+/** Crypto never closes; its days run on UTC. */
+export const CRYPTO_SESSION: Session = { name: '24x7', open: 0, close: 24 * 60, offsetMs: () => 0, everyDay: true };
+
+/** Frankfurt's Xetra, where the DAX is computed: 09:00–17:30 Berlin time. */
+export const XETRA_SESSION: Session = { name: 'XETRA', open: 9 * 60, close: 17 * 60 + 30, offsetMs: zoneOffset('Europe/Berlin', 1) };
+
+/** Tokyo, for the Nikkei: 09:00–15:30 JST (the lunch break isn't modelled). */
+export const TSE_SESSION: Session = { name: 'TSE', open: 9 * 60, close: 15 * 60 + 30, offsetMs: () => 9 * 3_600_000 };
+
+const GLOBAL_SESSIONS = { US: US_SESSION, '24x5': ROUND_CLOCK_SESSION, '24x7': CRYPTO_SESSION, XETRA: XETRA_SESSION, TSE: TSE_SESSION };
+
 /** The session a symbol trades in. */
-export const sessionFor = (symbol: string): Session => (isUs(symbol) ? US_SESSION : NSE_SESSION);
+export const sessionFor = (symbol: string): Session => {
+  const g = globalSymbol(symbol);
+  if (g) return GLOBAL_SESSIONS[g.hours];
+  return isUs(symbol) ? US_SESSION : NSE_SESSION;
+};
 
 /** Exchange-local calendar fields of a moment. */
 function local(s: Session, ms: number) {
@@ -57,11 +85,12 @@ function localAt(s: Session, y: number, m: number, d: number, minutes: number): 
 }
 
 const isWeekday = (dow: number) => dow >= 1 && dow <= 5;
+const tradesOn = (s: Session, dow: number) => s.everyDay || isWeekday(dow);
 
-/** Whether the session is trading now (Mon–Fri, between open and close). */
+/** Whether the session is trading now (Mon–Fri, or every day for crypto, between open and close). */
 export function marketOpen(s: Session, now = new Date()): boolean {
   const t = local(s, now.getTime());
-  return isWeekday(t.dow) && t.minutes >= s.open && t.minutes < s.close;
+  return tradesOn(s, t.dow) && t.minutes >= s.open && t.minutes < s.close;
 }
 
 /** NSE cash session: Mon–Fri, 09:15–15:30 IST. */
@@ -76,7 +105,7 @@ export function nseCloseMs(now = new Date()): number {
 /** The first trading day on or after the local date of `ms`, as [y, m, d] (day may overflow; localAt normalises it). */
 function tradingDayFrom(s: Session, ms: number): [number, number, number] {
   let t = local(s, ms);
-  while (!isWeekday(t.dow)) t = local(s, localAt(s, t.y, t.m, t.d + 1, 12 * 60));
+  while (!tradesOn(s, t.dow)) t = local(s, localAt(s, t.y, t.m, t.d + 1, 12 * 60));
   return [t.y, t.m, t.d];
 }
 
@@ -88,7 +117,7 @@ function tradingDayFrom(s: Session, ms: number): [number, number, number] {
  */
 export function candleCloseMs(timespan: string, multiplier: number, now: number, s: Session = NSE_SESSION): number {
   const t = local(s, now);
-  const tradingToday = isWeekday(t.dow);
+  const tradingToday = tradesOn(s, t.dow);
   const open = localAt(s, t.y, t.m, t.d, s.open);
   const close = localAt(s, t.y, t.m, t.d, s.close);
 
@@ -105,6 +134,12 @@ export function candleCloseMs(timespan: string, multiplier: number, now: number,
     if (tradingToday && now < close) return close;
     const [y, m, d] = tradingDayFrom(s, now + DAY_MS);
     return localAt(s, y, m, d, s.close);
+  }
+
+  if (s.everyDay) {
+    // Weeks end Sunday midnight, months on the last day's midnight.
+    if (timespan === 'week') return localAt(s, t.y, t.m, t.d + (t.dow === 0 ? 1 : 8 - t.dow), 0);
+    return localAt(s, t.y, t.m + 1, 1, 0);
   }
 
   if (timespan === 'week') {

@@ -2,7 +2,7 @@ import { Fragment, useEffect, useMemo, useRef, useState, type KeyboardEvent, typ
 import { Search, X, XCircle } from 'lucide-react';
 import { api } from '../../api/client';
 import type { SymbolInfo, UsSearchResult } from '../../api/types';
-import { displaySymbol } from '../../lib/markets';
+import { displaySymbol, searchGlobal } from '../../lib/markets';
 import { rememberName } from '../../lib/symbolNames';
 
 /** A row in the results, from either market. */
@@ -12,15 +12,16 @@ interface Hit {
   /** "stock", "index", "etf" */
   type: string;
   exchange: string;
-  market: 'IN' | 'US';
+  market: 'IN' | 'US' | 'GL';
 }
 
-type Tab = 'all' | 'IN' | 'US';
+type Tab = 'all' | 'IN' | 'US' | 'GL';
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'all', label: 'All' },
   { id: 'IN', label: 'Indian stocks' },
   { id: 'US', label: 'US stocks' },
+  { id: 'GL', label: 'Global markets' },
 ];
 
 const NSE_INDICES = new Set(['NIFTY', 'BANKNIFTY', 'FINNIFTY', 'MIDCPNIFTY', 'INDIAVIX']);
@@ -103,7 +104,7 @@ export function SymbolSearch({
   // US matches come from the server; debounce so typing doesn't fire a request per key.
   useEffect(() => {
     const q = query.trim();
-    if (!q || tab === 'IN') {
+    if (!q || tab === 'IN' || tab === 'GL') {
       setUs(null);
       setUsLoading(false);
       return;
@@ -126,7 +127,7 @@ export function SymbolSearch({
   // Every NSE stock and ETF, by symbol or company name, from the server.
   useEffect(() => {
     const q = query.trim();
-    if (!q || tab === 'US') {
+    if (!q || tab === 'US' || tab === 'GL') {
       setNse(null);
       setNseLoading(false);
       return;
@@ -172,16 +173,25 @@ export function SymbolSearch({
     return rows.filter((h) => !skip.has(h.symbol));
   }, [us, query, skip]);
 
+  const global = useMemo<Hit[]>(() => {
+    return searchGlobal(query)
+      .filter((g) => !skip.has(g.symbol))
+      .map((g) => ({ symbol: g.symbol, name: g.description, type: g.category.toLowerCase(), exchange: g.exchange, market: 'GL' as const }));
+  }, [query, skip]);
+
   const sections = useMemo(() => {
     const out: { title: string; hits: Hit[]; loading: boolean; empty: string }[] = [];
-    if (tab !== 'US')
+    // Global markets lead, as indices do: always chartable. Under All, only once something is typed.
+    if (tab === 'GL' || (tab === 'all' && query.trim() && global.length > 0))
+      out.push({ title: 'Global markets', hits: tab === 'all' ? global.slice(0, 8) : global, loading: false, empty: 'No global market matches.' });
+    if (tab !== 'US' && tab !== 'GL')
       out.push({
         title: query.trim() ? 'Indian stocks & ETFs' : 'Indian stocks',
         hits: tab === 'all' ? indian.slice(0, 8) : indian,
         loading: nseLoading && !nse && indian.length === 0,
         empty: 'No NSE stock or ETF matches.',
       });
-    if (tab !== 'IN')
+    if (tab !== 'IN' && tab !== 'GL')
       out.push({
         title: query.trim() ? 'US stocks' : 'US stocks · popular',
         hits: tab === 'all' ? american.slice(0, 8) : american,
@@ -189,7 +199,7 @@ export function SymbolSearch({
         empty: 'No US stock or ETF matches.',
       });
     return out;
-  }, [tab, indian, american, usLoading, us, query, nseLoading, nse]);
+  }, [tab, indian, american, global, usLoading, us, query, nseLoading, nse]);
 
   const flat = useMemo(() => sections.flatMap((s) => s.hits), [sections]);
   useEffect(() => setCursor(0), [query, tab]);
@@ -258,7 +268,7 @@ export function SymbolSearch({
           <span className="font-medium text-[var(--text-primary)]">{h.exchange}</span>
           <span
             className="rounded border border-[var(--border)] px-1 text-[9px] font-semibold tracking-wide text-[var(--text-muted)]"
-            title={h.market === 'US' ? 'United States' : 'India'}
+            title={h.market === 'US' ? 'United States' : h.market === 'GL' ? 'Global, in US dollars' : 'India'}
           >
             {h.market}
           </span>
@@ -293,7 +303,7 @@ export function SymbolSearch({
               ref={input}
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Symbol, company or ETF — e.g. BSE, Tata Motors, NIFTYBEES, Apple"
+              placeholder="Symbol, company or ETF — e.g. BSE, Tata Motors, NIFTYBEES, Apple, XAUUSD"
               aria-label="Search symbols"
               aria-controls="symbol-search-results"
               spellCheck={false}
@@ -338,7 +348,7 @@ export function SymbolSearch({
                     <button
                       type="button"
                       className="normal-case tracking-normal text-[var(--series-blue)] hover:underline"
-                      onClick={() => setTab(s.title.startsWith('Indian') ? 'IN' : 'US')}
+                      onClick={() => setTab(s.title.startsWith('Indian') ? 'IN' : s.title.startsWith('US') ? 'US' : 'GL')}
                     >
                       See all
                     </button>

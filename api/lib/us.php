@@ -38,10 +38,35 @@ function ob_symbol_ok(string $symbol): bool
         || (bool) preg_match('/^US:[A-Z][A-Z0-9.\-]{0,9}$/', $symbol);
 }
 
-/** US:BRK.B → BRK-B, Yahoo's spelling of share classes. */
+/**
+ * Global markets (metals, crypto, indices, energy, forex), charted from Yahoo
+ * like US stocks. Yahoo has no spot metals or energy, so those are front-month
+ * futures. QQQ and SPY need no entry: their app ticker is Yahoo's.
+ * Keep in step with GLOBAL_SYMBOLS in frontend/src/lib/markets.ts.
+ */
+const OB_GLOBAL_TICKERS = [
+    'US:XAUUSD' => 'GC=F',
+    'US:XAGUSD' => 'SI=F',
+    'US:USOIL' => 'CL=F',
+    'US:NATGAS' => 'NG=F',
+    'US:BTCUSD' => 'BTC-USD',
+    'US:ETHUSD' => 'ETH-USD',
+    'US:NDX' => '^NDX',
+    'US:SPX' => '^GSPC',
+    'US:DJI' => '^DJI',
+    'US:RUT' => '^RUT',
+    'US:VIX' => '^VIX',
+    'US:GER40' => '^GDAXI',
+    'US:JP225' => '^N225',
+    'US:EURUSD' => 'EURUSD=X',
+    'US:GBPUSD' => 'GBPUSD=X',
+    'US:USDJPY' => 'JPY=X',
+];
+
+/** US:BRK.B → BRK-B, Yahoo's spelling of share classes; US:XAUUSD → GC=F. */
 function ob_us_ticker(string $symbol): string
 {
-    return str_replace('.', '-', substr($symbol, strlen(OB_US_PREFIX)));
+    return OB_GLOBAL_TICKERS[$symbol] ?? str_replace('.', '-', substr($symbol, strlen(OB_US_PREFIX)));
 }
 
 /**
