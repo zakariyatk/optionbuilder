@@ -5,8 +5,8 @@ import type { SpotQuote, SymbolInfo, WatchQuote } from '../../api/types';
 import { Button } from '../../components/ui';
 import { useAsync } from '../../hooks/useAsync';
 import { num } from '../../lib/format';
-import { marketOpen, NSE_SESSION, sessionFor, US_SESSION } from '../../lib/nse';
-import { displaySymbol, isUs } from '../../lib/markets';
+import { marketOpen, sessionFor } from '../../lib/nse';
+import { displaySymbol, isUs, marketLabel, pricePrecision, symbolCurrency } from '../../lib/markets';
 import { nameOf } from '../../lib/symbolNames';
 import { activeList, useWatchlist } from '../../store/watchlist';
 import { SymbolSearch } from './SymbolSearch';
@@ -40,7 +40,7 @@ export function Watchlist({
   const [adding, setAdding] = useState(false);
 
   const open = marketOpen(sessionFor(selected));
-  const anyOpen = (symbols.some((s) => !isUs(s)) && marketOpen(NSE_SESSION)) || (symbols.some(isUs) && marketOpen(US_SESSION));
+  const anyOpen = symbols.some((s) => marketOpen(sessionFor(s)));
   const quotes = useAsync(() => api.watch(symbols), [symbols.join(',')], {
     pollMs: anyOpen ? WATCH_POLL_OPEN_MS : WATCH_POLL_CLOSED_MS,
     enabled: symbols.length > 0,
@@ -112,11 +112,11 @@ export function Watchlist({
               >
                 <span className="flex min-w-0 items-center gap-1 font-medium" title={label(s)}>
                   <span className="truncate">{displaySymbol(s)}</span>
-                  {isUs(s) && <span className="shrink-0 rounded border border-[var(--border)] px-0.5 text-[9px] text-[var(--text-muted)]">US</span>}
+                  {isUs(s) && <span className="shrink-0 rounded border border-[var(--border)] px-0.5 text-[9px] text-[var(--text-muted)]">{marketLabel(s)}</span>}
                 </span>
-                <span className="w-[4.5rem] text-right">{quote ? num(quote.price) : q ? '—' : '…'}</span>
+                <span className="w-[4.5rem] text-right">{quote ? num(quote.price, pricePrecision(s)) : q ? '—' : '…'}</span>
                 <span className="w-12 text-right" style={{ color: chg === null ? undefined : changeColor(chg) }}>
-                  {chg === null ? '' : `${chg > 0 ? '+' : ''}${chg.toFixed(chg !== 0 && Math.abs(chg) < 10 ? 2 : 1)}`}
+                  {chg === null ? '' : `${chg > 0 ? '+' : ''}${chg.toFixed(chg !== 0 && Math.abs(chg) < 10 ? Math.max(2, pricePrecision(s)) : 1)}`}
                 </span>
                 <span className="w-12 text-right" style={{ color: pct === null ? undefined : changeColor(pct) }}>
                   {pct === null ? '' : `${pct > 0 ? '+' : ''}${pct.toFixed(2)}%`}
@@ -139,16 +139,16 @@ export function Watchlist({
       <div className="border-t border-[var(--border)] px-4 py-3">
         <div className="flex items-baseline justify-between gap-2">
           <span className="text-base font-semibold">{displaySymbol(selected)}</span>
-          <span className="text-[11px] text-[var(--text-muted)]">{isUs(selected) ? 'US' : 'NSE'}</span>
+          <span className="text-[11px] text-[var(--text-muted)]">{marketLabel(selected)}</span>
         </div>
         <div className="truncate text-xs text-[var(--text-muted)]">{label(selected)}</div>
         <div className="mt-2 flex flex-wrap items-baseline gap-x-2">
-          <span className="text-2xl font-bold tabular">{selQuote ? num(selQuote.price) : '—'}</span>
-          <span className="text-xs text-[var(--text-muted)]">{isUs(selected) ? 'USD' : 'INR'}</span>
+          <span className="text-2xl font-bold tabular">{selQuote ? num(selQuote.price, pricePrecision(selected)) : '—'}</span>
+          <span className="text-xs text-[var(--text-muted)]">{symbolCurrency(selected)}</span>
           {selChange !== null && (
             <span className="text-sm font-medium tabular" style={{ color: changeColor(selChange) }}>
               {selChange > 0 ? '+' : ''}
-              {num(selChange)} ({selPct !== null ? `${selPct > 0 ? '+' : ''}${selPct.toFixed(2)}%` : '—'})
+              {num(selChange, pricePrecision(selected))} ({selPct !== null ? `${selPct > 0 ? '+' : ''}${selPct.toFixed(2)}%` : '—'})
             </span>
           )}
         </div>
@@ -159,7 +159,7 @@ export function Watchlist({
         {selQuote && (
           <dl className="mt-3 grid grid-cols-2 gap-y-1 text-xs tabular">
             <dt className="text-[var(--text-muted)]">Prev close</dt>
-            <dd className="text-right">{num(selQuote.previousClose)}</dd>
+            <dd className="text-right">{num(selQuote.previousClose, pricePrecision(selected))}</dd>
             <dt className="text-[var(--text-muted)]">Last update</dt>
             <dd className="text-right">
               {selQuote.marketTime ? new Date(selQuote.marketTime * 1000).toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata' }) : '—'}

@@ -5,7 +5,7 @@ import '@klinecharts/pro/dist/klinecharts-pro.css';
 import { DomPosition, TooltipShowRule, type KLineData } from 'klinecharts';
 import { api, UPSTOX_LOGIN_URL } from '../../api/client';
 import { marketOpen, sessionFor } from '../../lib/nse';
-import { displaySymbol, isUs } from '../../lib/markets';
+import { displaySymbol, globalSymbol, isUs, searchGlobal } from '../../lib/markets';
 import { attachLiveTag, innerChart, LIVE_TAG_STYLES } from './liveTag';
 import { tvChartStyles } from './tvStyle';
 import { applyHostSettings, settingsStyles } from './chartSettings';
@@ -41,9 +41,9 @@ const toProSymbol = (s: SymbolInfo | { symbol: string; label?: string; exchange?
   ticker: s.symbol,
   name: 'label' in s && s.label ? s.label : displaySymbol(s.symbol),
   shortName: displaySymbol(s.symbol),
-  exchange: isUs(s.symbol) ? (('exchange' in s && s.exchange) || usExchange.get(s.symbol) || 'US') : 'NSE',
+  exchange: isUs(s.symbol) ? (globalSymbol(s.symbol)?.exchange || ('exchange' in s && s.exchange) || usExchange.get(s.symbol) || 'US') : 'NSE',
   market: 'stocks',
-  pricePrecision: 2,
+  pricePrecision: globalSymbol(s.symbol)?.precision ?? 2,
   volumePrecision: 0,
 });
 
@@ -112,7 +112,9 @@ function upstoxDatafeed(symbols: () => SymbolInfo[], hooks: FeedHooks): Datafeed
             .slice(0, 50)
             .map(toProSymbol)
         : [];
-      if (!q) return nse;
+      // Global markets (gold, crypto, US and world indices, forex) chart from Yahoo too, so they're always offered.
+      const global = searchGlobal(q).map((g) => toProSymbol({ symbol: g.symbol, label: g.name, exchange: g.exchange }));
+      if (!q) return [...nse, ...global];
       let us: ProSymbol[] = [];
       try {
         const { results } = await api.searchUs(search.trim());
@@ -123,7 +125,7 @@ function upstoxDatafeed(symbols: () => SymbolInfo[], hooks: FeedHooks): Datafeed
       } catch {
         /* US search is a bonus; NSE results still show */
       }
-      return [...nse, ...us];
+      return [...nse, ...global, ...us.filter((u) => !globalSymbol(u.ticker))];
     },
     async getHistoryKLineData(symbol, period, _from, to) {
       loading = true;

@@ -3,6 +3,8 @@
  * watchlists and tables can label symbols that aren't in the app's built-in
  * list (e.g. BSE → "BSE Limited", US:AAPL → "Apple Inc.").
  */
+import { globalSymbol } from './markets';
+
 const KEY = 'option-builder-symbol-names';
 const MAX = 500;
 
@@ -32,4 +34,4 @@ export function rememberName(symbol: string, name: string): void {
   }
 }
 
-export const nameOf = (symbol: string): string | undefined => load()[symbol];
+export const nameOf = (symbol: string): string | undefined => globalSymbol(symbol)?.name ?? load()[symbol];

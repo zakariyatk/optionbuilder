@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { candleCloseMs, fmtLeft, marketOpen, nseCloseMs, nseOpen, sessionFor, US_SESSION } from './nse';
+import { candleCloseMs, CRYPTO_SESSION, ROUND_CLOCK_SESSION, TSE_SESSION, XETRA_SESSION, fmtLeft, marketOpen, nseCloseMs, nseOpen, sessionFor, US_SESSION } from './nse';
+
+const utc = (iso: string) => Date.parse(iso);
 
 // 2026-10-14 is a Wednesday. IST = UTC + 5:30.
 const ist = (hh: number, mm: number, day = 14) => new Date(Date.UTC(2026, 9, day, hh, mm) - 330 * 60_000);
@@ -61,7 +63,6 @@ describe('fmtLeft', () => {
 
 describe('US session', () => {
   // 2026-10-16 is a Friday; New York is on EDT (UTC−4) until 1 Nov 2026.
-  const utc = (iso: string) => Date.parse(iso);
 
   it('is open 09:30–16:00 New York time, i.e. 19:00–01:30 IST in summer', () => {
     expect(marketOpen(US_SESSION, new Date(utc('2026-10-16T13:29:00Z')))).toBe(false);
@@ -87,5 +88,36 @@ describe('US session', () => {
   it('picks the session from the symbol', () => {
     expect(sessionFor('US:AAPL')).toBe(US_SESSION);
     expect(sessionFor('NIFTY').name).toBe('NSE');
+    expect(sessionFor('US:XAUUSD')).toBe(ROUND_CLOCK_SESSION);
+    expect(sessionFor('US:EURUSD')).toBe(ROUND_CLOCK_SESSION);
+    expect(sessionFor('US:BTCUSD')).toBe(CRYPTO_SESSION);
+    expect(sessionFor('US:SPX')).toBe(US_SESSION);
+    expect(sessionFor('US:GER40')).toBe(XETRA_SESSION);
+    expect(sessionFor('US:JP225')).toBe(TSE_SESSION);
+  });
+});
+
+describe('global market sessions', () => {
+  it('keeps crypto open every day, weekends included', () => {
+    // 2026-10-17 is a Saturday.
+    expect(marketOpen(CRYPTO_SESSION, new Date(utc('2026-10-17T03:00:00Z')))).toBe(true);
+    expect(candleCloseMs('minute', 15, utc('2026-10-17T03:07:00Z'), CRYPTO_SESSION)).toBe(utc('2026-10-17T03:15:00Z'));
+    expect(candleCloseMs('day', 1, utc('2026-10-17T03:07:00Z'), CRYPTO_SESSION)).toBe(utc('2026-10-18T00:00:00Z'));
+    expect(candleCloseMs('week', 1, utc('2026-10-17T03:07:00Z'), CRYPTO_SESSION)).toBe(utc('2026-10-19T00:00:00Z'));
+    expect(candleCloseMs('month', 1, utc('2026-10-17T03:07:00Z'), CRYPTO_SESSION)).toBe(utc('2026-11-01T00:00:00Z'));
+  });
+
+  it('keeps forex, metals and energy open round the clock on weekdays only', () => {
+    expect(marketOpen(ROUND_CLOCK_SESSION, new Date(utc('2026-10-16T03:00:00Z')))).toBe(true);
+    expect(marketOpen(ROUND_CLOCK_SESSION, new Date(utc('2026-10-17T15:00:00Z')))).toBe(false);
+  });
+
+  it('follows Frankfurt and Tokyo hours for the DAX and Nikkei', () => {
+    // 2026-10-16 is a Friday; Berlin is UTC+2 (summer time), Tokyo UTC+9.
+    expect(marketOpen(XETRA_SESSION, new Date(utc('2026-10-16T06:59:00Z')))).toBe(false);
+    expect(marketOpen(XETRA_SESSION, new Date(utc('2026-10-16T07:00:00Z')))).toBe(true);
+    expect(marketOpen(XETRA_SESSION, new Date(utc('2026-10-16T15:30:00Z')))).toBe(false);
+    expect(marketOpen(TSE_SESSION, new Date(utc('2026-10-16T00:00:00Z')))).toBe(true);
+    expect(marketOpen(TSE_SESSION, new Date(utc('2026-10-16T06:30:00Z')))).toBe(false);
   });
 });

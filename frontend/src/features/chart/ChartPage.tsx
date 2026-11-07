@@ -22,7 +22,7 @@ import { BottomSheet } from '../../components/BottomSheet';
 import { useAsync } from '../../hooks/useAsync';
 import { PHONE_QUERY, useMediaQuery } from '../../hooks/useMediaQuery';
 import { num } from '../../lib/format';
-import { displaySymbol, isUs } from '../../lib/markets';
+import { displaySymbol, isUs, marketLabel, pricePrecision } from '../../lib/markets';
 import { nameOf } from '../../lib/symbolNames';
 import { useChartLayout } from '../../store/chartLayout';
 import { ChartSettingsDialog } from './ChartSettingsDialog';
@@ -396,7 +396,7 @@ function PhoneChart({
   const [configuring, setConfiguring] = useState(false);
   const close = useCallback(() => setSheet(null), []);
 
-  // US symbols chart from Yahoo, so they don't need the broker.
+  // US symbols, gold, silver and Bitcoin chart from Yahoo, so they don't need the broker.
   const canChart = brokerConnected || isUs(symbol);
   const quoteState = useAsync(() => api.watch([symbol]), [symbol], { pollMs: QUOTE_POLL_MS, enabled: canChart });
   const q = quoteState.data?.quotes.find((x) => x.symbol === symbol);
@@ -425,11 +425,11 @@ function PhoneChart({
         <div className="min-w-0">
           <div className="truncate text-base font-semibold">{label}</div>
           <div className="text-[11px] text-[var(--text-muted)]">
-            {displaySymbol(symbol)} · {isUs(symbol) ? 'US' : 'NSE'} · {period?.text ?? tf}
+            {displaySymbol(symbol)} · {marketLabel(symbol)} · {period?.text ?? tf}
           </div>
         </div>
         <div className="shrink-0 text-right tabular">
-          <div className="text-base font-semibold">{quote ? num(quote.price) : '—'}</div>
+          <div className="text-base font-semibold">{quote ? num(quote.price, pricePrecision(symbol)) : '—'}</div>
           {chg !== null && (
             <div className="text-xs" style={{ color: changeColor(chg) }}>
               {chg > 0 ? '+' : ''}
