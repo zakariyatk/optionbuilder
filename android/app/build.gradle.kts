@@ -19,9 +19,8 @@ android {
         applicationId = "com.optionbuilder"
         minSdk = 26
         targetSdk = 36
-        // CI passes -PversionCode / -PversionName (each Play upload needs a higher code); local builds use these.
-        versionCode = (project.findProperty("versionCode") as String?)?.toInt() ?: 1
-        versionName = (project.findProperty("versionName") as String?) ?: "0.1.0"
+        versionCode = 2
+        versionName = "0.1.1"
     }
 
     signingConfigs {
