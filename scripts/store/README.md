@@ -5,10 +5,18 @@ The Microsoft Store and Google Play images in `design/store`, made from the real
 ```bash
 cd frontend && npm run dev:mock -- --port 5174     # in one terminal
 cd scripts/store && npm install
-node capture.mjs     # drives the app through each page, saves screens to out/raw
-node compose.mjs     # lays them out: out/microsoft-store (1920x1080), out/google-play (1080x1920 + 1024x500 feature graphic)
+node capture.mjs     # drives the app through each page (desk, tablet, phone), saves screens to out/raw
+node compose.mjs     # lays them out: out/microsoft-store (1920x1080), out/google-play (1080x1920 phone, 1920x1080 tablet, 1024x500 feature graphic)
 ```
 
 Copy the results to `design/store` when they look right. Headlines and slide order are the `DESK` and `PHONE` lists in `compose.mjs`; the accent is the app's `#7B61FF`.
 
 Restart the mock server before a capture: it keeps saved drafts for as long as it runs.
+
+For Google Play:
+- **Phone:** `phone-*.png`.
+- **7-inch and 10-inch tablet:** `tablet-*.png`.
+- **Chromebook:** the Microsoft Store images.
+- **App icon:** `app-icon-512.png`, which is `frontend/public/icon-maskable-512.png` saved as a 32-bit PNG.
+
+`APP_URL` points the capture at another port (`APP_URL=http://localhost:5173/ node capture.mjs`).

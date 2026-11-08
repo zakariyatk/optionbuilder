@@ -3,8 +3,9 @@
    Takes the real app screens capture.mjs saved in out/raw and lays each one
    out as a store image: a headline, the screen in a laptop or phone, a
    round icon badge and, for some, a zoomed-in card of the part that matters.
-   Writes PNGs to out/microsoft-store (1920 x 1080) and out/google-play
-   (1080 x 1920 phone screenshots and the 1024 x 500 feature graphic). */
+   Writes PNGs to out/microsoft-store (1920 x 1080, also used as Play's
+   Chromebook screenshots) and out/google-play (1080 x 1920 phone and
+   1920 x 1080 tablet screenshots, and the 1024 x 500 feature graphic). */
 import { chromium } from 'playwright-core';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -201,6 +202,25 @@ const PHONE = [
     sub: 'India and US holdings, P&amp;L and allocation.', extra: badge('portfolio', 92, 1040, 168) }
 ];
 
+/* ---------------- Google Play tablets: 1920 x 1080, a tablet held sideways ---------------- */
+
+function tablet(screen, x, y, w) {
+  const sh = w * 10 / 16, bez = 22;
+  return `
+  <div style="position:absolute;left:${x}px;top:${y}px;width:${w + bez * 2}px;padding:${bez}px;border-radius:44px;z-index:2;
+    background:linear-gradient(160deg,#2A2D35,#0B0C0F 60%);box-shadow:0 0 0 2px #3E424C inset, 0 0 0 1px rgba(255,255,255,.08), 0 60px 140px rgba(0,0,0,.5)">
+    <div style="position:relative;width:${w}px;height:${sh}px;border-radius:22px;overflow:hidden;background:#fff url('${img(screen)}') 0 0 / ${w}px ${sh}px no-repeat"></div>
+    <div style="position:absolute;left:50%;top:7px;width:9px;height:9px;margin-left:-4.5px;border-radius:50%;background:#1B1D22"></div>
+  </div>`;
+}
+
+const TABLET = DESK.map((d, i) => ({ ...d, file: d.file, screen: d.screen.replace(/^d/, 't'),
+  extra: badge(d.extra.match(/<svg/) ? Object.keys(ICON).find((k) => d.extra.includes(ICON[k])) : 'builder', 250, 520, 160) }));
+
+function tabletSlide(o) {
+  return deskSlide({ ...o, body: tablet(o.screen, 384, 300, 1108) });
+}
+
 /* ---------------- Google Play feature graphic: 1024 x 500 ---------------- */
 
 function feature() {
@@ -208,7 +228,7 @@ function feature() {
     <div style="position:absolute;left:64px;top:90px;z-index:3;width:420px">
       <div class="brand" style="font-size:22px;gap:14px">${LOGO.replace('<svg ', '<svg width="58" height="58" ')}<span>AddStock</span></div>
       <h1 style="font-size:46px;margin-top:28px;white-space:nowrap">Your Stocks.<br><em>Your Strategy.</em></h1>
-      <p class="sub" style="font-size:20px;margin-top:18px;max-width:370px;line-height:1.4">See the payoff before you trade, on live NSE data.</p>
+      <p class="sub" style="font-size:20px;margin-top:18px;max-width:370px;line-height:1.4">Build option strategies and see the payoff before you trade.</p>
     </div>
     <div style="position:absolute;left:520px;top:70px;width:620px;height:400px;border-radius:16px;overflow:hidden;z-index:2;
       background:#fff url('${img('d1-builder')}') 0 0 / 640px 400px no-repeat;box-shadow:0 0 0 1px rgba(255,255,255,.14), 0 40px 90px rgba(0,0,0,.6)"></div>
@@ -234,6 +254,7 @@ async function render(htmlText, w, h, to) {
   console.log('wrote', to);
 }
 for (const s of DESK) await render(deskSlide(s), 1920, 1080, join(out, 'microsoft-store', s.file + '.png'));
+for (const s of TABLET) await render(tabletSlide(s), 1920, 1080, join(out, 'google-play', 'tablet-' + s.file + '.png'));
 for (const s of PHONE) await render(phoneSlide(s), 1080, 1920, join(out, 'google-play', 'phone-' + s.file + '.png'));
 await render(feature(), 1024, 500, join(out, 'google-play', 'feature-graphic.png'));
 await browser.close();

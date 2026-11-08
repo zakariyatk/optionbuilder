@@ -1,0 +1,51 @@
+APP NAME (max 30)
+AddStock: Option Builder
+
+SHORT DESCRIPTION (max 80)
+Build option strategies and see payoff, breakeven and Greeks before you trade.
+
+FULL DESCRIPTION (max 4000)
+AddStock helps you plan options trades on Indian indices and stocks. Build a strategy leg by leg and see what it could make or lose before you place a single order.
+
+STRATEGY BUILDER
+• Add calls, puts and futures, buy or sell, on any strike and expiry
+• See the payoff chart, max profit, max loss and breakeven points at once
+• Net entry credit or debit worked out for you
+• Delta, Gamma, Theta and Vega for every leg and for the whole strategy
+• Start from ready-made templates such as straddles, strangles, spreads and iron condors
+
+DRAFT PORTFOLIOS
+• Save a strategy as a draft with its entry prices
+• Track its P&L over time, exit one leg or all of them, and keep a record of closed trades
+
+OPTION CHAIN
+• Calls and puts side by side with LTP, open interest and change for every strike
+• Add a strike to your strategy straight from the chain
+
+OPEN INTEREST
+• Open interest and change in OI by strike
+• Highest call OI and highest put OI, to show where support and resistance may be building
+
+CHARTS
+• Candle and line charts
+• Indicators, including moving averages and Bollinger Bands
+• Drawing tools: trend lines, horizontal lines and Fibonacci retracement
+• Compare one symbol with another, replay past bars, and set price alerts
+
+DAILY MARKET REPORT
+• A one-page summary of the market: index moves, FII / DII activity, global market sentiment, gold, the rupee against the US dollar, and key market news
+• Ready to share
+
+PORTFOLIO
+• Record your stock and futures buys and sells for India and the US
+• See your holdings, invested amount, current value, booked and open P&L, and allocation
+• For US holdings, see your currency gain on the rupee as well
+
+Light and dark themes are both included.
+
+PLEASE NOTE
+This version of the app uses built-in sample market data, so you can explore every feature and practise building strategies. Prices on screen are not live quotes.
+
+AddStock is an analysis tool. It is not investment advice and it does not place orders. Prices, margins and Greeks are estimates; check them with your broker before you trade. Trading options carries risk, and you can lose more than you expect.
+
+Questions or feedback: support@adddots.com
