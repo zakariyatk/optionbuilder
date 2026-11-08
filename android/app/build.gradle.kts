@@ -19,8 +19,9 @@ android {
         applicationId = "com.optionbuilder"
         minSdk = 26
         targetSdk = 36
-        versionCode = 2
-        versionName = "0.1.1"
+        // CI passes -PversionCode / -PversionName (see .github/workflows/android.yml); local builds use these defaults.
+        versionCode = (findProperty("versionCode") as String?)?.toInt() ?: 3
+        versionName = (findProperty("versionName") as String?) ?: "0.1.2"
     }
 
     signingConfigs {
