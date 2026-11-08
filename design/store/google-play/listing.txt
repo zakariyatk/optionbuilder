@@ -5,7 +5,7 @@ SHORT DESCRIPTION (max 80)
 Build option strategies and see payoff, breakeven and Greeks before you trade.
 
 FULL DESCRIPTION (max 4000)
-AddStock helps you plan options trades on Indian indices and stocks. Build a strategy leg by leg and see what it could make or lose before you place a single order.
+AddStock helps you plan options trades on Indian indices and stocks, on live NSE market data. Build a strategy leg by leg and see what it could make or lose before you place a single order.
 
 STRATEGY BUILDER
 • Add calls, puts and futures, buy or sell, on any strike and expiry
@@ -42,9 +42,6 @@ PORTFOLIO
 • For US holdings, see your currency gain on the rupee as well
 
 Light and dark themes are both included.
-
-PLEASE NOTE
-This version of the app uses built-in sample market data, so you can explore every feature and practise building strategies. Prices on screen are not live quotes.
 
 AddStock is an analysis tool. It is not investment advice and it does not place orders. Prices, margins and Greeks are estimates; check them with your broker before you trade. Trading options carries risk, and you can lose more than you expect.
 

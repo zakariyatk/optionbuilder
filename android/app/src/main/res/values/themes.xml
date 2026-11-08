@@ -1,9 +1,11 @@
 <resources>
-    <style name="Theme.OptionBuilder" parent="android:Theme.Material.Light.NoActionBar">
+    <!-- Shown for the moment before the browser opens the site: the site's own dark background. -->
+    <style name="Theme.OptionBuilder" parent="android:Theme.Material.NoActionBar">
         <item name="android:windowBackground">@color/page</item>
-        <item name="android:statusBarColor">@android:color/transparent</item>
-        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:statusBarColor">@color/page</item>
+        <item name="android:navigationBarColor">@color/page</item>
     </style>
-    <color name="page">#F9F9F7</color>
+    <!-- The web app's theme_color / background_color (frontend/public/manifest.webmanifest). -->
+    <color name="page">#050505</color>
     <color name="logo_tile">#000000</color>
 </resources>

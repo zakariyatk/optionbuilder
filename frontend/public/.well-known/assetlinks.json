@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.optionbuilder",
+      "sha256_cert_fingerprints": [
+        "AF:F3:E3:79:7F:BB:0B:79:76:B0:2D:7D:E7:65:64:B1:62:B5:B9:AF:94:06:D9:BA:D0:DD:49:5D:AB:22:8A:58"
+      ]
+    }
+  }
+]
