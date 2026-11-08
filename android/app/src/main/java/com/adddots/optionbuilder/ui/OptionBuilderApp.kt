@@ -125,6 +125,7 @@ private fun Shell(state: AppState, dark: Boolean) {
     var analyseOpen by remember { mutableStateOf(false) }
     var menuOpen by remember { mutableStateOf(false) }
     val snackbar = remember { SnackbarHostState() }
+    val chartFull = state.page == Page.Chart && state.chartFullScreen
 
     LaunchedEffect(state.message) {
         state.message?.let {
@@ -140,7 +141,7 @@ private fun Shell(state: AppState, dark: Boolean) {
         containerColor = Ob.colors.page,
         snackbarHost = { SnackbarHost(snackbar) },
         topBar = {
-            TopAppBar(
+            if (!chartFull) TopAppBar(
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Ob.colors.page, titleContentColor = Ob.colors.textPrimary),
                 title = {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -185,7 +186,7 @@ private fun Shell(state: AppState, dark: Boolean) {
             )
         },
         bottomBar = {
-            NavigationBar(containerColor = Ob.colors.card, tonalElevation = 0.dp) {
+            if (!chartFull) NavigationBar(containerColor = Ob.colors.card, tonalElevation = 0.dp) {
                 TABS.forEach { tab ->
                     val selected = when (tab) {
                         is Tab.To -> state.page == tab.page

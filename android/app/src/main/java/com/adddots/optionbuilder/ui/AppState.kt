@@ -23,6 +23,10 @@ class AppState {
     var draftId by mutableStateOf<String?>(null)
     var brokerConnected by mutableStateOf(true)
     var message by mutableStateOf<String?>(null)
+    /** The symbol on the Chart page. */
+    var chartSymbol by mutableStateOf("NIFTY")
+    /** The chart fills the screen: the app's top bar and tab bar hide. */
+    var chartFullScreen by mutableStateOf(false)
 
     var symbol by mutableStateOf(SampleData.symbols.first())
         private set

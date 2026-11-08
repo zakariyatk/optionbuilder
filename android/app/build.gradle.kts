@@ -20,8 +20,8 @@ android {
         minSdk = 26
         targetSdk = 36
         // CI passes -PversionCode / -PversionName (see .github/workflows/android.yml); local builds use these defaults.
-        versionCode = (findProperty("versionCode") as String?)?.toInt() ?: 3
-        versionName = (findProperty("versionName") as String?) ?: "0.1.2"
+        versionCode = (findProperty("versionCode") as String?)?.toInt() ?: 4
+        versionName = (findProperty("versionName") as String?) ?: "0.2.0"
     }
 
     signingConfigs {
@@ -50,6 +50,14 @@ android {
     kotlinOptions {
         jvmTarget = "17"
     }
+    testOptions {
+        unitTests.isIncludeAndroidResources = true
+        // Robolectric's hardware renderer, so screen captures include Compose's render layers.
+        unitTests.all {
+            it.systemProperty("robolectric.screenshot.hwrdr.native", "true")
+            it.systemProperty("roborazzi.test.record", "true")
+        }
+    }
     buildFeatures {
         compose = true
     }
@@ -66,4 +74,11 @@ dependencies {
     implementation("androidx.compose.material3:material3")
     implementation("androidx.compose.material:material-icons-extended")
     debugImplementation("androidx.compose.ui:ui-tooling")
+    testImplementation("junit:junit:4.13.2")
+    // Renders screens on the JVM (Robolectric native graphics) to check layouts without a device.
+    testImplementation("org.robolectric:robolectric:4.14.1")
+    testImplementation("androidx.compose.ui:ui-test-junit4")
+    testImplementation("io.github.takahirom.roborazzi:roborazzi-compose:1.30.1")
+    testImplementation("io.github.takahirom.roborazzi:roborazzi:1.30.1")
+    debugImplementation("androidx.compose.ui:ui-test-manifest")
 }
