@@ -1,0 +1,128 @@
+name: Android app
+
+# Builds the Android app's Play Store bundle (.aab).
+# - Pull requests and pushes to main that touch android/ check the app still builds (unsigned).
+# - "Run workflow" on the Actions tab, or pushing a tag like `android-v0.2.0`, builds a SIGNED .aab
+#   to upload to Play Console by hand. Download it from the run's Artifacts; a tag also attaches it
+#   to that tag's GitHub release.
+#
+# Signing needs these repository secrets (Settings → Secrets and variables → Actions):
+#   ANDROID_KEYSTORE_BASE64   the Play upload key file (.jks), base64-encoded
+#   ANDROID_KEYSTORE_PASSWORD its store password
+#   ANDROID_KEY_ALIAS         the key's alias
+#   ANDROID_KEY_PASSWORD      the key's password
+#
+# Every Play upload needs a higher version code than the last: it is 1 + this workflow's run number
+# unless you type one in when running it by hand.
+
+on:
+  push:
+    branches: [main]
+    tags: ['android-v*'] # tags always run; the paths filter only applies to branches
+    paths: ['android/**', '.github/workflows/android.yml']
+  pull_request:
+    paths: ['android/**', '.github/workflows/android.yml']
+  workflow_dispatch:
+    inputs:
+      version_code:
+        description: 'Version code (blank = 1 + run number; must be higher than the last upload)'
+        required: false
+      version_name:
+        description: 'Version name shown to users (blank = 0.1.<run number>)'
+        required: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  bundle:
+    name: Build .aab
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # attach the bundle to a tag's release
+    defaults:
+      run:
+        working-directory: android
+    env:
+      # A signed bundle when run by hand or from a tag; PRs and main only check the build.
+      RELEASE: ${{ github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/android-v') }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 17
+          cache: gradle
+
+      - name: Version
+        id: version
+        env:
+          CODE_IN: ${{ inputs.version_code }}
+          NAME_IN: ${{ inputs.version_name }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          code="${CODE_IN:-$((1 + GITHUB_RUN_NUMBER))}"
+          if [ -n "$NAME_IN" ]; then name="$NAME_IN"
+          elif [[ "$REF_NAME" == android-v* ]]; then name="${REF_NAME#android-v}"
+          else name="0.1.${GITHUB_RUN_NUMBER}"; fi
+          case "$code" in ''|*[!0-9]*) echo "::error::Version code must be a whole number, got '$code'"; exit 1;; esac
+          echo "code=$code" >> "$GITHUB_OUTPUT"
+          echo "name=$name" >> "$GITHUB_OUTPUT"
+          echo "Version $name (code $code)"
+
+      - name: Upload key
+        if: env.RELEASE == 'true'
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          if [ -z "$KEYSTORE_BASE64" ] || [ -z "$KEYSTORE_PASSWORD" ] || [ -z "$KEY_ALIAS" ] || [ -z "$KEY_PASSWORD" ]; then
+            echo "::error::Add the ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS and ANDROID_KEY_PASSWORD secrets (see the top of this workflow). Play Console rejects unsigned bundles."
+            exit 1
+          fi
+          echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/upload.jks"
+          # Read by app/build.gradle.kts; git-ignored and gone with the runner.
+          {
+            echo "storeFile=$RUNNER_TEMP/upload.jks"
+            echo "storePassword=$KEYSTORE_PASSWORD"
+            echo "keyAlias=$KEY_ALIAS"
+            echo "keyPassword=$KEY_PASSWORD"
+          } > keystore.properties
+
+      - name: Build bundle
+        run: ./gradlew --no-daemon bundleRelease -PversionCode=${{ steps.version.outputs.code }} -PversionName=${{ steps.version.outputs.name }}
+
+      - name: Check signature
+        if: env.RELEASE == 'true'
+        run: |
+          jarsigner -verify app/build/outputs/bundle/release/app-release.aab | grep -q 'jar verified' \
+            || { echo "::error::The bundle is not signed"; exit 1; }
+          mv app/build/outputs/bundle/release/app-release.aab "app/build/outputs/bundle/release/AddStock-${{ steps.version.outputs.name }}.aab"
+
+      - uses: actions/upload-artifact@v6
+        if: env.RELEASE == 'true'
+        with:
+          name: AddStock-${{ steps.version.outputs.name }}-code${{ steps.version.outputs.code }}
+          path: android/app/build/outputs/bundle/release/*.aab
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Attach to the tag's release
+        if: startsWith(github.ref, 'refs/tags/android-v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          gh release view "$TAG" > /dev/null 2>&1 || gh release create "$TAG" --title "AddStock for Android ${TAG#android-v}" --notes "Play Store bundle for manual upload to Play Console."
+          gh release upload "$TAG" app/build/outputs/bundle/release/*.aab --clobber
+
+      - name: Clean up the key
+        if: always()
+        run: rm -f keystore.properties "$RUNNER_TEMP/upload.jks"
