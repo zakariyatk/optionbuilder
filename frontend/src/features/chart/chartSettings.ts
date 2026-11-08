@@ -19,7 +19,11 @@ import { themeColors, type ChartSettings, type ChartStyle, type ScaleMode } from
 const CANDLE_TYPE: Record<ChartStyle, CandleType> = {
   candles: CandleType.CandleSolid,
   hollow: CandleType.CandleUpStroke,
+  // Heikin Ashi candles are drawn by an indicator (heikinAshi.ts); the real candles underneath go invisible.
+  heikinashi: CandleType.CandleSolid,
   bars: CandleType.Ohlc,
+  // A line is the area chart without its fill.
+  line: CandleType.Area,
   area: CandleType.Area,
 };
 
@@ -54,10 +58,11 @@ export function settingsStyles(s: ChartSettings, theme: 'light' | 'dark', legend
   const text = theme === 'dark' ? '#D1D4DC' : '#131722';
   // A part switched off takes the colour of the part drawn under / over it, so it disappears.
   const hidden = 'rgba(0,0,0,0)';
-  const upBody = s.body ? s.upBody : hidden;
-  const downBody = s.body ? s.downBody : hidden;
-  const upBorder = s.borders ? s.upBorder : upBody;
-  const downBorder = s.borders ? s.downBorder : downBody;
+  const ha = s.chartStyle === 'heikinashi';
+  const upBody = s.body && !ha ? s.upBody : hidden;
+  const downBody = s.body && !ha ? s.downBody : hidden;
+  const upBorder = s.borders && !ha ? s.upBorder : upBody;
+  const downBorder = s.borders && !ha ? s.downBorder : downBody;
   const cross = s.crosshairColor ?? t.crosshair;
   const crossLine = { color: cross, style: s.crosshairDashed ? LineType.Dashed : LineType.Solid, dashedValue: [4, 4] };
   const tickText = { color: s.scaleTextColor ?? t.scaleText, size: s.scaleTextSize };
@@ -76,16 +81,20 @@ export function settingsStyles(s: ChartSettings, theme: 'light' | 'dark', legend
         upBorderColor: upBorder,
         downBorderColor: downBorder,
         noChangeBorderColor: upBorder,
-        upWickColor: s.wick ? s.upWick : hidden,
-        downWickColor: s.wick ? s.downWick : hidden,
-        noChangeWickColor: s.wick ? s.upWick : hidden,
+        upWickColor: s.wick && !ha ? s.upWick : hidden,
+        downWickColor: s.wick && !ha ? s.downWick : hidden,
+        noChangeWickColor: s.wick && !ha ? s.upWick : hidden,
       },
       area: {
         lineColor: s.upBorder,
-        backgroundColor: [
-          { offset: 0, color: withAlpha(s.upBorder, 0.01) },
-          { offset: 1, color: withAlpha(s.upBorder, 0.25) },
-        ],
+        lineSize: s.chartStyle === 'line' ? 2 : 1,
+        backgroundColor:
+          s.chartStyle === 'line'
+            ? hidden
+            : [
+                { offset: 0, color: withAlpha(s.upBorder, 0.01) },
+                { offset: 1, color: withAlpha(s.upBorder, 0.25) },
+              ],
       },
       priceMark: {
         high: { show: s.highLowMarks },
@@ -93,8 +102,8 @@ export function settingsStyles(s: ChartSettings, theme: 'light' | 'dark', legend
         last: { upColor: s.upBody, downColor: s.downBody, line: { show: s.lastPriceLine } },
       },
       tooltip: {
-        // The phone chart only shows the legend while the crosshair is on a candle.
-        showRule: compact ? TooltipShowRule.FollowCross : TooltipShowRule.Always,
+        // The phone chart has its own crosshair readout (mobile/Readout.tsx) instead of the legend.
+        showRule: compact ? TooltipShowRule.None : TooltipShowRule.Always,
         custom: (data: CandleTooltipCustomCallbackData) => legendFor(s, legendTitle(), text, data),
       },
     },

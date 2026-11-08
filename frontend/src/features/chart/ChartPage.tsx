@@ -1,39 +1,30 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
 import {
-  Activity,
   AlarmClockPlus,
   Camera,
   ChartCandlestick,
   ChevronDown,
   Globe,
-  Layers,
   Maximize,
   Minimize,
-  MoreHorizontal,
-  PencilLine,
-  Plus,
   Rewind,
   Search,
   Settings,
 } from 'lucide-react';
-import { api } from '../../api/client';
 import type { SymbolInfo } from '../../api/types';
-import { BottomSheet } from '../../components/BottomSheet';
-import { useAsync } from '../../hooks/useAsync';
 import { PHONE_QUERY, useMediaQuery } from '../../hooks/useMediaQuery';
-import { num } from '../../lib/format';
-import { displaySymbol, isUs, marketLabel, pricePrecision } from '../../lib/markets';
-import { nameOf } from '../../lib/symbolNames';
+import { displaySymbol } from '../../lib/markets';
 import { useChartLayout } from '../../store/chartLayout';
 import { ChartSettingsDialog } from './ChartSettingsDialog';
 import { CELL_NAMES, chartCount, gridStyle, layoutById } from './layouts';
 import { LayoutMenu } from './LayoutMenu';
 import { PERIODS } from './periods';
-import { ProChart, type ProChartActions, type ProTool } from './ProChart';
+import { ProChart, type ProChartActions } from './ProChart';
 import { useReplayState, type ReplayController } from './replay';
 import { ReplayBar } from './ReplayBar';
 import { SymbolSearch } from './SymbolSearch';
 import { Watchlist } from './Watchlist';
+import { MobileChart, PHONE_LANDSCAPE_QUERY } from './mobile/MobileChart';
 
 /** The theme actually applied to the page: the explicit choice on <html>, else the OS preference. */
 function usePageTheme(): 'light' | 'dark' {
@@ -73,7 +64,9 @@ export function ChartPage({
   onOpenBuilder: (symbol: string) => void;
 }) {
   const theme = usePageTheme();
+  // Phones, upright or on their side (a phone on its side is wider than the phone breakpoint).
   const phone = useMediaQuery(PHONE_QUERY);
+  const phoneLandscape = useMediaQuery(PHONE_LANDSCAPE_QUERY);
   // The charts have their own symbols, so browsing the watchlist never touches the strategy being built.
   const { layoutId, symbols: chartSymbols, periods: chartPeriods, active, setLayout, setActive, setSymbol, setPeriod } = useChartLayout();
   // The first chart opens on the builder's underlying, as the single chart always did.
@@ -106,9 +99,9 @@ export function ChartPage({
     return () => document.removeEventListener('fullscreenchange', onChange);
   }, []);
 
-  if (phone) {
+  if (phone || phoneLandscape) {
     return (
-      <PhoneChart
+      <MobileChart
         symbol={chartSymbols[0]}
         onSymbol={(s) => setSymbol(s, 0)}
         symbolInfo={symbolInfo}
@@ -336,216 +329,6 @@ function IntervalMenu({ value, onChange }: { value: string; onChange: (tf: strin
           ))}
         </div>
       )}
-    </div>
-  );
-}
-
-const QUOTE_POLL_MS = 15_000;
-const changeColor = (v: number) => (v > 0 ? 'var(--good-text)' : v < 0 ? 'var(--critical)' : 'var(--text-secondary)');
-
-function ToolbarButton({ label, active, onClick, children }: { label: string; active?: boolean; onClick: () => void; children: ReactNode }) {
-  return (
-    <button
-      type="button"
-      aria-label={label}
-      title={label}
-      aria-pressed={active}
-      onClick={onClick}
-      className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-lg ${
-        active ? 'bg-[color-mix(in_srgb,var(--series-blue)_16%,transparent)] text-[var(--series-blue)]' : 'text-[var(--text-primary)]'
-      }`}
-    >
-      {children}
-    </button>
-  );
-}
-
-function SheetItem({ icon, label, onClick }: { icon: ReactNode; label: string; onClick: () => void }) {
-  return (
-    <button type="button" onClick={onClick} className="flex min-h-12 w-full items-center gap-3 rounded-lg px-3 text-left text-sm font-medium hover:bg-[var(--surface-sunken)]">
-      <span className="text-[var(--text-secondary)]">{icon}</span>
-      {label}
-    </button>
-  );
-}
-
-/**
- * Phone layout, modelled on mobile TradingView: quote header, full-bleed chart,
- * and a bottom toolbar (symbol · interval · indicators · drawing · more). The
- * chart's own desktop period bar and drawing rail are hidden and driven from here.
- */
-function PhoneChart({
-  symbol,
-  onSymbol,
-  symbolInfo,
-  theme,
-  brokerConnected,
-  onOpenBuilder,
-}: {
-  symbol: string;
-  onSymbol: (s: string) => void;
-  symbolInfo: SymbolInfo[];
-  theme: 'light' | 'dark';
-  brokerConnected: boolean;
-  onOpenBuilder: (symbol: string) => void;
-}) {
-  const actions = useRef<ProChartActions | null>(null);
-  const [tf, setTf] = useState('15m');
-  const [drawing, setDrawing] = useState(false);
-  const [sheet, setSheet] = useState<'watchlist' | 'interval' | 'more' | null>(null);
-  const [configuring, setConfiguring] = useState(false);
-  const close = useCallback(() => setSheet(null), []);
-
-  // US symbols, gold, silver and Bitcoin chart from Yahoo, so they don't need the broker.
-  const canChart = brokerConnected || isUs(symbol);
-  const quoteState = useAsync(() => api.watch([symbol]), [symbol], { pollMs: QUOTE_POLL_MS, enabled: canChart });
-  const q = quoteState.data?.quotes.find((x) => x.symbol === symbol);
-  const quote = q && !('error' in q) ? q : null;
-  const chg = quote ? quote.price - quote.previousClose : null;
-  const pct = quote && quote.previousClose ? (chg! / quote.previousClose) * 100 : null;
-  const label = symbolInfo.find((s) => s.symbol === symbol)?.label ?? nameOf(symbol) ?? displaySymbol(symbol);
-  const period = PERIODS.find((p) => p.tf === tf);
-
-  const tool = (t: ProTool) => {
-    setSheet(null);
-    actions.current?.openTool(t);
-  };
-
-  return (
-    <div
-      className="flex flex-col bg-[var(--surface-card)]"
-      style={{
-        // Full-bleed: cancel <main>'s gutters and fill the screen between the header and the tab bar.
-        margin: 'calc(-1 * 1rem) calc(-1 * max(var(--gutter), env(safe-area-inset-right))) calc(-1 * 0.75rem) calc(-1 * max(var(--gutter), env(safe-area-inset-left)))',
-        height: 'calc(100dvh - var(--header-h) - 1px - env(safe-area-inset-top) - var(--tabbar-h))',
-        minHeight: 360,
-      }}
-    >
-      <div className="flex shrink-0 items-start justify-between gap-3 border-b border-[var(--border)] px-3 py-2">
-        <div className="min-w-0">
-          <div className="truncate text-base font-semibold">{label}</div>
-          <div className="text-[11px] text-[var(--text-muted)]">
-            {displaySymbol(symbol)} · {marketLabel(symbol)} · {period?.text ?? tf}
-          </div>
-        </div>
-        <div className="shrink-0 text-right tabular">
-          <div className="text-base font-semibold">{quote ? num(quote.price, pricePrecision(symbol)) : '—'}</div>
-          {chg !== null && (
-            <div className="text-xs" style={{ color: changeColor(chg) }}>
-              {chg > 0 ? '+' : ''}
-              {num(chg)} ({pct !== null ? `${pct > 0 ? '+' : ''}${pct.toFixed(2)}%` : '—'})
-            </div>
-          )}
-        </div>
-      </div>
-
-      <div className="min-h-0 flex-1">
-        <ProChart symbol={symbol} symbolInfo={symbolInfo} theme={theme} brokerConnected={brokerConnected} compact actionsRef={actions} />
-      </div>
-
-      <div className="flex h-14 shrink-0 items-center gap-1 border-t border-[var(--border)] px-2">
-        <button
-          type="button"
-          onClick={() => setSheet('watchlist')}
-          aria-label="Watchlist and symbol"
-          className="flex h-11 min-w-0 items-center gap-1 rounded-lg px-2 text-sm font-semibold"
-        >
-          <span className="truncate">{displaySymbol(symbol)}</span>
-          <ChevronDown size={16} aria-hidden="true" className="shrink-0 text-[var(--text-muted)]" />
-        </button>
-        <button
-          type="button"
-          onClick={() => setSheet('interval')}
-          aria-label={`Interval ${period?.text ?? tf}`}
-          disabled={!canChart}
-          className="flex h-11 min-w-11 items-center justify-center rounded-lg px-2 text-sm font-semibold disabled:opacity-40"
-        >
-          {period?.text ?? tf}
-        </button>
-        <span className="flex-1" />
-        {canChart && (
-          <>
-            <ToolbarButton label="Indicators" onClick={() => tool('Indicator')}>
-              <Plus size={22} strokeWidth={1.75} aria-hidden="true" />
-            </ToolbarButton>
-            <ToolbarButton label="Drawing tools" active={drawing} onClick={() => {
-                actions.current?.toggleDrawing();
-                setDrawing((d) => !d);
-              }}>
-              <PencilLine size={22} strokeWidth={1.75} aria-hidden="true" />
-            </ToolbarButton>
-          </>
-        )}
-        <ToolbarButton label="More" onClick={() => setSheet('more')}>
-          <MoreHorizontal size={22} strokeWidth={1.75} aria-hidden="true" />
-        </ToolbarButton>
-      </div>
-
-      <BottomSheet open={sheet === 'watchlist'} onClose={close} title="Watchlist" className="h-[80dvh]">
-        <div className="flex h-full flex-col">
-          <Watchlist
-            symbolInfo={symbolInfo}
-            selected={symbol}
-            onSelect={(s) => {
-              onSymbol(s);
-              setSheet(null);
-            }}
-            onOpenBuilder={onOpenBuilder}
-          />
-        </div>
-      </BottomSheet>
-
-      <BottomSheet open={sheet === 'interval'} onClose={close} title="Interval">
-        <div className="grid grid-cols-4 gap-2 p-2">
-          {PERIODS.map((p) => (
-            <button
-              key={p.tf}
-              type="button"
-              aria-pressed={p.tf === tf}
-              onClick={() => {
-                setTf(p.tf);
-                actions.current?.setPeriod(p.tf);
-                setSheet(null);
-              }}
-              className={`h-12 rounded-lg border text-sm font-semibold ${
-                p.tf === tf ? 'border-[var(--series-blue)] bg-[color-mix(in_srgb,var(--series-blue)_14%,transparent)] text-[var(--series-blue)]' : 'border-[var(--border)]'
-              }`}
-            >
-              {p.text}
-            </button>
-          ))}
-        </div>
-      </BottomSheet>
-
-      <BottomSheet open={sheet === 'more'} onClose={close} title="Chart">
-        {canChart && (
-          <>
-            <SheetItem icon={<Activity size={20} aria-hidden="true" />} label="Indicators" onClick={() => tool('Indicator')} />
-            <SheetItem icon={<Globe size={20} aria-hidden="true" />} label="Timezone" onClick={() => tool('Timezone')} />
-            <SheetItem
-              icon={<Settings size={20} aria-hidden="true" />}
-              label="Chart settings"
-              onClick={() => {
-                setSheet(null);
-                setConfiguring(true);
-              }}
-            />
-            <SheetItem icon={<Camera size={20} aria-hidden="true" />} label="Screenshot" onClick={() => tool('Screenshot')} />
-            <SheetItem icon={<Maximize size={20} aria-hidden="true" />} label="Full screen" onClick={() => tool('Full Screen')} />
-          </>
-        )}
-        {!isUs(symbol) && (
-          <SheetItem
-            icon={<Layers size={20} aria-hidden="true" />}
-            label={`Build strategy on ${symbol}`}
-            onClick={() => {
-              setSheet(null);
-              onOpenBuilder(symbol);
-            }}
-          />
-        )}
-      </BottomSheet>
-      {configuring && <ChartSettingsDialog theme={theme} onClose={() => setConfiguring(false)} />}
     </div>
   );
 }

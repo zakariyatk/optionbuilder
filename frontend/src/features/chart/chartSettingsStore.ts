@@ -12,7 +12,7 @@ const TV_DOWN = '#F23645';
  * imports here: the alert popups (main bundle) read these settings too.
  */
 
-export type ChartStyle = 'candles' | 'hollow' | 'bars' | 'area';
+export type ChartStyle = 'candles' | 'hollow' | 'heikinashi' | 'bars' | 'line' | 'area';
 export type ScaleMode = 'normal' | 'percent' | 'log';
 export type ButtonsMode = 'always' | 'hover' | 'never';
 
