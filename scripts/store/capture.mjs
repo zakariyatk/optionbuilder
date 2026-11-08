@@ -14,15 +14,17 @@ const here = dirname(fileURLToPath(import.meta.url));
 const raw = join(here, 'out', 'raw');
 mkdirSync(raw, { recursive: true });
 const APP = process.env.APP_URL || 'http://localhost:5174/';
-const only = process.argv[2] || 'all';          /* desk | phone | all */
+const only = process.argv[2] || 'all';          /* desk | tablet | phone | all */
 
 const browser = await chromium.launch({ channel: 'msedge' });
 
 async function open(kind) {
-  const desk = kind === 'desk';
-  const ctx = await browser.newContext(desk
-    ? { viewport: { width: 1440, height: 900 }, deviceScaleFactor: 2 }
-    : { viewport: { width: 412, height: 915 }, deviceScaleFactor: 2.625, isMobile: true, hasTouch: true });
+  const ctx = await browser.newContext({
+    desk: { viewport: { width: 1440, height: 900 }, deviceScaleFactor: 2 },
+    /* a 10-inch Android tablet held sideways, 16:10 */
+    tablet: { viewport: { width: 1280, height: 800 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true },
+    phone: { viewport: { width: 412, height: 915 }, deviceScaleFactor: 2.625, isMobile: true, hasTouch: true }
+  }[kind]);
   const p = await ctx.newPage();
   p.on('pageerror', (e) => console.log('[' + kind + '] pageerror', e.message));
   await p.goto(APP + '#builder');
@@ -79,48 +81,58 @@ async function closeUp(p, words, name, pad = 0) {
 /* the iron condor, from the templates, with the payoff zoomed in on it */
 async function buildCondor(p) {
   await go(p, 'builder');
-  await p.click('button:has-text("Templates")');
-  await settle(p, 600);
-  await p.click('text=Iron condor');
+  /* older builds hid the templates behind a button; now they are a row of chips */
+  const templates = await p.$('button:has-text("Templates")');
+  if (templates) { await templates.click(); await settle(p, 600); }
+  await p.locator('button:text-is("Iron condor"):visible').first().click();
   await settle(p, 2500);
-  for (let i = 0; i < 3; i++) { await p.click('button[aria-label="Zoom in"]'); await settle(p, 300); }
+  if (await p.$('button[aria-label="Zoom in"]'))
+    for (let i = 0; i < 3; i++) { await p.click('button[aria-label="Zoom in"]'); await settle(p, 300); }
   await p.evaluate(() => window.scrollTo(0, 0));
 }
 async function saveDraft(p) {
   /* the mock keeps drafts for as long as it runs: one is enough */
   if (await p.$('button:has-text("Drafts (")')) return;
-  await p.click('button:has-text("Save to drafts")');
+  if (await p.$('button:has-text("Save to drafts")')) await p.click('button:has-text("Save to drafts")');
+  else await p.getByRole('button', { name: /^save/i }).filter({ visible: true }).first().click();
   await settle(p, 500);
   await p.fill('input[aria-label="Draft name"]', 'NIFTY iron condor');
   await p.click('form button[type=submit]');
   await settle(p, 1500);
 }
 
-async function desk() {
-  const { ctx, p } = await open('desk');
+/* desk (Microsoft Store, Chromebook) and tablet take the same scenes; `x` is the file prefix */
+async function desk(kind = 'desk', x = 'd') {
+  const { ctx, p } = await open(kind);
 
   await buildCondor(p);
-  await shot(p, 'd1-builder');
+  await shot(p, x + '1-builder');
 
   await saveDraft(p);
   await go(p, 'drafts');
-  await shot(p, 'd2-drafts');
+  await shot(p, x + '2-drafts');
   /* the draft opened: tracked live */
   await p.click('text=NIFTY iron condor');
   await settle(p, 3000);
-  await shot(p, 'd2-draft-live');
+  await shot(p, x + '2-draft-live');
 
   await go(p, 'chain');
-  await shot(p, 'd3-chain');
+  await shot(p, x + '3-chain');
 
   await go(p, 'oi');
-  await shot(p, 'd4-oi');
+  await shot(p, x + '4-oi');
 
   await go(p, 'chart');
-  await shot(p, 'd5-chart');
+  await shot(p, x + '5-chart');
 
   await go(p, 'report');
-  await shot(p, 'd6-report');
+  await shot(p, x + '6-report');
+  if (kind !== 'desk') {
+    await go(p, 'portfolio');
+    await shot(p, x + '7-portfolio');
+    await ctx.close();
+    return;
+  }
   /* the first slide of its Instagram carousel */
   await p.click('button:has-text("Instagram post")');
   await settle(p, 4000);
@@ -163,5 +175,6 @@ async function phone() {
 }
 
 if (only === 'all' || only === 'desk') await desk();
+if (only === 'all' || only === 'tablet') await desk('tablet', 't');
 if (only === 'all' || only === 'phone') await phone();
 await browser.close();
