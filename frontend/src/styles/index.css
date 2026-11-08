@@ -773,3 +773,38 @@ input[type='number']::-webkit-inner-spin-button {
     animation-duration: 1.6s;
   }
 }
+
+/* Phone chart (features/chart/mobile): sheets slide in; strips scroll sideways without a bar. */
+.ob-no-scrollbar {
+  scrollbar-width: none;
+}
+.ob-no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+@keyframes ob-sheet-up {
+  from {
+    transform: translateY(100%);
+  }
+}
+@keyframes ob-sheet-right {
+  from {
+    transform: translateX(100%);
+  }
+}
+.ob-sheet-up {
+  animation: ob-sheet-up 0.22s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.ob-sheet-right {
+  animation: ob-sheet-right 0.22s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+@media (prefers-reduced-motion: reduce) {
+  .ob-sheet-up,
+  .ob-sheet-right {
+    animation: none;
+  }
+}
+/* The chart canvas owns every touch: no page scroll or browser zoom while panning or pinching. */
+.ob-mobile-chart .ob-pro-chart {
+  touch-action: none;
+  overscroll-behavior: contain;
+}

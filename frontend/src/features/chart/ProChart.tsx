@@ -2,14 +2,15 @@ import { useEffect, useRef, type RefObject } from 'react';
 import { ExternalLink } from 'lucide-react';
 import { KLineChartPro, type Datafeed, type Period, type SymbolInfo as ProSymbol } from '@klinecharts/pro';
 import '@klinecharts/pro/dist/klinecharts-pro.css';
-import { DomPosition, TooltipShowRule, type KLineData } from 'klinecharts';
+import { DomPosition, TooltipShowRule, type Chart, type KLineData } from 'klinecharts';
 import { api, UPSTOX_LOGIN_URL } from '../../api/client';
 import { marketOpen, sessionFor } from '../../lib/nse';
 import { displaySymbol, globalSymbol, isUs, searchGlobal } from '../../lib/markets';
 import { attachLiveTag, innerChart, LIVE_TAG_STYLES } from './liveTag';
 import { tvChartStyles } from './tvStyle';
 import { applyHostSettings, settingsStyles } from './chartSettings';
-import { effectiveSettings, useChartSettings } from './chartSettingsStore';
+import { effectiveSettings, useChartSettings, type ChartSettings } from './chartSettingsStore';
+import { syncHeikinAshi } from './heikinAshi';
 import { PERIODS, periodMs } from './periods';
 import type { SymbolInfo } from '../../api/types';
 import { installDrawingTools } from './drawingTools';
@@ -240,6 +241,10 @@ export interface ProChartActions {
   openSymbolSearch: () => void;
   /** Starts placing a price alert (the bell tool). */
   addAlert: () => void;
+  /** The klinecharts chart inside, for the phone chart's own controls (null until it exists). */
+  chart: () => Chart | null;
+  /** Redraws the alert lines after the alerts store changed. */
+  syncAlerts: () => void;
 }
 
 /**
@@ -257,6 +262,8 @@ export function ProChart({
   actionsRef,
   onSymbolChange,
   onReplay,
+  styleOverride,
+  onLoaded,
 }: {
   symbol: string;
   symbolInfo: SymbolInfo[];
@@ -273,6 +280,10 @@ export function ProChart({
   onSymbolChange?: (symbol: string) => void;
   /** Hands out this chart's bar-replay controls (null when the chart goes away). */
   onReplay?: (replay: ReplayController | null) => void;
+  /** Chart Settings this chart overrides (the phone chart's chart type, say). */
+  styleOverride?: Partial<ChartSettings>;
+  /** History for a symbol / interval finished loading. */
+  onLoaded?: (ticker: string) => void;
 }) {
   const host = useRef<HTMLDivElement>(null);
   const chart = useRef<KLineChartPro | null>(null);
@@ -295,7 +306,10 @@ export function ProChart({
   // The chart Settings dialog's choices (its live preview while it's open).
   const settings = useChartSettings(effectiveSettings);
   const settingsRef = useRef(settings);
-  settingsRef.current = settings;
+  settingsRef.current = styleOverride ? { ...settings, ...styleOverride } : settings;
+  const overrideKey = JSON.stringify(styleOverride ?? null);
+  const onLoadedRef = useRef(onLoaded);
+  onLoadedRef.current = onLoaded;
   const legendTitleRef = useRef<() => string>(() => '');
   /**
    * Symbol / period changes that arrived during a history load. Pro drops a
@@ -336,7 +350,9 @@ export function ProChart({
     c.setStyles(tvChartStyles(themeRef.current, title));
     c.setStyles(LIVE_TAG_STYLES);
     c.setStyles(settingsStyles(s, themeRef.current, title, compactRef.current));
-    innerChart(el)?.setPaneOptions({ id: 'candle_pane', gap: { top: s.marginTop / 100, bottom: s.marginBottom / 100 } });
+    const inner = innerChart(el);
+    inner?.setPaneOptions({ id: 'candle_pane', gap: { top: s.marginTop / 100, bottom: s.marginBottom / 100 } });
+    if (inner) syncHeikinAshi(inner, s.chartStyle === 'heikinashi', { up: s.upBody, down: s.downBody });
     applyHostSettings(el, s);
     scaleRef.current?.reapply();
     alertsRef.current?.sync();
@@ -361,6 +377,8 @@ export function ProChart({
       // The period bar may be hidden; its controls still answer clicks.
       openSymbolSearch: () => host.current?.querySelector<HTMLElement>('.klinecharts-pro-period-bar .symbol')?.click(),
       addAlert: () => host.current?.querySelector<HTMLElement>('[data-alert-tool]')?.click(),
+      chart: () => (host.current ? innerChart(host.current) : null),
+      syncAlerts: () => alertsRef.current?.sync(),
     };
     return () => {
       actionsRef.current = null;
@@ -405,6 +423,7 @@ export function ProChart({
         memory?.restore(ticker, chart.current?.getPeriod().text ?? '');
         fitLongHistory();
         if (ticker !== symbolRef.current) onSymbolChangeRef.current?.(ticker);
+        onLoadedRef.current?.(ticker);
       },
       paused: () => replay?.holdsChart() ?? false,
       flush: () => {
@@ -445,9 +464,9 @@ export function ProChart({
       symbol: toProSymbol(info ?? { symbol }),
       period: PERIODS.find((p) => p.tf === periodRef.current) ?? PERIODS[3],
       periods: PERIODS,
-      // Phones: no drawing rail until asked for, and the OHLC legend only while the crosshair is on a candle (as in mobile TradingView).
+      // Phones: no drawing rail (the phone chart has its own tools) and no legend (it has its own crosshair readout).
       drawingBarVisible: !compactRef.current,
-      styles: { candle: { tooltip: { showRule: compactRef.current ? TooltipShowRule.FollowCross : TooltipShowRule.Always } } },
+      styles: { candle: { tooltip: { showRule: compactRef.current ? TooltipShowRule.None : TooltipShowRule.Always } } },
       // A clean chart at first; the indicators you add are remembered.
       mainIndicators: startIndicators.main,
       subIndicators: startIndicators.sub,
@@ -511,9 +530,8 @@ export function ProChart({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- symbol / theme are applied by the effects below
   }, [live]);
 
-  useEffect(() => showRef.current({ symbol }), [symbol]);
-
-  useEffect(() => showRef.current({ period }), [period]);
+  // One call for both, so a symbol and interval changed together (the phone chart keeps an interval per symbol) load in turn.
+  useEffect(() => showRef.current({ symbol, period }), [symbol, period]);
 
   useEffect(() => {
     chart.current?.setTheme(theme);
@@ -521,7 +539,7 @@ export function ProChart({
     applyLookRef.current();
   }, [theme]);
 
-  useEffect(() => applyLookRef.current(), [settings]);
+  useEffect(() => applyLookRef.current(), [settings, overrideKey]);
 
   if (!live) {
     return (

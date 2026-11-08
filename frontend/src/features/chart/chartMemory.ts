@@ -73,6 +73,8 @@ export function installChartMemory(chart: Chart): { restore: (ticker: string, in
     const saved: SavedIndicators = { main: [], sub: [], params };
     panes.forEach((byName, paneId) =>
       byName.forEach((ind, name) => {
+        // The app's own (Heikin Ashi candles, compare lines) come from the chart type and compare list, not from here.
+        if (name.startsWith('ob')) return;
         (paneId === CANDLE_PANE ? saved.main : saved.sub).push(name);
         params[name] = ind.calcParams;
       }),

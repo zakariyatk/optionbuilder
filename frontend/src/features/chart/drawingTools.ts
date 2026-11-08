@@ -9,7 +9,7 @@ import { isActiveChart } from './liveTag';
  */
 
 /** KLineChart Pro's group for drawings — its lock / hide / remove-all buttons act on it. */
-const DRAWING_GROUP = 'drawing_tools';
+export const DRAWING_GROUP = 'drawing_tools';
 
 const GOOD = '#089981';
 const BAD = '#f23645';
@@ -157,7 +157,7 @@ function positionTool(side: Side): OverlayTemplate {
 }
 
 let registered = false;
-function registerTools() {
+export function registerTools() {
   if (registered) return;
   registered = true;
   registerOverlay(horizontalRay);
@@ -166,7 +166,7 @@ function registerTools() {
 }
 
 /** Starting size of a position box: a slice of what's on screen. */
-function positionDefaults(chart: Chart, side: Side): PositionData {
+export function positionDefaults(chart: Chart, side: Side): PositionData {
   const data = chart.getDataList();
   const { from, to } = chart.getVisibleRange();
   const visible = data.slice(Math.max(0, from), Math.max(from + 1, to));
@@ -215,7 +215,7 @@ function innerChart(widget: HTMLElement): Chart | null {
 }
 
 /** The drawing the user last clicked, from klinecharts' internal overlay store (not in its public API). */
-function selectedOverlay(chart: Chart): Overlay | null {
+export function selectedOverlay(chart: Chart): Overlay | null {
   const store = (chart as Chart & { getChartStore?: () => { getOverlayStore(): { getClickInstanceInfo(): { instance: Overlay | null } } } })
     .getChartStore?.()
     .getOverlayStore();

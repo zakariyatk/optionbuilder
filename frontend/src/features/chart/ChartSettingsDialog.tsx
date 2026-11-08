@@ -362,7 +362,9 @@ export function ChartSettingsDialog({ theme, onClose }: { theme: 'light' | 'dark
             options={[
               { v: 'candles', label: 'Candles' },
               { v: 'hollow', label: 'Hollow candles' },
+              { v: 'heikinashi', label: 'Heikin Ashi' },
               { v: 'bars', label: 'Bars (OHLC)' },
+              { v: 'line', label: 'Line' },
               { v: 'area', label: 'Area' },
             ]}
           />
