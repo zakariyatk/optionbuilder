@@ -28,6 +28,8 @@ const INTRADAY_POLL_MS = 15_000;
 const DAILY_POLL_MS = 60_000;
 /** Live quote → forming candle. The server caches quotes for 5s, so this stays cheap. */
 const QUOTE_TICK_MS = 2_000;
+/** A tab back after missing more bars than this reloads the chart instead of catching up. */
+const MAX_CATCH_UP_BARS = 900;
 /** After a failed history load, try the same symbol again this soon. */
 const HISTORY_RETRY_MS = 3_000;
 const CANDLE_PANE_ID = 'candle_pane';
@@ -49,8 +51,8 @@ const toProSymbol = (s: SymbolInfo | { symbol: string; label?: string; exchange?
   volumePrecision: 0,
 });
 
-async function loadCandles(symbol: string, period: Period): Promise<KLineData[]> {
-  const res = await api.candles(symbol, tfOf(period));
+async function loadCandles(symbol: string, period: Period, since?: number): Promise<KLineData[]> {
+  const res = await api.candles(symbol, tfOf(period), since);
   return res.candles.map(([t, open, high, low, close, volume]) => ({ timestamp: t * 1000, open, high, low, close, volume }));
 }
 
@@ -175,10 +177,21 @@ function upstoxDatafeed(symbols: () => SymbolInfo[], hooks: FeedHooks): Datafeed
         callback(b);
         hooks.onTick();
       };
-      const tick = async () => {
+      const span = periodMs(period);
+      /** When the chart was last caught up: by a poll, or at first by the history load that just ran. */
+      let polledAt = Date.now();
+      const poll = async () => {
         if (document.visibilityState !== 'visible') return;
+        // Back after so long that the missed bars could outnumber what one catch-up brings: load the chart afresh.
+        // Measured from the last poll, not the last bar, which is hours old anyway overnight or at the weekend.
+        if (span !== null && polledAt && Date.now() - polledAt > MAX_CATCH_UP_BARS * span) {
+          hooks.reload();
+          return;
+        }
         try {
-          const bars = await loadCandles(symbol.ticker, period);
+          // Only the bars from the poll's newest one on, where the source can send just those (Binance): a fraction
+          // of the full history, so a return to the tab catches up in one quick request.
+          const bars = await loadCandles(symbol.ticker, period, span !== null && last ? last : undefined);
           if (!sub.alive || hooks.paused()) return;
           // Every bar from the newest one the poll had last time onwards, not just the latest two: after the tab was
           // hidden (polling pauses) or the network dropped, the bars missed meanwhile must fill in, or the chart shows a gap.
@@ -192,9 +205,27 @@ function upstoxDatafeed(symbols: () => SymbolInfo[], hooks: FeedHooks): Datafeed
           if (ahead.length) for (const b of ahead) send(b);
           else if (bar) send(bar); // repaint what was patched
           last = bars[bars.length - 1]?.timestamp ?? last;
+          polledAt = Date.now();
         } catch {
           /* keep the chart as is; the next poll retries */
         }
+      };
+      // One poll at a time: a slow one must not land after a newer one. A call while one runs queues one more.
+      let polling: Promise<void> | null = null;
+      let again = false;
+      const tick = (): Promise<void> => {
+        if (polling) {
+          again = true;
+          return polling;
+        }
+        polling = poll().finally(() => {
+          polling = null;
+          if (again) {
+            again = false;
+            void tick();
+          }
+        });
+        return polling;
       };
       const quoteTick = async () => {
         if (!bar || document.visibilityState !== 'visible' || !marketOpen(sessionFor(symbol.ticker))) return;
@@ -204,7 +235,6 @@ function upstoxDatafeed(symbols: () => SymbolInfo[], hooks: FeedHooks): Datafeed
           const price = q.price;
           // The chart's own 2s quote also checks this symbol's alerts, so they fire without waiting for the app-wide monitor.
           signalAlerts(useAlerts.getState().observe(symbol.ticker, price));
-          const span = periodMs(period);
           // The time of the price itself, not the clock: a delayed feed (Yahoo's gold and futures run ~10 min behind)
           // must not open candles for minutes it has no prices for yet — they'd only ever hold one stale, flat price.
           const now = q.marketTime > 0 ? Math.min(q.marketTime * 1000, Date.now()) : Date.now();
@@ -223,10 +253,20 @@ function upstoxDatafeed(symbols: () => SymbolInfo[], hooks: FeedHooks): Datafeed
       const intraday = period.timespan === 'minute' || period.timespan === 'hour';
       void tick();
       sub.timers = [window.setInterval(tick, intraday ? INTRADAY_POLL_MS : DAILY_POLL_MS), window.setInterval(quoteTick, QUOTE_TICK_MS)];
-      // Polling pauses while the tab is hidden; catch up the moment it's back instead of on the next interval.
-      const onVisible = () => document.visibilityState === 'visible' && void tick();
-      document.addEventListener('visibilitychange', onVisible);
-      sub.cleanup = () => document.removeEventListener('visibilitychange', onVisible);
+      // Polling pauses while the tab is hidden; catch up the moment it's back (or the network is, or Chrome restores
+      // the page from its back/forward cache) instead of on the next interval — bars and live price together.
+      const onBack = () => {
+        if (document.visibilityState !== 'visible') return;
+        void tick();
+        void quoteTick();
+      };
+      const events = ['pageshow', 'online'] as const;
+      document.addEventListener('visibilitychange', onBack);
+      events.forEach((e) => window.addEventListener(e, onBack));
+      sub.cleanup = () => {
+        document.removeEventListener('visibilitychange', onBack);
+        events.forEach((e) => window.removeEventListener(e, onBack));
+      };
     },
     unsubscribe(symbol, period) {
       stop(key(symbol, period));
