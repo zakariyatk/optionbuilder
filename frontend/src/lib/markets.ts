@@ -14,8 +14,9 @@ export const displaySymbol = (symbol: string) => (isUs(symbol) ? symbol.slice(US
  * from Yahoo like US stocks, so they need no broker login. They ride the
  * "US:" prefix for that; the backend maps each to its Yahoo ticker
  * (OB_GLOBAL_TICKERS in api/lib/us.php — keep the two lists in step).
- * Yahoo has no spot metals or energy, so XAUUSD, XAGUSD, USOIL and NATGAS
- * chart front-month futures (COMEX / NYMEX), a little off spot.
+ * Yahoo has no spot metals or energy, so XAGUSD, USOIL and NATGAS chart
+ * front-month futures (COMEX / NYMEX), a little off spot. Gold (XAUUSD) is
+ * the exception: the browser charts it live from Binance (lib/binance.ts).
  */
 export type GlobalCategory = 'Commodity' | 'Crypto' | 'Index' | 'ETF' | 'Volatility' | 'Forex';
 
@@ -48,7 +49,8 @@ const g = (
 ): GlobalSymbol => ({ symbol: US_PREFIX + ticker, name, description, category, exchange, currency, hours, precision });
 
 export const GLOBAL_SYMBOLS: GlobalSymbol[] = [
-  g('XAUUSD', 'Gold', 'Gold / US Dollar (COMEX futures)', 'Commodity', 'COMEX', '24x5'),
+  // Live from Binance (lib/binance.ts): PAX Gold, one token per troy ounce, trading round the clock.
+  g('XAUUSD', 'Gold', 'Gold / US Dollar (live, PAXG on Binance)', 'Commodity', 'Binance', '24x7'),
   g('BTCUSD', 'Bitcoin', 'Bitcoin / US Dollar', 'Crypto', 'Crypto', '24x7'),
   g('ETHUSD', 'Ethereum', 'Ethereum / US Dollar', 'Crypto', 'Crypto', '24x7'),
   g('NDX', 'Nasdaq 100', 'Nasdaq 100 Index', 'Index', 'NASDAQ', 'US'),
