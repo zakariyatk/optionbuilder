@@ -19,6 +19,7 @@ import { installScaleButtons } from './scaleButtons';
 import { installReplay, type ReplayController } from './replay';
 import { installTimeAxis } from './timeAxis';
 import { installPriceTicks } from './priceAxis';
+import { installSmoothMotion } from './smoothMotion';
 import { installChartMemory, savedIndicators } from './chartMemory';
 import { useAlerts } from '../../store/alerts';
 import { signalAlerts } from '../alerts/alertSignals';
@@ -513,6 +514,7 @@ export function ProChart({
 
     // Live price + candle countdown on the price axis, once the inner chart exists.
     let tag: ReturnType<typeof attachLiveTag> | null = null;
+    let removeMotion = () => {};
     let frame = 0;
     const attach = () => {
       const inner = innerChart(el);
@@ -523,6 +525,7 @@ export function ProChart({
       tag = attachLiveTag(el, inner, () => pro.getPeriod(), () => sessionFor(pro.getSymbol().ticker));
       installTimeAxis(inner, () => ['minute', 'hour'].includes(pro.getPeriod().timespan));
       installPriceTicks(inner);
+      removeMotion = installSmoothMotion(inner);
       memory = installChartMemory(inner);
       // History that arrived first still gets its drawings.
       if (inner.getDataList().length) memory.restore(pro.getSymbol().ticker, pro.getPeriod().text);
@@ -546,6 +549,7 @@ export function ProChart({
       alertsRef.current = null;
       cancelAnimationFrame(frame);
       tag?.dispose();
+      removeMotion();
       memory?.dispose();
       el.replaceChildren();
       chart.current = null;

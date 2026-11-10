@@ -103,7 +103,15 @@ export function attachLiveTag(
   };
 
   const actions = [ActionType.OnDataReady, ActionType.OnZoom, ActionType.OnScroll, ActionType.OnVisibleRangeChange, ActionType.OnPaneDrag];
-  const onAction = () => requestAnimationFrame(update);
+  // Once a frame however many scroll / zoom actions land in it: each update measures the layout.
+  let pending = 0;
+  const onAction = () => {
+    if (!pending)
+      pending = requestAnimationFrame(() => {
+        pending = 0;
+        update();
+      });
+  };
   actions.forEach((a) => chart.subscribeAction(a, onAction));
   const timer = window.setInterval(update, 1000);
   const resize = new ResizeObserver(onAction);
@@ -114,6 +122,7 @@ export function attachLiveTag(
     refresh: onAction,
     dispose: () => {
       window.clearInterval(timer);
+      cancelAnimationFrame(pending);
       resize.disconnect();
       actions.forEach((a) => chart.unsubscribeAction(a, onAction));
       tag.remove();
