@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { ChevronDown, ExternalLink, LogOut, Moon, PanelLeftClose, PanelLeftOpen, Sun } from 'lucide-react';
+import { ChevronDown, ExternalLink, Grip, ListChecks, LogOut, Moon, Star, Sun } from 'lucide-react';
 import { UPSTOX_LOGIN_URL } from '../api/client';
 import type { AuthStatus } from '../api/types';
 import { useTheme } from '../hooks/useTheme';
 import { MOBILE_TABS, NAV, PAGE_ICONS, PAGE_LABELS, SIDEBAR, type NavItem, type PageId, type Route } from './tabs';
 import { Logo } from './Logo';
 import { Dot } from './ui';
+import { useRail } from '../store/rail';
 
 function BrokerBadge({ status }: { status: AuthStatus | null }) {
   if (status?.authenticated) {
@@ -231,39 +232,20 @@ function initials(name: string | null | undefined): string {
   return (parts[0][0] + (parts.length > 1 ? parts[parts.length - 1][0] : '')).toUpperCase();
 }
 
-const SIDEBAR_KEY = 'ob.sidebar';
-
-/** The sidebar's collapsed state, remembered per browser, and mirrored on <html> so --sidebar-w follows it. */
-function useSidebarCollapsed(): [boolean, () => void] {
-  const [collapsed, setCollapsed] = useState(() => {
-    try {
-      return localStorage.getItem(SIDEBAR_KEY) === 'collapsed';
-    } catch {
-      return false;
-    }
-  });
-  useEffect(() => {
-    const root = document.documentElement;
-    root.setAttribute('data-sidebar', collapsed ? 'collapsed' : 'open');
-    try {
-      localStorage.setItem(SIDEBAR_KEY, collapsed ? 'collapsed' : 'open');
-    } catch {
-      /* private window: the choice just isn't remembered */
-    }
-    return () => root.removeAttribute('data-sidebar');
-  }, [collapsed]);
-  return [collapsed, () => setCollapsed((c) => !c)];
-}
-
-const sideItem = (active: boolean) =>
-  `flex min-h-9 w-full items-center gap-3 rounded-md px-2.5 py-1.5 text-left text-sm transition-colors ${
+const railButton = (active: boolean) =>
+  `flex h-9 w-9 shrink-0 items-center justify-center rounded-md transition-colors ${
     active
-      ? 'bg-[color-mix(in_srgb,var(--series-blue)_14%,transparent)] font-medium text-[var(--series-blue)]'
+      ? 'bg-[color-mix(in_srgb,var(--series-blue)_14%,transparent)] text-[var(--series-blue)]'
       : 'text-[var(--text-secondary)] hover:bg-[var(--surface-sunken)] hover:text-[var(--text-primary)]'
   }`;
 
-/** Desktop navigation and account controls: a left sidebar in place of a top header, collapsible to icons. */
-function Sidebar({
+const menuRow = 'flex min-h-9 w-full items-center gap-3 rounded-md px-2.5 py-1.5 text-left text-sm hover:bg-[var(--surface-sunken)]';
+
+/**
+ * Desktop navigation, TradingView style: a slim rail on the right edge so pages use the full width.
+ * Pinned pages sit on the rail; the grid button opens every page (star one to pin it) and the account controls.
+ */
+function RightRail({
   route,
   onNavigate,
   broker,
@@ -277,98 +259,171 @@ function Sidebar({
   showLogout: boolean;
 }) {
   const { theme, toggle } = useTheme();
-  const [collapsed, toggleCollapsed] = useSidebarCollapsed();
+  const { pins, togglePin, watchlistOpen, toggleWatchlist } = useRail();
+  const [open, setOpen] = useState(false);
+  const menu = useRef<HTMLDivElement>(null);
+  const grid = useRef<HTMLButtonElement>(null);
   const userName = broker?.token?.user_name ?? null;
-  const live = !!(broker?.authenticated || broker?.marketData);
-  // Collapsed, a label shows as the button's tooltip instead.
-  const tip = (text: string) => (collapsed ? text : undefined);
+  // Pins in the menu's order, wherever they were starred from.
+  const pinned = SIDEBAR.flatMap((g) => g.pages).filter((p) => pins.includes(p));
+
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: MouseEvent) => {
+      const t = e.target as Node;
+      if (!menu.current?.contains(t) && !grid.current?.contains(t)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false);
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [open]);
+
+  const go = (page: PageId) => {
+    setOpen(false);
+    onNavigate(page);
+  };
 
   return (
-    <aside
-      aria-label="Main"
-      className="safe-top fixed inset-y-0 left-0 z-30 hidden flex-col overflow-y-auto overflow-x-hidden border-r border-[var(--border)] bg-[var(--surface-raised)] px-2 py-3 transition-[width] duration-200 md:flex"
-      style={{ width: 'var(--sidebar-w)' }}
-    >
-      <div className="mb-3 flex items-center gap-2.5 px-1">
-        <a className="ob-logo shrink-0" href="https://www.adddots.com/" aria-label="ADD DOTS home">
-          <Logo size={28} />
+    <>
+      <aside
+        aria-label="Main"
+        className="fixed inset-y-0 right-0 z-30 hidden flex-col items-center gap-1.5 border-l border-[var(--border)] bg-[var(--surface-raised)] py-2.5 md:flex"
+        style={{ width: 'var(--rail-w)' }}
+      >
+        <a className="ob-logo mb-1" href="https://www.adddots.com/" aria-label="ADD DOTS home">
+          <Logo size={26} />
         </a>
-        {!collapsed && (
-          <button type="button" onClick={() => onNavigate('builder')} className="ob-title truncate !text-base">
-            AddStock
+        {route.page === 'chart' && (
+          <button
+            type="button"
+            onClick={toggleWatchlist}
+            aria-pressed={watchlistOpen}
+            aria-label={watchlistOpen ? 'Hide watchlist' : 'Show watchlist'}
+            title={watchlistOpen ? 'Hide watchlist' : 'Show watchlist'}
+            className={railButton(watchlistOpen)}
+          >
+            <ListChecks size={19} strokeWidth={1.75} aria-hidden="true" />
           </button>
         )}
-      </div>
+        <div className="my-1 w-6 border-t border-[var(--border)]" aria-hidden="true" />
+        <nav aria-label="Pinned pages" className="flex flex-col items-center gap-1.5">
+          {pinned.map((page) => {
+            const Icon = PAGE_ICONS[page];
+            const active = route.page === page;
+            return (
+              <button
+                key={page}
+                type="button"
+                onClick={() => go(page)}
+                aria-current={active ? 'page' : undefined}
+                aria-label={PAGE_LABELS[page]}
+                title={PAGE_LABELS[page]}
+                className={railButton(active)}
+              >
+                <Icon size={19} strokeWidth={active ? 2.1 : 1.75} aria-hidden="true" />
+              </button>
+            );
+          })}
+        </nav>
+        <span className="flex-1" />
+        <span title={broker?.authenticated || broker?.marketData ? 'Live via Upstox' : 'Upstox not connected'} className="mb-1">
+          <Dot color={broker?.authenticated || broker?.marketData ? 'var(--good)' : 'var(--warning)'} />
+        </span>
+        <button
+          ref={grid}
+          type="button"
+          onClick={() => setOpen((o) => !o)}
+          aria-haspopup="menu"
+          aria-expanded={open}
+          aria-label="All pages and account"
+          title="All pages"
+          className={`flex h-10 w-10 items-center justify-center rounded-full transition-colors ${
+            open ? 'bg-[var(--text-primary)] text-[var(--surface-raised)]' : 'bg-[var(--surface-sunken)] text-[var(--text-primary)] hover:opacity-85'
+          }`}
+        >
+          <Grip size={20} strokeWidth={2} aria-hidden="true" />
+        </button>
+      </aside>
 
-      <nav className="flex flex-col gap-0.5">
-        {SIDEBAR.map((group) => (
-          <div key={group.label} className="flex flex-col gap-0.5">
-            {collapsed ? (
-              <div className="mx-2.5 my-2 border-t border-[var(--border)]" aria-hidden="true" />
-            ) : (
-              <div className="px-2.5 pb-1 pt-3 text-[11px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">{group.label}</div>
-            )}
-            {group.pages.map((page) => {
-              const Icon = PAGE_ICONS[page];
-              const active = route.page === page;
-              return (
-                <button
-                  key={page}
-                  type="button"
-                  onClick={() => onNavigate(page)}
-                  aria-current={active ? 'page' : undefined}
-                  aria-label={collapsed ? PAGE_LABELS[page] : undefined}
-                  title={tip(PAGE_LABELS[page])}
-                  className={sideItem(active)}
-                >
-                  <Icon size={19} strokeWidth={active ? 2.1 : 1.75} aria-hidden="true" className="shrink-0" />
-                  {!collapsed && <span className="truncate">{PAGE_LABELS[page]}</span>}
-                </button>
-              );
-            })}
+      {open && (
+        <div
+          ref={menu}
+          role="menu"
+          aria-label="All pages"
+          className="fixed bottom-2 z-50 hidden max-h-[calc(100dvh-1rem)] w-64 overflow-y-auto rounded-xl border border-[var(--border-strong)] bg-[var(--surface-raised)] p-1.5 shadow-2xl md:block"
+          style={{ right: 'calc(var(--rail-w) + 0.5rem)' }}
+        >
+          {SIDEBAR.map((group) => (
+            <div key={group.label}>
+              <div className="px-2.5 pb-1 pt-2.5 text-[11px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">{group.label}</div>
+              {group.pages.map((page) => {
+                const Icon = PAGE_ICONS[page];
+                const active = route.page === page;
+                const isPinned = pins.includes(page);
+                return (
+                  <div key={page} className="group flex items-center">
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={() => go(page)}
+                      aria-current={active ? 'page' : undefined}
+                      className={`${menuRow} ${active ? 'font-medium text-[var(--series-blue)]' : ''}`}
+                    >
+                      <Icon size={19} strokeWidth={1.75} aria-hidden="true" className={`shrink-0 ${active ? '' : 'text-[var(--text-secondary)]'}`} />
+                      {PAGE_LABELS[page]}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => togglePin(page)}
+                      aria-pressed={isPinned}
+                      aria-label={isPinned ? `Unpin ${PAGE_LABELS[page]} from the rail` : `Pin ${PAGE_LABELS[page]} to the rail`}
+                      title={isPinned ? 'Unpin from the rail' : 'Pin to the rail'}
+                      className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-md hover:bg-[var(--surface-sunken)] ${
+                        isPinned ? 'text-[var(--warning)]' : 'text-[var(--text-muted)] opacity-0 group-hover:opacity-100 focus-visible:opacity-100'
+                      }`}
+                    >
+                      <Star size={16} fill={isPinned ? 'currentColor' : 'none'} aria-hidden="true" />
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          ))}
+          <div className="my-1.5 border-t border-[var(--border)]" />
+          <div className="flex items-center gap-3 px-2.5 py-1.5">
+            <span className="flex h-[19px] w-[19px] shrink-0 items-center justify-center rounded-full bg-[var(--accent)] text-[9px] font-bold text-[var(--accent-text)]">
+              {initials(userName)}
+            </span>
+            <span className="min-w-0 truncate text-sm font-medium">{userName ?? 'ADD DOTS'}</span>
           </div>
-        ))}
-      </nav>
-
-      <div className="mt-auto flex flex-col gap-0.5 border-t border-[var(--border)] pt-3">
-        {collapsed ? (
-          <span className="flex min-h-9 items-center px-[0.9rem]" title={live ? 'Live via Upstox' : 'Upstox not connected'}>
-            <Dot color={live ? 'var(--good)' : 'var(--warning)'} />
-          </span>
-        ) : (
-          <div className="px-2.5 py-1.5">
+          <div className="px-2.5 pb-1.5">
             <BrokerBadge status={broker} />
           </div>
-        )}
-        <button type="button" onClick={toggle} title={tip(theme === 'light' ? 'Dark theme' : 'Light theme')} className={sideItem(false)}>
-          {theme === 'light' ? <Moon size={19} aria-hidden="true" className="shrink-0" /> : <Sun size={19} aria-hidden="true" className="shrink-0" />}
-          {!collapsed && (theme === 'light' ? 'Dark theme' : 'Light theme')}
-        </button>
-        <div className={`${sideItem(false)} pointer-events-none`} title={tip(userName ?? 'ADD DOTS')}>
-          <span className="flex h-[19px] w-[19px] shrink-0 items-center justify-center rounded-full bg-[var(--accent)] text-[9px] font-bold text-[var(--accent-text)]">
-            {initials(userName)}
-          </span>
-          {!collapsed && <span className="truncate">{userName ?? 'ADD DOTS'}</span>}
-        </div>
-        {showLogout && (
-          <button type="button" onClick={onLogout} title={tip('Sign out')} className={`${sideItem(false)} !text-[var(--critical)]`}>
-            <LogOut size={19} aria-hidden="true" className="shrink-0" />
-            {!collapsed && 'Sign out'}
+          <button type="button" role="menuitem" onClick={toggle} className={menuRow}>
+            {theme === 'light' ? <Moon size={19} aria-hidden="true" className="shrink-0" /> : <Sun size={19} aria-hidden="true" className="shrink-0" />}
+            {theme === 'light' ? 'Dark theme' : 'Light theme'}
           </button>
-        )}
-        <button
-          type="button"
-          onClick={toggleCollapsed}
-          aria-expanded={!collapsed}
-          aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-          title={tip('Expand sidebar')}
-          className={sideItem(false)}
-        >
-          {collapsed ? <PanelLeftOpen size={19} aria-hidden="true" className="shrink-0" /> : <PanelLeftClose size={19} aria-hidden="true" className="shrink-0" />}
-          {!collapsed && 'Collapse'}
-        </button>
-      </div>
-    </aside>
+          {showLogout && (
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => {
+                setOpen(false);
+                onLogout();
+              }}
+              className={`${menuRow} text-[var(--critical)]`}
+            >
+              <LogOut size={19} aria-hidden="true" className="shrink-0" />
+              Sign out
+            </button>
+          )}
+        </div>
+      )}
+    </>
   );
 }
 
@@ -391,8 +446,8 @@ export function AppHeader({
 
   return (
     <>
-    <Sidebar route={route} onNavigate={go} broker={broker} onLogout={onLogout} showLogout={showLogout} />
-    {/* Phones keep a slim top bar (page title and account); on desktop the sidebar holds all of it. */}
+    <RightRail route={route} onNavigate={go} broker={broker} onLogout={onLogout} showLogout={showLogout} />
+    {/* Phones keep a slim top bar (page title and account); on desktop the right rail holds all of it. */}
     <header className="safe-top sticky top-0 z-30 border-b border-[var(--border)] bg-[var(--surface-raised)] md:hidden">
       <div className="safe-x flex h-[var(--header-h)] w-full items-center gap-x-4">
         <div className="flex h-full min-w-0 items-center gap-2.5">

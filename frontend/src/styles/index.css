@@ -168,12 +168,9 @@ label,
 @media (min-width: 768px) {
   :root {
     --tabbar-h: 0px;
-    /* Desktop has no top header: the sidebar holds navigation, so pages start at the very top. */
+    /* Desktop has no top header: a slim rail on the right holds navigation, so pages start at the very top. */
     --header-h: 0px;
-    --sidebar-w: 13.5rem;
-  }
-  :root[data-sidebar='collapsed'] {
-    --sidebar-w: 3.75rem;
+    --rail-w: 3.25rem;
   }
 }
 @media (min-width: 1024px) {
