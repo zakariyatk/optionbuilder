@@ -35,7 +35,14 @@ export interface NavItem {
 
 export type NavEntry = { label: string; items: NavItem[] } | { label: string; page: PageId };
 
-/** Top-bar navigation: dropdown groups, then plain links. */
+/** Desktop sidebar: every page, under a heading per group. */
+export const SIDEBAR: { label: string; pages: PageId[] }[] = [
+  { label: 'Trade', pages: ['builder', 'drafts'] },
+  { label: 'Analyse', pages: ['chart', 'oi', 'chain', 'report'] },
+  { label: 'Invest', pages: ['portfolio'] },
+];
+
+/** Phone navigation groups: plain links, and groups that open as a sheet from the tab bar. */
 export const NAV: NavEntry[] = [
   {
     label: 'Trade',
@@ -44,10 +51,11 @@ export const NAV: NavEntry[] = [
       { page: 'drafts', description: 'Saved strategies, tracked live' },
     ],
   },
+  // The chart has its own tab on phones, so it isn't repeated in the Analyse sheet.
+  { label: 'Chart', page: 'chart' },
   {
     label: 'Analyse',
     items: [
-      { page: 'chart', description: 'TradingView chart with indicators and drawing tools' },
       { page: 'oi', description: 'OI and OI change by strike, over any part of the day' },
       { page: 'chain', description: 'Full chain with OI, volume and IV' },
       { page: 'report', description: 'Levels, flows, global cues and news' },
@@ -61,6 +69,7 @@ export type MobileTab = { label: string; icon: LucideIcon; page: PageId } | { la
 export const MOBILE_TABS: MobileTab[] = [
   { label: 'Builder', icon: Layers, page: 'builder' },
   { label: 'Drafts', icon: FolderOpen, page: 'drafts' },
+  { label: 'Chart', icon: ChartCandlestick, page: 'chart' },
   { label: 'Analyse', icon: ChartLine, group: 'Analyse' },
   { label: 'Portfolio', icon: PieChart, page: 'portfolio' },
 ];

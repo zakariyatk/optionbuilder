@@ -379,7 +379,7 @@ function Workspace({ showLogout, onLogout }: { showLogout: boolean; onLogout: ()
       <AlertMonitor />
 
       <main
-        className={`safe-x w-full pt-4 ${route.page === 'chart' ? 'md:py-3' : 'md:py-5'}`}
+        className={`safe-x w-full pt-4 md:ml-[var(--sidebar-w)] md:w-auto md:transition-[margin] md:duration-200 ${route.page === 'chart' ? 'md:py-3' : 'md:py-5'}`}
         style={{ paddingBottom: `calc(var(--tabbar-h) + ${route.page === 'chart' ? '0.75rem' : '1.25rem'})` }}
       >
         {marketPage && route.page !== 'builder' && (
