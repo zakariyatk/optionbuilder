@@ -88,7 +88,9 @@ describe('US session', () => {
   it('picks the session from the symbol', () => {
     expect(sessionFor('US:AAPL')).toBe(US_SESSION);
     expect(sessionFor('NIFTY').name).toBe('NSE');
-    expect(sessionFor('US:XAUUSD')).toBe(ROUND_CLOCK_SESSION);
+    expect(sessionFor('US:XAGUSD')).toBe(ROUND_CLOCK_SESSION);
+    // Gold charts PAXG on Binance, which trades every day.
+    expect(sessionFor('US:XAUUSD')).toBe(CRYPTO_SESSION);
     expect(sessionFor('US:EURUSD')).toBe(ROUND_CLOCK_SESSION);
     expect(sessionFor('US:BTCUSD')).toBe(CRYPTO_SESSION);
     expect(sessionFor('US:SPX')).toBe(US_SESSION);

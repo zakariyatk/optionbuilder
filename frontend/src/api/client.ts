@@ -1,4 +1,5 @@
 import type { OiHistory } from '../domain/oi';
+import { binanceCandles, binancePair, binanceQuote } from '../lib/binance';
 import type {
   AuthStatus,
   BrokerMargin,
@@ -112,14 +113,31 @@ export const api = {
   symbols: () => get<SymbolsResponse>('/api/symbols'),
   /** OHLCV candles from Upstox: [unix seconds, open, high, low, close, volume], oldest first. */
   candles: (symbol: string, tf: string) =>
-    get<{ symbol: string; tf: string; candles: [number, number, number, number, number, number][] }>(
-      `/api/candles?symbol=${encodeURIComponent(symbol)}&tf=${encodeURIComponent(tf)}`,
-    ),
+    // Gold comes live from Binance (PAXG), straight from the browser.
+    binancePair(symbol)
+      ? binanceCandles(symbol, tf)
+      : get<{ symbol: string; tf: string; candles: [number, number, number, number, number, number][] }>(
+          `/api/candles?symbol=${encodeURIComponent(symbol)}&tf=${encodeURIComponent(tf)}`,
+        ),
   /** Per-minute OI per strike for one expiry, for the Open Interest page's time window. */
   oiIntraday: (symbol: string, expiry: string, min: number, max: number) =>
     get<OiHistory>(`/api/oi-intraday?${new URLSearchParams({ symbol, expiry, min: String(min), max: String(max) })}`),
-  watch: (symbols: string[]) => get<{ quotes: WatchQuote[] }>(`/api/watch?symbols=${encodeURIComponent(symbols.join(','))}`),
-  spot: (symbol: string) => get<SpotQuote>(`/api/spot?symbol=${encodeURIComponent(symbol)}`),
+  watch: async (symbols: string[]): Promise<{ quotes: WatchQuote[] }> => {
+    // Binance-priced symbols (gold) are quoted live from Binance; the rest from the backend, in the order asked.
+    const rest = symbols.filter((s) => !binancePair(s));
+    const [server, live] = await Promise.all([
+      rest.length ? get<{ quotes: WatchQuote[] }>(`/api/watch?symbols=${encodeURIComponent(rest.join(','))}`) : { quotes: [] },
+      Promise.all(
+        symbols
+          .filter((s) => binancePair(s))
+          .map((s): Promise<WatchQuote> => binanceQuote(s).catch(() => ({ symbol: s, error: true }))),
+      ),
+    ]);
+    const by = new Map([...server.quotes, ...live].map((q) => [q.symbol, q]));
+    return { quotes: symbols.map((s) => by.get(s) ?? { symbol: s, error: true }) };
+  },
+  spot: (symbol: string) =>
+    binancePair(symbol) ? binanceQuote(symbol) : get<SpotQuote>(`/api/spot?symbol=${encodeURIComponent(symbol)}`),
   optionChain: (symbol: string, expiry?: string) => {
     const q = new URLSearchParams({ symbol });
     if (expiry) q.set('expiry', expiry);
