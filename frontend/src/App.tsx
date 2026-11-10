@@ -378,8 +378,9 @@ function Workspace({ showLogout, onLogout }: { showLogout: boolean; onLogout: ()
       <AppHeader route={route} onNavigate={navigate} broker={broker} onLogout={onLogout} showLogout={showLogout} />
       <AlertMonitor />
 
+      {/* The chart fills the screen edge to edge on desktop (beside the rail); other pages keep their margins. */}
       <main
-        className={`safe-x w-full pt-4 md:ml-[var(--sidebar-w)] md:w-auto md:transition-[margin] md:duration-200 ${route.page === 'chart' ? 'md:py-3' : 'md:py-5'}`}
+        className={`safe-x w-full pt-4 md:mr-[var(--rail-w)] md:w-auto ${route.page === 'chart' ? 'md:!p-0' : 'md:py-5'}`}
         style={{ paddingBottom: `calc(var(--tabbar-h) + ${route.page === 'chart' ? '0.75rem' : '1.25rem'})` }}
       >
         {marketPage && route.page !== 'builder' && (

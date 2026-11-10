@@ -25,6 +25,7 @@ import { ReplayBar } from './ReplayBar';
 import { SymbolSearch } from './SymbolSearch';
 import { Watchlist } from './Watchlist';
 import { MobileChart, PHONE_LANDSCAPE_QUERY } from './mobile/MobileChart';
+import { useRail } from '../../store/rail';
 
 /** The theme actually applied to the page: the explicit choice on <html>, else the OS preference. */
 function usePageTheme(): 'light' | 'dark' {
@@ -93,6 +94,8 @@ export function ChartPage({
   const [configuring, setConfiguring] = useState(false);
   const panel = useRef<HTMLDivElement>(null);
   const [fullscreen, setFullscreen] = useState(false);
+  /** The right rail's watchlist button shows / hides the watchlist column. */
+  const watchlistOpen = useRail((s) => s.watchlistOpen);
   useEffect(() => {
     const onChange = () => setFullscreen(document.fullscreenElement === panel.current && panel.current !== null);
     document.addEventListener('fullscreenchange', onChange);
@@ -112,8 +115,8 @@ export function ChartPage({
     );
   }
 
-  // Fills the window under the header (less <main>'s padding), so the page itself never scrolls.
-  const panelHeight = 'max(420px, calc(100dvh - var(--header-h) - 1px - env(safe-area-inset-top) - 1.5rem))';
+  // Full screen: the whole window height (the page has no header or padding here), so the page itself never scrolls.
+  const panelHeight = 'max(420px, calc(100dvh - var(--header-h) - env(safe-area-inset-top)))';
   const layout = layoutById(layoutId);
   const count = chartCount(layout);
   const act = () => actionsFor(active).current;
@@ -123,10 +126,10 @@ export function ChartPage({
     else void panel.current?.requestFullscreen();
   };
   return (
-    <div className="ob-tv grid grid-cols-1 gap-3 lg:grid-cols-[minmax(0,1fr)_320px]">
+    <div className={`ob-tv grid grid-cols-1 ${watchlistOpen ? 'lg:grid-cols-[minmax(0,1fr)_320px]' : ''}`}>
       <div
         ref={panel}
-        className="ob-tv-panel flex flex-col overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--surface-card)]"
+        className="ob-tv-panel flex flex-col overflow-hidden border-[var(--border)] bg-[var(--surface-card)] lg:border-r"
         style={{ height: fullscreen ? '100vh' : panelHeight }}
       >
         {/* TradingView's top toolbar, for the selected chart. Above the charts (their labels use z-index) so its menus open over them. */}
@@ -201,8 +204,11 @@ export function ChartPage({
         </div>
         {activeReplay && <ReplayBar replay={activeReplay} />}
       </div>
-      <div className="flex min-h-[420px] flex-col lg:min-h-0" style={{ height: panelHeight }}>
+      <div className="flex min-h-[420px] flex-col lg:min-h-0" style={{ height: panelHeight }} hidden={!watchlistOpen}>
         <Watchlist symbolInfo={symbolInfo} selected={chartSymbols[active]} onSelect={(s) => setSymbol(s)} onOpenBuilder={onOpenBuilder} />
+      </div>
+      {/* Outside the watchlist column, so they open even with the watchlist hidden. */}
+      <div className="contents">
         {searching && <SymbolSearch symbolInfo={symbolInfo} onPick={(s) => setSymbol(s)} onClose={() => setSearching(false)} />}
         {configuring && <ChartSettingsDialog theme={theme} onClose={() => setConfiguring(false)} />}
       </div>
