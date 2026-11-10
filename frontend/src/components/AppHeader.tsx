@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { ChevronDown, ExternalLink, LogOut, Moon, Sun } from 'lucide-react';
+import { ChevronDown, ExternalLink, LogOut, Moon, PanelLeftClose, PanelLeftOpen, Sun } from 'lucide-react';
 import { UPSTOX_LOGIN_URL } from '../api/client';
 import type { AuthStatus } from '../api/types';
 import { useTheme } from '../hooks/useTheme';
-import { MOBILE_TABS, NAV, PAGE_ICONS, PAGE_LABELS, type NavItem, type PageId, type Route } from './tabs';
+import { MOBILE_TABS, NAV, PAGE_ICONS, PAGE_LABELS, SIDEBAR, type NavItem, type PageId, type Route } from './tabs';
 import { Logo } from './Logo';
 import { Dot } from './ui';
 
@@ -225,17 +225,151 @@ function MobileTabBar({ route, onNavigate }: { route: Route; onNavigate: (page: 
   );
 }
 
-const navItemClass = (active: boolean) =>
-  `relative flex h-full items-center gap-1 px-3 text-sm font-medium transition-colors ${
-    active
-      ? 'text-[var(--text-primary)] after:absolute after:inset-x-2 after:bottom-0 after:h-[3px] after:rounded-t after:bg-[var(--accent)]'
-      : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
-  }`;
-
 function initials(name: string | null | undefined): string {
   const parts = (name ?? '').trim().split(/\s+/).filter(Boolean);
   if (!parts.length) return 'AD';
   return (parts[0][0] + (parts.length > 1 ? parts[parts.length - 1][0] : '')).toUpperCase();
+}
+
+const SIDEBAR_KEY = 'ob.sidebar';
+
+/** The sidebar's collapsed state, remembered per browser, and mirrored on <html> so --sidebar-w follows it. */
+function useSidebarCollapsed(): [boolean, () => void] {
+  const [collapsed, setCollapsed] = useState(() => {
+    try {
+      return localStorage.getItem(SIDEBAR_KEY) === 'collapsed';
+    } catch {
+      return false;
+    }
+  });
+  useEffect(() => {
+    const root = document.documentElement;
+    root.setAttribute('data-sidebar', collapsed ? 'collapsed' : 'open');
+    try {
+      localStorage.setItem(SIDEBAR_KEY, collapsed ? 'collapsed' : 'open');
+    } catch {
+      /* private window: the choice just isn't remembered */
+    }
+    return () => root.removeAttribute('data-sidebar');
+  }, [collapsed]);
+  return [collapsed, () => setCollapsed((c) => !c)];
+}
+
+const sideItem = (active: boolean) =>
+  `flex min-h-9 w-full items-center gap-3 rounded-md px-2.5 py-1.5 text-left text-sm transition-colors ${
+    active
+      ? 'bg-[color-mix(in_srgb,var(--series-blue)_14%,transparent)] font-medium text-[var(--series-blue)]'
+      : 'text-[var(--text-secondary)] hover:bg-[var(--surface-sunken)] hover:text-[var(--text-primary)]'
+  }`;
+
+/** Desktop navigation and account controls: a left sidebar in place of a top header, collapsible to icons. */
+function Sidebar({
+  route,
+  onNavigate,
+  broker,
+  onLogout,
+  showLogout,
+}: {
+  route: Route;
+  onNavigate: (page: PageId) => void;
+  broker: AuthStatus | null;
+  onLogout: () => void;
+  showLogout: boolean;
+}) {
+  const { theme, toggle } = useTheme();
+  const [collapsed, toggleCollapsed] = useSidebarCollapsed();
+  const userName = broker?.token?.user_name ?? null;
+  const live = !!(broker?.authenticated || broker?.marketData);
+  // Collapsed, a label shows as the button's tooltip instead.
+  const tip = (text: string) => (collapsed ? text : undefined);
+
+  return (
+    <aside
+      aria-label="Main"
+      className="safe-top fixed inset-y-0 left-0 z-30 hidden flex-col overflow-y-auto overflow-x-hidden border-r border-[var(--border)] bg-[var(--surface-raised)] px-2 py-3 transition-[width] duration-200 md:flex"
+      style={{ width: 'var(--sidebar-w)' }}
+    >
+      <div className="mb-3 flex items-center gap-2.5 px-1">
+        <a className="ob-logo shrink-0" href="https://www.adddots.com/" aria-label="ADD DOTS home">
+          <Logo size={28} />
+        </a>
+        {!collapsed && (
+          <button type="button" onClick={() => onNavigate('builder')} className="ob-title truncate !text-base">
+            AddStock
+          </button>
+        )}
+      </div>
+
+      <nav className="flex flex-col gap-0.5">
+        {SIDEBAR.map((group) => (
+          <div key={group.label} className="flex flex-col gap-0.5">
+            {collapsed ? (
+              <div className="mx-2.5 my-2 border-t border-[var(--border)]" aria-hidden="true" />
+            ) : (
+              <div className="px-2.5 pb-1 pt-3 text-[11px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">{group.label}</div>
+            )}
+            {group.pages.map((page) => {
+              const Icon = PAGE_ICONS[page];
+              const active = route.page === page;
+              return (
+                <button
+                  key={page}
+                  type="button"
+                  onClick={() => onNavigate(page)}
+                  aria-current={active ? 'page' : undefined}
+                  aria-label={collapsed ? PAGE_LABELS[page] : undefined}
+                  title={tip(PAGE_LABELS[page])}
+                  className={sideItem(active)}
+                >
+                  <Icon size={19} strokeWidth={active ? 2.1 : 1.75} aria-hidden="true" className="shrink-0" />
+                  {!collapsed && <span className="truncate">{PAGE_LABELS[page]}</span>}
+                </button>
+              );
+            })}
+          </div>
+        ))}
+      </nav>
+
+      <div className="mt-auto flex flex-col gap-0.5 border-t border-[var(--border)] pt-3">
+        {collapsed ? (
+          <span className="flex min-h-9 items-center px-[0.9rem]" title={live ? 'Live via Upstox' : 'Upstox not connected'}>
+            <Dot color={live ? 'var(--good)' : 'var(--warning)'} />
+          </span>
+        ) : (
+          <div className="px-2.5 py-1.5">
+            <BrokerBadge status={broker} />
+          </div>
+        )}
+        <button type="button" onClick={toggle} title={tip(theme === 'light' ? 'Dark theme' : 'Light theme')} className={sideItem(false)}>
+          {theme === 'light' ? <Moon size={19} aria-hidden="true" className="shrink-0" /> : <Sun size={19} aria-hidden="true" className="shrink-0" />}
+          {!collapsed && (theme === 'light' ? 'Dark theme' : 'Light theme')}
+        </button>
+        <div className={`${sideItem(false)} pointer-events-none`} title={tip(userName ?? 'ADD DOTS')}>
+          <span className="flex h-[19px] w-[19px] shrink-0 items-center justify-center rounded-full bg-[var(--accent)] text-[9px] font-bold text-[var(--accent-text)]">
+            {initials(userName)}
+          </span>
+          {!collapsed && <span className="truncate">{userName ?? 'ADD DOTS'}</span>}
+        </div>
+        {showLogout && (
+          <button type="button" onClick={onLogout} title={tip('Sign out')} className={`${sideItem(false)} !text-[var(--critical)]`}>
+            <LogOut size={19} aria-hidden="true" className="shrink-0" />
+            {!collapsed && 'Sign out'}
+          </button>
+        )}
+        <button
+          type="button"
+          onClick={toggleCollapsed}
+          aria-expanded={!collapsed}
+          aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          title={tip('Expand sidebar')}
+          className={sideItem(false)}
+        >
+          {collapsed ? <PanelLeftOpen size={19} aria-hidden="true" className="shrink-0" /> : <PanelLeftClose size={19} aria-hidden="true" className="shrink-0" />}
+          {!collapsed && 'Collapse'}
+        </button>
+      </div>
+    </aside>
+  );
 }
 
 export function AppHeader({
@@ -257,7 +391,9 @@ export function AppHeader({
 
   return (
     <>
-    <header className="safe-top sticky top-0 z-30 border-b border-[var(--border)] bg-[var(--surface-raised)]">
+    <Sidebar route={route} onNavigate={go} broker={broker} onLogout={onLogout} showLogout={showLogout} />
+    {/* Phones keep a slim top bar (page title and account); on desktop the sidebar holds all of it. */}
+    <header className="safe-top sticky top-0 z-30 border-b border-[var(--border)] bg-[var(--surface-raised)] md:hidden">
       <div className="safe-x flex h-[var(--header-h)] w-full items-center gap-x-4">
         <div className="flex h-full min-w-0 items-center gap-2.5">
           <a className="ob-logo" href="https://www.adddots.com/" aria-label="ADD DOTS home">
@@ -272,50 +408,7 @@ export function AppHeader({
           <span className="truncate text-sm font-semibold text-[var(--text-primary)]">{PAGE_LABELS[route.page]}</span>
         </div>
 
-        <nav aria-label="Main" className="hidden h-full flex-1 items-stretch justify-center gap-1 md:flex">
-          {NAV.map((entry) =>
-            'page' in entry ? (
-              <button
-                key={entry.label}
-                type="button"
-                onClick={() => go(entry.page)}
-                aria-current={route.page === entry.page ? 'page' : undefined}
-                className={navItemClass(route.page === entry.page)}
-              >
-                {entry.label}
-              </button>
-            ) : (
-              <Menu
-                key={entry.label}
-                label={`${entry.label} menu`}
-                trigger={(open) => (
-                  <span className={navItemClass(entry.items.some((i) => i.page === route.page))}>
-                    {entry.label} <Chevron open={open} />
-                  </span>
-                )}
-              >
-                {(close) =>
-                  entry.items.map((item) => (
-                    <PageItem
-                      key={item.page}
-                      item={item}
-                      active={route.page === item.page}
-                      onClick={() => {
-                        go(item.page);
-                        close();
-                      }}
-                    />
-                  ))
-                }
-              </Menu>
-            ),
-          )}
-        </nav>
-
-        <div className="ml-auto flex h-full shrink-0 items-center gap-3 md:ml-0">
-          <span className="hidden lg:block">
-            <BrokerBadge status={broker} />
-          </span>
+        <div className="ml-auto flex h-full shrink-0 items-center gap-3">
           <Menu
             label="Account menu"
             align="right"
