@@ -52,11 +52,20 @@ type Kline = [number, string, string, string, string, string, ...unknown[]];
 const toCandle = (k: Kline): Candle => [Math.floor(k[0] / 1000), +k[1], +k[2], +k[3], +k[4], +k[5]];
 
 /** Candles shaped like /api/candles: [unix seconds, open, high, low, close, volume], oldest first. */
-export async function binanceCandles(symbol: string, tf: string): Promise<{ symbol: string; tf: string; candles: Candle[] }> {
+export async function binanceCandles(
+  symbol: string,
+  tf: string,
+  /** Unix ms: only the bars from this one on (one request), for a live poll that already has the history. */
+  since?: number,
+): Promise<{ symbol: string; tf: string; candles: Candle[] }> {
   const pair = binancePair(symbol);
   const spec = INTERVALS[tf];
   if (!pair || !spec) throw new Error(`No Binance data for ${symbol} ${tf}`);
   const [interval, pages] = spec;
+  if (since) {
+    const q = new URLSearchParams({ symbol: pair, interval, startTime: String(since), limit: '1000' });
+    return { symbol, tf, candles: (await get<Kline[]>(`/api/v3/klines?${q}`)).map(toCandle) };
+  }
   let candles: Candle[] = [];
   let end: number | null = null;
   for (let p = 0; p < pages; p++) {

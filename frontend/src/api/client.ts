@@ -112,10 +112,11 @@ export const api = {
 
   symbols: () => get<SymbolsResponse>('/api/symbols'),
   /** OHLCV candles from Upstox: [unix seconds, open, high, low, close, volume], oldest first. */
-  candles: (symbol: string, tf: string) =>
+  /** `since` (unix ms) asks for only the newest bars where the source can serve that (Binance); others send all. */
+  candles: (symbol: string, tf: string, since?: number) =>
     // Gold comes live from Binance (PAXG), straight from the browser.
     binancePair(symbol)
-      ? binanceCandles(symbol, tf)
+      ? binanceCandles(symbol, tf, since)
       : get<{ symbol: string; tf: string; candles: [number, number, number, number, number, number][] }>(
           `/api/candles?symbol=${encodeURIComponent(symbol)}&tf=${encodeURIComponent(tf)}`,
         ),
