@@ -68,6 +68,8 @@ interface FeedHooks {
   onLoaded: (ticker: string) => void;
   /** Bar replay owns the chart: live bars must not be painted. */
   paused: () => boolean;
+  /** Overwrites bars the chart already has (by timestamp) with these; the next bar sent repaints them. */
+  patch: (bars: KLineData[]) => void;
 }
 
 /**
@@ -176,11 +178,18 @@ function upstoxDatafeed(symbols: () => SymbolInfo[], hooks: FeedHooks): Datafeed
         if (document.visibilityState !== 'visible') return;
         try {
           const bars = await loadCandles(symbol.ticker, period);
-          // Every bar from the newest one the chart has onwards, not just the latest two: after the tab was hidden
-          // (polling pauses) or the network dropped, the bars missed meanwhile must fill in, or the chart shows a gap.
+          if (!sub.alive || hooks.paused()) return;
+          // Every bar from the newest one the poll had last time onwards, not just the latest two: after the tab was
+          // hidden (polling pauses) or the network dropped, the bars missed meanwhile must fill in, or the chart shows a gap.
           // With no starting point, only the latest two, so a first poll never replays the whole history.
-          const from = Math.max(last, bar?.timestamp ?? 0);
-          for (const b of from ? bars.filter((x) => x.timestamp >= from) : bars.slice(-2)) send(b);
+          const fresh = last ? bars.filter((x) => x.timestamp >= last) : bars.slice(-2);
+          // The chart only takes a bar at or after its last one. Bars the live quote opened ahead of the feed (a
+          // delayed feed, or a poll that lagged) get their real OHLC written over the quote-built ones instead.
+          const end = bar?.timestamp ?? 0;
+          hooks.patch(fresh.filter((x) => x.timestamp < end));
+          const ahead = fresh.filter((x) => x.timestamp >= end);
+          if (ahead.length) for (const b of ahead) send(b);
+          else if (bar) send(bar); // repaint what was patched
           last = bars[bars.length - 1]?.timestamp ?? last;
         } catch {
           /* keep the chart as is; the next poll retries */
@@ -195,7 +204,11 @@ function upstoxDatafeed(symbols: () => SymbolInfo[], hooks: FeedHooks): Datafeed
           // The chart's own 2s quote also checks this symbol's alerts, so they fire without waiting for the app-wide monitor.
           signalAlerts(useAlerts.getState().observe(symbol.ticker, price));
           const span = periodMs(period);
-          const now = Date.now();
+          // The time of the price itself, not the clock: a delayed feed (Yahoo's gold and futures run ~10 min behind)
+          // must not open candles for minutes it has no prices for yet — they'd only ever hold one stale, flat price.
+          const now = q.marketTime > 0 ? Math.min(q.marketTime * 1000, Date.now()) : Date.now();
+          // A price from before the forming bar (the poll moved on) belongs to a finished bar: leave it.
+          if (span !== null && now < bar.timestamp) return;
           if (span !== null && now >= bar.timestamp + span) {
             // Open the next bar only when it directly follows this one (not across a session gap; the candle poll brings that).
             if (now < bar.timestamp + 2 * span) send({ timestamp: bar.timestamp + span, open: price, high: price, low: price, close: price, volume: 0 });
@@ -426,6 +439,16 @@ export function ProChart({
         onLoadedRef.current?.(ticker);
       },
       paused: () => replay?.holdsChart() ?? false,
+      patch: (bars) => {
+        const list = bars.length ? innerChart(el)?.getDataList() : null;
+        if (!list) return;
+        // klinecharts' updateData only replaces the last bar; its data list is the live array, so older ones are set in place.
+        let i = list.length - 1;
+        for (const b of [...bars].reverse()) {
+          while (i >= 0 && list[i].timestamp > b.timestamp) i--;
+          if (i >= 0 && list[i].timestamp === b.timestamp) list[i] = b;
+        }
+      },
       flush: () => {
         const q = queued.current;
         if (!q.symbol && !q.period) return false;

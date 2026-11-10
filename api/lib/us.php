@@ -143,6 +143,7 @@ function ob_yahoo_candles(string $symbol, string $tf): array
         throw new RuntimeException('No chart data for ' . ob_us_ticker($symbol));
     }
 
+    $step = ['1m' => 60, '5m' => 300, '15m' => 900, '30m' => 1800, '60m' => 3600][$interval] ?? 0;
     $bars = [];
     foreach ($ts as $i => $t) {
         $o = $q['open'][$i] ?? null;
@@ -153,7 +154,18 @@ function ob_yahoo_candles(string $symbol, string $tf): array
         if (!is_numeric($o) || !is_numeric($h) || !is_numeric($l) || !is_numeric($c)) {
             continue;
         }
-        $bars[] = [(int) $t, round((float) $o, 4), round((float) $h, 4), round((float) $l, 4), round((float) $c, 4), (float) ($q['volume'][$i] ?? 0)];
+        $bar = [(int) $t, round((float) $o, 4), round((float) $h, 4), round((float) $l, 4), round((float) $c, 4), (float) ($q['volume'][$i] ?? 0)];
+        // Yahoo ends an intraday series with a "now" row stamped mid-bar (17:19:30 on 1m): it belongs to the bar it falls in,
+        // or the chart draws it as an extra flat candle off the time grid.
+        $n = count($bars);
+        if ($step && $n && $bar[0] < $bars[$n - 1][0] + $step) {
+            $bars[$n - 1][2] = max($bars[$n - 1][2], $bar[2]);
+            $bars[$n - 1][3] = min($bars[$n - 1][3], $bar[3]);
+            $bars[$n - 1][4] = $bar[4];
+            $bars[$n - 1][5] += $bar[5];
+            continue;
+        }
+        $bars[] = $bar;
     }
 
     return $group > 1 ? ob_group_session_bars($bars, $group, (string) ($r['meta']['exchangeTimezoneName'] ?? 'America/New_York')) : $bars;
