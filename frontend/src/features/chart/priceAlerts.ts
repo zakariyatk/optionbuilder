@@ -118,7 +118,6 @@ let registered = false;
 
 const BELL =
   '<path d="M16 7a6 6 0 0 0-6 6v4l-2 3h16l-2-3v-4a6 6 0 0 0-6-6Z" fill="none" stroke-width="1.5"/><path d="M14 23a2 2 0 0 0 4 0" fill="none" stroke-width="1.5"/>';
-const PLUS = '<svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true"><circle cx="10" cy="10" r="8.5" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M10 6v8M6 10h8" stroke="currentColor" stroke-width="1.4"/></svg>';
 
 /**
  * Wires alerts into the Pro chart inside `container`. `symbol()` is the
@@ -202,23 +201,8 @@ export function installPriceAlerts(container: HTMLElement, symbol: () => string)
     bellIcon()?.classList.add('selected');
   };
 
-  // ------------------------------------------------ "+" by the price axis
-  const plus = document.createElement('button');
-  plus.type = 'button';
-  plus.className = 'ob-alert-plus';
-  plus.innerHTML = PLUS;
-  plus.setAttribute('aria-label', 'Add alert or line at this price');
-  plus.title = 'Add alert or line at this price';
-  plus.hidden = true;
-  const menu = document.createElement('div');
-  menu.className = 'ob-alert-menu';
-  menu.setAttribute('role', 'menu');
-  menu.hidden = true;
-  container.append(plus, menu);
-
+  // ------------------------------------------------ the price under the cursor, for Alt + A / Alt + H
   let cursorPrice: number | null = null;
-  let menuPrice: number | null = null;
-  let hideTimer = 0;
 
   const priceAtClientY = (clientY: number): number | null => {
     const c = getChart();
@@ -232,74 +216,15 @@ export function installPriceAlerts(container: HTMLElement, symbol: () => string)
   };
 
   const onMove = (e: MouseEvent) => {
-    const c = getChart();
-    const axis = c?.getDom(CANDLE_PANE, DomPosition.YAxis);
-    const price = priceAtClientY(e.clientY);
-    if (!axis || price === null || !menu.hidden) {
-      if (menu.hidden) cursorPrice = price;
-      return;
-    }
-    cursorPrice = price;
-    const a = axis.getBoundingClientRect();
-    const host = container.getBoundingClientRect();
-    window.clearTimeout(hideTimer);
-    plus.hidden = false;
-    plus.style.left = `${a.left - host.left - 24}px`;
-    plus.style.top = `${e.clientY - host.top - 11}px`;
+    cursorPrice = priceAtClientY(e.clientY);
   };
   const onLeave = () => {
-    hideTimer = window.setTimeout(() => {
-      if (!plus.matches(':hover') && menu.hidden) {
-        plus.hidden = true;
-        cursorPrice = null;
-      }
-    }, 400);
+    cursorPrice = null;
   };
 
-  const closeMenu = () => {
-    menu.hidden = true;
-    plus.hidden = true;
-  };
-  const item = (label: string, keys: string, run: () => void) => {
-    const b = document.createElement('button');
-    b.type = 'button';
-    b.setAttribute('role', 'menuitem');
-    b.innerHTML = `<span></span><kbd>${keys}</kbd>`;
-    b.firstElementChild!.textContent = label;
-    b.addEventListener('click', () => {
-      run();
-      closeMenu();
-    });
-    return b;
-  };
-  const openMenu = () => {
-    if (cursorPrice === null) return;
-    menuPrice = cursorPrice;
-    const p = menuPrice;
-    menu.replaceChildren(
-      item(`Add alert on ${symbol()} at ${fmt(p)}`, 'Alt + A', () => addAlert(p)),
-      item(`Draw horizontal line at ${fmt(p)}`, 'Alt + H', () => drawHorizontalLine(p)),
-    );
-    menu.hidden = false;
-    const host = container.getBoundingClientRect();
-    const b = plus.getBoundingClientRect();
-    const w = menu.offsetWidth;
-    menu.style.left = `${Math.max(8, b.right - host.left - w)}px`;
-    menu.style.top = `${b.bottom - host.top + 6}px`;
-    (menu.firstElementChild as HTMLElement | null)?.focus();
-  };
-  plus.addEventListener('click', (e) => {
-    e.stopPropagation();
-    if (menu.hidden) openMenu();
-    else closeMenu();
-  });
-  const onDocDown = (e: MouseEvent) => {
-    if (!menu.hidden && !menu.contains(e.target as Node) && e.target !== plus && !plus.contains(e.target as Node)) closeMenu();
-  };
   const isTyping = (t: EventTarget | null) => t instanceof HTMLElement && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName));
   const onKey = (e: KeyboardEvent) => {
     if (!container.isConnected || !isActiveChart(container) || isTyping(e.target)) return;
-    if (e.key === 'Escape' && !menu.hidden) closeMenu();
     if (!e.altKey || (e.code !== 'KeyA' && e.code !== 'KeyH')) return;
     const price = cursorPrice ?? lastPrice();
     if (price === null) return;
@@ -351,9 +276,7 @@ export function installPriceAlerts(container: HTMLElement, symbol: () => string)
   observer.observe(container, { childList: true, subtree: true });
   mountBell();
   bindWidget();
-  plus.addEventListener('mouseleave', onLeave);
   window.addEventListener('keydown', onKey);
-  document.addEventListener('mousedown', onDocDown);
   const unsubscribe = useAlerts.subscribe(sync);
 
   return {
@@ -362,12 +285,8 @@ export function installPriceAlerts(container: HTMLElement, symbol: () => string)
       observer.disconnect();
       unsubscribe();
       window.removeEventListener('keydown', onKey);
-      document.removeEventListener('mousedown', onDocDown);
       watched?.removeEventListener('mousemove', onMove);
       watched?.removeEventListener('mouseleave', onLeave);
-      window.clearTimeout(hideTimer);
-      plus.remove();
-      menu.remove();
       // The chart is torn down without removing its overlays (no onRemoved), so nothing to mark here.
       for (const id of shown) lastPriceOf.delete(id);
       shown.clear();
