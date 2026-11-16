@@ -200,6 +200,20 @@ try {
         if ($symbol === '') {
             ob_error('symbol query param is required', 400);
         }
+        // MCX commodities have no Yahoo ticker: Upstox only.
+        if (ob_is_mcx($symbol)) {
+            if (!ob_has_market_data()) {
+                ob_error('NOT_AUTHENTICATED', 401);
+            }
+            try {
+                $quote = ob_cached("spot:$symbol", fn() => ob_upstox_watch_quotes([$symbol])[$symbol] ?? throw new RuntimeException('No MCX quote'), OB_TTL_QUOTE);
+                ob_json($quote);
+            } catch (ObNotAuthenticated) {
+                ob_error('NOT_AUTHENTICATED', 401);
+            } catch (Throwable $e) {
+                ob_error('Failed to fetch spot price', 502, $e->getMessage());
+            }
+        }
         try {
             ob_json(ob_cached("spot:$symbol", fn() => ob_spot_price($symbol), OB_TTL_QUOTE));
         } catch (Throwable $e) {
@@ -240,7 +254,9 @@ try {
             }
         }
         if ($missing) {
-            $fetched = ob_spot_prices($missing);
+            // MCX commodities are Upstox-only; Yahoo has nothing to fall back on.
+            $yahoo = array_values(array_filter($missing, static fn(string $s): bool => !ob_is_mcx($s)));
+            $fetched = $yahoo ? ob_spot_prices($yahoo) : [];
             foreach ($missing as $symbol) {
                 if (isset($fetched[$symbol])) {
                     ob_cache_put("spot:$symbol", $fetched[$symbol]);

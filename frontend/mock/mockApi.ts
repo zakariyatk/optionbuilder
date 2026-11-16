@@ -467,7 +467,7 @@ export function mockApi(base: string): Plugin {
           case '/candles': {
             const symbol = url.searchParams.get('symbol') ?? 'NIFTY';
             const tf = url.searchParams.get('tf') ?? '15m';
-            const last: Record<string, number> = { NIFTY: 24175.65, BANKNIFTY: 51234.5, FINNIFTY: 23410.2, MIDCPNIFTY: 12890.4, RELIANCE: 1172.3, TCS: 3410.8, HDFCBANK: 1650.25, INFY: 1520.6, ICICIBANK: 1402.3, TATAMOTORS: 688.4, SBIN: 812.5, ITC: 405.2, USDINR: 88.7, 'US:AAPL': 342, 'US:MSFT': 520, 'US:NVDA': 185, 'US:VOO': 615 };
+            const last: Record<string, number> = { NIFTY: 24175.65, BANKNIFTY: 51234.5, FINNIFTY: 23410.2, MIDCPNIFTY: 12890.4, RELIANCE: 1172.3, TCS: 3410.8, HDFCBANK: 1650.25, INFY: 1520.6, ICICIBANK: 1402.3, TATAMOTORS: 688.4, SBIN: 812.5, ITC: 405.2, USDINR: 88.7, MCXGOLD: 134550, 'US:AAPL': 342, 'US:MSFT': 520, 'US:NVDA': 185, 'US:VOO': 615 };
             const isIndex = ['NIFTY', 'BANKNIFTY', 'FINNIFTY', 'MIDCPNIFTY'].includes(symbol);
             return send({ symbol, tf, candles: mockCandles(symbol, tf, last[symbol] ?? 1000, !isIndex) });
           }

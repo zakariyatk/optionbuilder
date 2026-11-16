@@ -6,7 +6,7 @@ import { Button } from '../../components/ui';
 import { useAsync } from '../../hooks/useAsync';
 import { num } from '../../lib/format';
 import { marketOpen, sessionFor } from '../../lib/nse';
-import { displaySymbol, isUs, marketLabel, pricePrecision, symbolCurrency } from '../../lib/markets';
+import { displaySymbol, isMcx, isUs, marketLabel, pricePrecision, symbolCurrency } from '../../lib/markets';
 import { nameOf } from '../../lib/symbolNames';
 import { activeList, useWatchlist } from '../../store/watchlist';
 import { SymbolSearch } from './SymbolSearch';
@@ -112,7 +112,7 @@ export function Watchlist({
               >
                 <span className="flex min-w-0 items-center gap-1 font-medium" title={label(s)}>
                   <span className="truncate">{displaySymbol(s)}</span>
-                  {isUs(s) && <span className="shrink-0 rounded border border-[var(--border)] px-0.5 text-[9px] text-[var(--text-muted)]">{marketLabel(s)}</span>}
+                  {(isUs(s) || isMcx(s)) && <span className="shrink-0 rounded border border-[var(--border)] px-0.5 text-[9px] text-[var(--text-muted)]">{marketLabel(s)}</span>}
                 </span>
                 <span className="w-[4.5rem] text-right">{quote ? num(quote.price, pricePrecision(s)) : q ? '—' : '…'}</span>
                 <span className="w-12 text-right" style={{ color: chg === null ? undefined : changeColor(chg) }}>
@@ -167,7 +167,7 @@ export function Watchlist({
           </dl>
         )}
         {/* Options strategies need an NSE option chain. */}
-        {!isUs(selected) && (
+        {!isUs(selected) && !isMcx(selected) && (
           <Button className="mt-3 w-full" onClick={() => onOpenBuilder(selected)}>
             Build strategy on {selected}
             <ArrowRight size={16} aria-hidden="true" />

@@ -45,7 +45,9 @@ const toProSymbol = (s: SymbolInfo | { symbol: string; label?: string; exchange?
   ticker: s.symbol,
   name: 'label' in s && s.label ? s.label : displaySymbol(s.symbol),
   shortName: displaySymbol(s.symbol),
-  exchange: isUs(s.symbol) ? (globalSymbol(s.symbol)?.exchange || ('exchange' in s && s.exchange) || usExchange.get(s.symbol) || 'US') : 'NSE',
+  exchange:
+    globalSymbol(s.symbol)?.exchange ||
+    (isUs(s.symbol) ? ('exchange' in s && s.exchange) || usExchange.get(s.symbol) || 'US' : 'NSE'),
   market: 'stocks',
   pricePrecision: globalSymbol(s.symbol)?.precision ?? 2,
   volumePrecision: 0,
@@ -119,7 +121,10 @@ function upstoxDatafeed(symbols: () => SymbolInfo[], hooks: FeedHooks): Datafeed
             .map(toProSymbol)
         : [];
       // Global markets (gold, crypto, US and world indices, forex) chart from Yahoo too, so they're always offered.
-      const global = searchGlobal(q).map((g) => toProSymbol({ symbol: g.symbol, label: g.name, exchange: g.exchange }));
+      // MCX ones (Upstox) only with the broker connected.
+      const global = searchGlobal(q)
+        .filter((g) => !g.upstox || hooks.brokerConnected())
+        .map((g) => toProSymbol({ symbol: g.symbol, label: g.name, exchange: g.exchange }));
       if (!q) return [...nse, ...global];
       let us: ProSymbol[] = [];
       try {

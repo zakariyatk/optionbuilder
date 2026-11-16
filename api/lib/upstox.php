@@ -27,6 +27,66 @@ const OB_INDEX_INSTRUMENT_KEYS = [
     'INDIAVIX' => 'NSE_INDEX|India VIX',
 ];
 
+/**
+ * MCX commodities, charted from Upstox as a continuous front-month future:
+ * app symbol → MCX underlying. Upstox has no gold index or XAUUSD, so MCX
+ * Gold (₹ per 10 g) is the Indian gold price. Keep in step with the MCX
+ * entries in GLOBAL_SYMBOLS (frontend/src/lib/markets.ts).
+ */
+const OB_MCX_SYMBOLS = [
+    'MCXGOLD' => 'GOLD',
+];
+
+function ob_is_mcx(string $symbol): bool
+{
+    return isset(OB_MCX_SYMBOLS[strtoupper($symbol)]);
+}
+
+/**
+ * Instrument key of the nearest MCX future on an underlying that hasn't
+ * expired yet, so the chart rolls to the next contract on expiry day's end.
+ * History is that contract's own (Upstox serves no expired contracts here).
+ */
+function ob_mcx_front_future(string $underlying): string
+{
+    $futures = ob_cached('instruments:mcx-fut', function (): array {
+        $body = ob_get_text('https://assets.upstox.com/market-quote/instruments/exchange/MCX.json.gz', [], 60);
+        if (strncmp($body, "\x1f\x8b", 2) === 0) {
+            $inflated = @gzdecode($body);
+            if ($inflated === false) {
+                throw new RuntimeException('Could not decompress Upstox MCX instruments file');
+            }
+            $body = $inflated;
+        }
+        $rows = json_decode($body, true);
+        if (!is_array($rows)) {
+            throw new RuntimeException('Unexpected MCX instruments payload');
+        }
+        $wanted = array_flip(OB_MCX_SYMBOLS);
+        $map = [];
+        foreach ($rows as $row) {
+            $u = (string) ($row['underlying_symbol'] ?? '');
+            if (($row['instrument_type'] ?? '') !== 'FUT' || !isset($wanted[$u]) || !is_numeric($row['expiry'] ?? null)) {
+                continue;
+            }
+            // Expiry is epoch ms at the contract's last trading moment.
+            $map[$u][] = [(int) $row['expiry'], (string) $row['instrument_key']];
+        }
+        foreach ($map as &$list) {
+            usort($list, static fn(array $a, array $b): int => $a[0] <=> $b[0]);
+        }
+        return $map;
+    }, 12 * 3600);
+
+    $nowMs = (int) (microtime(true) * 1000);
+    foreach ($futures[$underlying] ?? [] as [$expiry, $key]) {
+        if ($expiry > $nowMs) {
+            return $key;
+        }
+    }
+    throw new RuntimeException("No live MCX future found for \"$underlying\"");
+}
+
 function ob_upstox_configured(): bool
 {
     return ob_config_get('upstox_api_key') !== ''
@@ -276,6 +336,9 @@ function ob_resolve_instrument_key(string $symbol): string
     $upper = strtoupper($symbol);
     if (isset(OB_INDEX_INSTRUMENT_KEYS[$upper])) {
         return OB_INDEX_INSTRUMENT_KEYS[$upper];
+    }
+    if (ob_is_mcx($upper)) {
+        return ob_mcx_front_future(OB_MCX_SYMBOLS[$upper]);
     }
 
     $index = ob_cached('instruments:nse', function (): array {

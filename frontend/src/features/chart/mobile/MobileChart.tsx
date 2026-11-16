@@ -29,7 +29,7 @@ import type { SymbolInfo } from '../../../api/types';
 import { useAsync } from '../../../hooks/useAsync';
 import { useMediaQuery } from '../../../hooks/useMediaQuery';
 import { num } from '../../../lib/format';
-import { displaySymbol, isUs, marketLabel, pricePrecision } from '../../../lib/markets';
+import { displaySymbol, isMcx, isUs, marketLabel, pricePrecision } from '../../../lib/markets';
 import { nameOf } from '../../../lib/symbolNames';
 import { ChartSettingsDialog } from '../ChartSettingsDialog';
 import { effectiveSettings, useChartSettings, type ChartStyle } from '../chartSettingsStore';
@@ -593,7 +593,7 @@ export function MobileChart({
               setSheet(null);
               void rotate();
             }} />
-          {!isUs(symbol) && (
+          {!isUs(symbol) && !isMcx(symbol) && (
             <SheetRow
               icon={<Layers size={20} aria-hidden="true" />}
               label={`Build strategy on ${displaySymbol(symbol)}`}
