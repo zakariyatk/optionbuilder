@@ -1,6 +1,8 @@
 import type { OiHistory } from '../domain/oi';
 import { binanceCandles, binancePair, binanceQuote } from '../lib/binance';
 import type {
+  AiAnalysis,
+  AiStatus,
   AuthStatus,
   BrokerMargin,
   Draft,
@@ -120,6 +122,10 @@ export const api = {
       : get<{ symbol: string; tf: string; candles: [number, number, number, number, number, number][] }>(
           `/api/candles?symbol=${encodeURIComponent(symbol)}&tf=${encodeURIComponent(tf)}`,
         ),
+  /** AI Trade: whether the server can call Claude, and today's usage. */
+  aiStatus: () => get<AiStatus>('/api/ai/status'),
+  /** AI Trade: Claude reviews a chart brief on the server (Claude API key). */
+  aiAnalyse: (body: { symbol: string; tf: string; brief: string }) => post<AiAnalysis>('/api/ai/analyse', body),
   /** Per-minute OI per strike for one expiry, for the Open Interest page's time window. */
   oiIntraday: (symbol: string, expiry: string, min: number, max: number) =>
     get<OiHistory>(`/api/oi-intraday?${new URLSearchParams({ symbol, expiry, min: String(min), max: String(max) })}`),

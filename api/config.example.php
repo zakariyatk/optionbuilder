@@ -55,6 +55,15 @@ return [
     // writable by PHP. Outside the web root is best:
     // 'data_dir' => '/home/<user>/optionbuilder-data',
 
+    // AI Trade page: a Claude API key from https://platform.claude.com/settings/keys
+    // Paid per analysis (about $0.10-0.25 each on Claude Opus 5.5). Leave empty to
+    // use only the ant CLI helper on your PC (ai-helper/README.md).
+    'anthropic_api_key' => '',
+    // Optional: another Claude model, e.g. 'claude-sonnet-5-5' (about half the cost).
+    'ai_model' => '',
+    // Most analyses per day across all users; 0 = no cap.
+    'ai_daily_limit' => 40,
+
     // Log in again after this many hours, even with the tab left open.
     'session_hours' => 12,
 ];

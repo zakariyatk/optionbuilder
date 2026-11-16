@@ -1,0 +1,17 @@
+{
+  "name": "addstock-ai-helper",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Runs AddStock's AI Trade analysis on your PC with your Anthropic login (ant CLI), no API key on the server.",
+  "type": "module",
+  "main": "server.mjs",
+  "scripts": {
+    "start": "node server.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^1.9.0"
+  }
+}

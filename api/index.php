@@ -25,6 +25,7 @@ require_once __DIR__ . '/lib/candles.php';
 require_once __DIR__ . '/lib/oi.php';
 require_once __DIR__ . '/lib/portfolio.php';
 require_once __DIR__ . '/lib/sectors.php';
+require_once __DIR__ . '/lib/ai.php';
 
 // Errors must never leak into a JSON body as HTML.
 ini_set('display_errors', '0');
@@ -396,6 +397,32 @@ try {
             ob_error('NOT_AUTHENTICATED', 401);
         } catch (Throwable $e) {
             ob_error('Failed to fetch margin', 502, $e->getMessage());
+        }
+    }
+
+    // ------------------------------------------------------------- AI trade
+    if ($path === '/api/ai/status') {
+        ob_json([
+            'server' => ob_ai_configured(),
+            'model' => ob_ai_model(),
+            'limit' => ob_ai_daily_limit(),
+            'used' => ob_ai_configured() ? ob_ai_used_today() : 0,
+        ]);
+    }
+
+    if ($path === '/api/ai/analyse' && $method === 'POST') {
+        $b = ob_body();
+        $symbol = strtoupper(trim((string) ($b['symbol'] ?? '')));
+        $tf = (string) ($b['tf'] ?? '');
+        if (!ob_symbol_ok($symbol) || !isset(OB_CANDLE_TIMEFRAMES[$tf])) {
+            ob_error('symbol and a valid tf are required', 400);
+        }
+        try {
+            ob_json(ob_ai_analyse($symbol, $tf, (string) ($b['brief'] ?? '')));
+        } catch (ObAiError $e) {
+            ob_error($e->getMessage(), $e->status);
+        } catch (Throwable $e) {
+            ob_error('AI analysis failed', 502, $e->getMessage());
         }
     }
 

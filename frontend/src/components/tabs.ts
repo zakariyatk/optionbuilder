@@ -1,6 +1,6 @@
-import { ChartCandlestick, ChartColumn, ChartLine, FolderOpen, Layers, Newspaper, PieChart, Table2, type LucideIcon } from 'lucide-react';
+import { ChartCandlestick, ChartColumn, ChartLine, FolderOpen, Layers, Newspaper, PieChart, Sparkles, Table2, type LucideIcon } from 'lucide-react';
 
-export type PageId = 'builder' | 'drafts' | 'chart' | 'oi' | 'chain' | 'report' | 'portfolio';
+export type PageId = 'builder' | 'drafts' | 'ai' | 'chart' | 'oi' | 'chain' | 'report' | 'portfolio';
 
 export interface Route {
   page: PageId;
@@ -11,6 +11,7 @@ export interface Route {
 export const PAGE_LABELS: Record<PageId, string> = {
   builder: 'Strategy Builder',
   drafts: 'Draft Portfolios',
+  ai: 'AI Trade',
   chart: 'Chart',
   oi: 'Open Interest',
   chain: 'Option Chain',
@@ -21,6 +22,7 @@ export const PAGE_LABELS: Record<PageId, string> = {
 export const PAGE_ICONS: Record<PageId, LucideIcon> = {
   builder: Layers,
   drafts: FolderOpen,
+  ai: Sparkles,
   chart: ChartCandlestick,
   oi: ChartColumn,
   chain: Table2,
@@ -37,7 +39,7 @@ export type NavEntry = { label: string; items: NavItem[] } | { label: string; pa
 
 /** Desktop sidebar: every page, under a heading per group. */
 export const SIDEBAR: { label: string; pages: PageId[] }[] = [
-  { label: 'Trade', pages: ['builder', 'drafts'] },
+  { label: 'Trade', pages: ['builder', 'drafts', 'ai'] },
   { label: 'Analyse', pages: ['chart', 'oi', 'chain', 'report'] },
   { label: 'Invest', pages: ['portfolio'] },
 ];
@@ -56,6 +58,8 @@ export const NAV: NavEntry[] = [
   {
     label: 'Analyse',
     items: [
+      // Phones reach AI Trade here: the Trade pages there are tabs of their own.
+      { page: 'ai', description: 'Claude reads the chart: levels, signal, stop loss and targets' },
       { page: 'oi', description: 'OI and OI change by strike, over any part of the day' },
       { page: 'chain', description: 'Full chain with OI, volume and IV' },
       { page: 'report', description: 'Levels, flows, global cues and news' },
