@@ -7,7 +7,7 @@ import { globalSymbol, isUs } from './markets';
  * modelled.
  */
 export interface Session {
-  name: 'NSE' | 'US' | '24x5' | '24x7' | 'XETRA' | 'TSE';
+  name: 'NSE' | 'US' | '24x5' | '24x7' | 'XETRA' | 'TSE' | 'MCX';
   /** Trades every day of the week (crypto), not Mon–Fri. */
   everyDay?: boolean;
   /** Minutes after local midnight. */
@@ -53,7 +53,13 @@ export const XETRA_SESSION: Session = { name: 'XETRA', open: 9 * 60, close: 17 *
 /** Tokyo, for the Nikkei: 09:00–15:30 JST (the lunch break isn't modelled). */
 export const TSE_SESSION: Session = { name: 'TSE', open: 9 * 60, close: 15 * 60 + 30, offsetMs: () => 9 * 3_600_000 };
 
-const GLOBAL_SESSIONS = { US: US_SESSION, '24x5': ROUND_CLOCK_SESSION, '24x7': CRYPTO_SESSION, XETRA: XETRA_SESSION, TSE: TSE_SESSION };
+/**
+ * MCX commodities: 09:00 IST to 23:55 while the US is on standard time
+ * (November–March), 23:30 in US summer. The later close is used all year.
+ */
+export const MCX_SESSION: Session = { name: 'MCX', open: 9 * 60, close: 23 * 60 + 55, offsetMs: () => 330 * 60_000 };
+
+const GLOBAL_SESSIONS = { US: US_SESSION, '24x5': ROUND_CLOCK_SESSION, '24x7': CRYPTO_SESSION, XETRA: XETRA_SESSION, TSE: TSE_SESSION, MCX: MCX_SESSION };
 
 /** The session a symbol trades in. */
 export const sessionFor = (symbol: string): Session => {

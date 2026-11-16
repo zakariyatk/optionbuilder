@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { candleCloseMs, CRYPTO_SESSION, ROUND_CLOCK_SESSION, TSE_SESSION, XETRA_SESSION, fmtLeft, marketOpen, nseCloseMs, nseOpen, sessionFor, US_SESSION } from './nse';
+import { candleCloseMs, CRYPTO_SESSION, MCX_SESSION, ROUND_CLOCK_SESSION, TSE_SESSION, XETRA_SESSION, fmtLeft, marketOpen, nseCloseMs, nseOpen, sessionFor, US_SESSION } from './nse';
 
 const utc = (iso: string) => Date.parse(iso);
 
@@ -96,6 +96,15 @@ describe('US session', () => {
     expect(sessionFor('US:SPX')).toBe(US_SESSION);
     expect(sessionFor('US:GER40')).toBe(XETRA_SESSION);
     expect(sessionFor('US:JP225')).toBe(TSE_SESSION);
+  });
+
+  it('keeps MCX hours for MCX gold: 09:00 to 23:55 IST', () => {
+    expect(sessionFor('MCXGOLD')).toBe(MCX_SESSION);
+    // Monday 16 Nov 2026: open at 22:00 IST (16:30Z), shut at 08:30 IST (03:00Z).
+    expect(marketOpen(MCX_SESSION, new Date('2026-11-16T16:30:00Z'))).toBe(true);
+    expect(marketOpen(MCX_SESSION, new Date('2026-11-16T03:00:00Z'))).toBe(false);
+    // The daily candle closes at 23:55 IST (18:25Z).
+    expect(candleCloseMs('day', 1, Date.parse('2026-11-16T16:30:00Z'), MCX_SESSION)).toBe(Date.parse('2026-11-16T18:25:00Z'));
   });
 });
 

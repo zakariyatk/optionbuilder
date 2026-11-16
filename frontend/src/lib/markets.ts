@@ -17,11 +17,13 @@ export const displaySymbol = (symbol: string) => (isUs(symbol) ? symbol.slice(US
  * Yahoo has no spot metals or energy, so XAGUSD, USOIL and NATGAS chart
  * front-month futures (COMEX / NYMEX), a little off spot. Gold (XAUUSD) is
  * the exception: the browser charts it live from Binance (lib/binance.ts).
+ * MCX Gold is the other exception: an Indian symbol (no prefix) charted from
+ * Upstox, so it shows only with the broker connected.
  */
 export type GlobalCategory = 'Commodity' | 'Crypto' | 'Index' | 'ETF' | 'Volatility' | 'Forex';
 
 /** Which trading hours a global symbol keeps (sessions live in lib/nse.ts). */
-export type GlobalHours = 'US' | '24x5' | '24x7' | 'XETRA' | 'TSE';
+export type GlobalHours = 'US' | '24x5' | '24x7' | 'XETRA' | 'TSE' | 'MCX';
 
 export interface GlobalSymbol {
   symbol: string;
@@ -35,6 +37,8 @@ export interface GlobalSymbol {
   hours: GlobalHours;
   /** Decimals on the price axis. */
   precision: number;
+  /** Charted from Upstox (MCX), so it needs the broker connected; the rest come from Yahoo / Binance. */
+  upstox?: boolean;
 }
 
 const g = (
@@ -51,6 +55,18 @@ const g = (
 export const GLOBAL_SYMBOLS: GlobalSymbol[] = [
   // Live from Binance (lib/binance.ts): PAX Gold, one token per troy ounce, trading round the clock.
   g('XAUUSD', 'Gold', 'Gold / US Dollar (live, PAXG on Binance)', 'Commodity', 'Binance', '24x7'),
+  // MCX Gold from Upstox, the nearest-month future rolled on expiry (OB_MCX_SYMBOLS in api/lib/upstox.php).
+  {
+    symbol: 'MCXGOLD',
+    name: 'Gold MCX',
+    description: 'Gold, ₹ per 10 g (MCX futures, nearest month)',
+    category: 'Commodity',
+    exchange: 'MCX',
+    currency: 'INR',
+    hours: 'MCX',
+    precision: 0,
+    upstox: true,
+  },
   g('BTCUSD', 'Bitcoin', 'Bitcoin / US Dollar', 'Crypto', 'Crypto', '24x7'),
   g('ETHUSD', 'Ethereum', 'Ethereum / US Dollar', 'Crypto', 'Crypto', '24x7'),
   g('NDX', 'Nasdaq 100', 'Nasdaq 100 Index', 'Index', 'NASDAQ', 'US'),
@@ -73,6 +89,9 @@ export const GLOBAL_SYMBOLS: GlobalSymbol[] = [
 const GLOBAL_BY_SYMBOL = new Map(GLOBAL_SYMBOLS.map((s) => [s.symbol, s]));
 
 export const globalSymbol = (symbol: string): GlobalSymbol | undefined => GLOBAL_BY_SYMBOL.get(symbol);
+
+/** An MCX commodity (Upstox), e.g. MCXGOLD: Indian, but no NSE option chain. */
+export const isMcx = (symbol: string) => globalSymbol(symbol)?.exchange === 'MCX';
 
 /** Global symbols matching a search: ticker, name, description or category ("crypto", "forex"). */
 export function searchGlobal(query: string): GlobalSymbol[] {
