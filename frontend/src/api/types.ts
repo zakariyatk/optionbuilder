@@ -259,3 +259,39 @@ export interface UsSearchResult {
   exchange: string;
   type: 'EQUITY' | 'ETF';
 }
+
+/** AI Trade: Claude's answer, as api/lib/ai_trade_spec.json's schema defines it. */
+export interface AiSignal {
+  action: 'BUY' | 'SELL' | 'WAIT';
+  bias: 'bullish' | 'bearish' | 'neutral';
+  confidence: number;
+  entry: number | null;
+  stop_loss: number | null;
+  targets: number[];
+  risk_reward: number | null;
+  trend: string;
+  key_levels: { kind: 'support' | 'resistance' | 'fair_value_gap' | 'order_block' | 'liquidity' | 'other'; low: number; high: number; note: string }[];
+  reasoning: string;
+  invalidation: string;
+  trigger: string;
+  summary: string;
+}
+
+/** One analysis, from the server (Claude API key) or the PC helper (ant CLI login). */
+export interface AiAnalysis {
+  signal: AiSignal;
+  /** Model that answered, e.g. claude-opus-5-5. */
+  model: string;
+  /** Epoch ms. */
+  at: number;
+  cached?: boolean;
+}
+
+export interface AiStatus {
+  /** The server has a Claude API key. */
+  server: boolean;
+  model: string;
+  /** Analyses a day across all users (0 = no cap) and how many were used today. */
+  limit: number;
+  used: number;
+}

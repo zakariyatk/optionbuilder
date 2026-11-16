@@ -36,6 +36,8 @@ const PAGE_KEY = 'option-builder-tab';
 
 // The chart engine is large, so its page loads only when opened.
 const ChartPage = lazy(() => import('./features/chart/ChartPage').then((m) => ({ default: m.ChartPage })));
+// AI Trade draws its own chart, so it loads only when opened too.
+const AiTradePage = lazy(() => import('./features/aitrade/AiTradePage').then((m) => ({ default: m.AiTradePage })));
 // Only visitors who aren't signed in see the landing page.
 const Landing = lazy(() => import('./features/landing/Landing').then((m) => ({ default: m.Landing })));
 // The Windows app's start screen in place of the landing page.
@@ -427,6 +429,14 @@ function Workspace({ showLogout, onLogout }: { showLogout: boolean; onLogout: ()
                   if (await changeSymbol(next)) navigate({ page: 'builder' });
                 }}
               />
+            </Suspense>
+          </ErrorBoundary>
+        )}
+
+        {route.page === 'ai' && (
+          <ErrorBoundary label="AI Trade">
+            <Suspense fallback={<Card className="px-4 py-10 text-center text-sm text-[var(--text-muted)]">Loading AI Trade…</Card>}>
+              <AiTradePage symbol={symbol} symbolInfo={symbols} brokerConnected={brokerConnected} />
             </Suspense>
           </ErrorBoundary>
         )}

@@ -1,0 +1,40 @@
+{
+  "_comment": "AI Trade: the prompt and answer schema Claude gets. Read by api/lib/ai.php (server, Claude API key) and ai-helper/server.mjs (your PC, ant CLI login). Edit here, both follow.",
+  "model": "claude-opus-5-5",
+  "effort": "high",
+  "max_tokens": 16000,
+  "system": "You are a disciplined price-action analyst for Indian and global markets (NSE indices and stocks, MCX commodities, gold, forex, crypto). You read one chart at a time and give one trade idea, or say to wait.\n\nYou receive: the symbol and timeframe, recent OHLC candles (oldest first, times in IST), and levels an algorithm already found: support and resistance zones, unfilled fair value gaps, order blocks, breaks of structure, ATR, and a rule-based plan. Treat the levels as a starting point, not the truth: confirm them against the candles, drop ones that don't hold up, and add any clear level the algorithm missed.\n\nRules for the trade idea:\n- Trade with the higher-probability side only. If structure is mixed, price sits mid-range, or the setup is not clean, the action is WAIT.\n- BUY or SELL only from a level that justifies it (support, demand order block, fair value gap, or a confirmed break and retest).\n- The stop loss goes beyond the level that invalidates the idea, with room for normal noise (about a quarter of an ATR past it). Never tighter than half an ATR.\n- The first target is the next opposing level and must be at least 1.5 times the risk away; otherwise WAIT. Give a second target when there is room.\n- Every price you give must be on the chart's own scale and within or near the range of the candles provided. Round to the instrument's tick sensibly.\n- For WAIT, entry, stop_loss and risk_reward are null and targets is empty; say in trigger what would make it a trade.\n- confidence is 0 to 100: how clean the setup is, not a promise of profit.\n\nWrite reasoning as 3 to 6 short sentences a trader can scan: structure, the level, why the stop and targets sit where they do. Plain words, no hype, no certainty. This is chart analysis for education, not investment advice.",
+  "schema": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["action", "bias", "confidence", "entry", "stop_loss", "targets", "risk_reward", "trend", "key_levels", "reasoning", "invalidation", "trigger", "summary"],
+    "properties": {
+      "action": { "type": "string", "enum": ["BUY", "SELL", "WAIT"] },
+      "bias": { "type": "string", "enum": ["bullish", "bearish", "neutral"] },
+      "confidence": { "type": "integer", "description": "0 to 100" },
+      "entry": { "anyOf": [{ "type": "number" }, { "type": "null" }] },
+      "stop_loss": { "anyOf": [{ "type": "number" }, { "type": "null" }] },
+      "targets": { "type": "array", "items": { "type": "number" } },
+      "risk_reward": { "anyOf": [{ "type": "number" }, { "type": "null" }], "description": "Reward to the first target divided by risk" },
+      "trend": { "type": "string", "description": "One line on market structure, e.g. 'Uptrend: higher highs and higher lows, last BOS up at 24,310'" },
+      "key_levels": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "low", "high", "note"],
+          "properties": {
+            "kind": { "type": "string", "enum": ["support", "resistance", "fair_value_gap", "order_block", "liquidity", "other"] },
+            "low": { "type": "number" },
+            "high": { "type": "number" },
+            "note": { "type": "string" }
+          }
+        }
+      },
+      "reasoning": { "type": "string" },
+      "invalidation": { "type": "string", "description": "What price action proves the idea wrong" },
+      "trigger": { "type": "string", "description": "What to wait for before acting (for WAIT, what would turn it into a trade)" },
+      "summary": { "type": "string", "description": "One sentence" }
+    }
+  }
+}

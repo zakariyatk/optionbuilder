@@ -352,6 +352,38 @@ export function mockApi(base: string): Plugin {
           return send({ ok: true });
         }
 
+        // AI Trade: a canned Claude answer built from the app's own plan in the brief (no API call).
+        if (route === '/ai/status') return send({ server: true, model: 'claude-opus-5-5 (mock)', limit: 40, used: 3 });
+        if (route === '/ai/analyse' && req.method === 'POST') {
+          void readBody(req).then((body) => {
+            const brief = String(body.brief ?? '');
+            const n = (re: RegExp) => Number(brief.match(re)?.[1] ?? NaN);
+            const close = n(/Last close (\d+(?:\.\d+)?)/);
+            const atr = n(/ATR\(14\) (\d+(?:\.\d+)?)/);
+            const m = brief.match(/Rule-based plan: (BUY|SELL)(?: entry ([\d.]+), stop ([\d.]+), targets ([\d.]+) \/ ([\d.]+))?/);
+            const signal = m
+              ? {
+                  action: m[1], bias: m[1] === 'BUY' ? 'bullish' : 'bearish', confidence: 64, entry: Number(m[2]), stop_loss: Number(m[3]), targets: [Number(m[4]), Number(m[5])],
+                  risk_reward: Math.abs(Number(m[4]) - Number(m[2])) / Math.abs(Number(m[2]) - Number(m[3])),
+                  trend: `${m[1] === 'BUY' ? 'Uptrend' : 'Downtrend'}: last break of structure agrees (mock).`,
+                  reasoning: 'Mock answer: the app found price at a zone with the trend, and this repeats its plan. A real run has Claude check the candles.',
+                  trigger: 'A candle closing back in the trend direction from the zone.', invalidation: 'A close beyond the stop level.',
+                  summary: `${m[1]} from the zone the app found (mock).`,
+                }
+              : {
+                  action: 'WAIT', bias: 'neutral', confidence: 35, entry: null, stop_loss: null, targets: [], risk_reward: null,
+                  trend: 'Mixed structure (mock).', reasoning: 'Mock answer: no clean setup at the current price.',
+                  trigger: `A pullback into support near ${(close - 2 * atr).toFixed(2)} that holds, or a close above resistance.`,
+                  invalidation: 'Not applicable while waiting.', summary: 'Wait for price to reach a level (mock).',
+                };
+            const key_levels = Number.isFinite(close) && Number.isFinite(atr)
+              ? [{ kind: 'support', low: +(close - 2.2 * atr).toFixed(2), high: +(close - 1.8 * atr).toFixed(2), note: 'Mock level below price' }, { kind: 'resistance', low: +(close + 1.8 * atr).toFixed(2), high: +(close + 2.2 * atr).toFixed(2), note: 'Mock level above price' }]
+              : [];
+            setTimeout(() => send({ signal: { ...signal, key_levels }, model: 'claude-opus-5-5 (mock)', at: Date.now(), cached: false }), 1200);
+          });
+          return;
+        }
+
         const now = Date.now();
         if (route.startsWith('/drafts') && req.method === 'POST') {
           void readBody(req).then((body) => {
