@@ -3,7 +3,7 @@ import { FileUp, Trash2 } from 'lucide-react';
 import { api, errorMessage } from '../../api/client';
 import type { PnlHistory } from '../../api/types';
 import { Button, Card, CardHeader, Notice, Skeleton, Stat, type Tone } from '../../components/ui';
-import { cumulativeSeries, defaultPeriod, groupByPeriod, maxDrawdown, periodLabel, PERIODS, SEGMENTS, summarizeHistory, symbolItems, topMovers, type HistoryDay, type Period, type Segment } from '../../domain/pnl';
+import { cumulativeSeries, defaultPeriod, groupByPeriod, maxDrawdown, netDaily, periodLabel, PERIODS, SEGMENTS, summarizeHistory, symbolItems, topMovers, type HistoryDay, type Period, type Segment } from '../../domain/pnl';
 import { useAsync } from '../../hooks/useAsync';
 import { confirmDialog } from '../../lib/dialog';
 import { inr, signedInr } from '../../lib/format';
@@ -45,6 +45,8 @@ export function PnlHistoryView({ from, to, rangeLabel, view, onPick }: { from: s
   // Day / week / month / year; until picked, whatever suits the range.
   const [picked, setPicked] = useState<Period | null>(null);
   const [kind, setKind] = useState<ChartKind>('bars');
+  // Net of charges and taxes by default; gross is realised P&L alone.
+  const [basis, setBasis] = useState<'net' | 'gross'>('net');
   const h = state.data;
   const segs: Segment[] = view === 'all' ? SEGMENTS.map((s) => s.id) : [view];
 
@@ -52,15 +54,19 @@ export function PnlHistoryView({ from, to, rangeLabel, view, onPick }: { from: s
     return state.error ? <Notice tone="critical">P&amp;L history: {state.error}</Notice> : <Skeleton className="h-64" />;
   }
 
-  const { sum, undatedIn, undatedOut } = rangeSummary(h, from, to, segs);
+  const res = rangeSummary(h, from, to, segs);
+  const { sum, undatedIn, undatedOut } = res;
   // The segment cards always show all three, whatever the filter.
-  const all = view === 'all' ? sum : rangeSummary(h, from, to, SEGMENTS.map((x) => x.id)).sum;
-  // Charges are only known from statements whose whole period sits in the range.
-  const statementsIn = h.statements.filter((s) => segs.includes(s.segment) && s.from >= from && s.to <= to);
-  const charges = statementsIn.reduce((a, s) => a + s.charges - s.other, 0);
+  const allRes = view === 'all' ? res : rangeSummary(h, from, to, SEGMENTS.map((x) => x.id));
+  const all = allRes.sum;
+  // Charges and taxes: per day where known, plus an undated equity statement's whole charges.
+  const undatedCharges = (list: PnlHistory['statements'], x?: Segment) => list.filter((st) => !x || st.segment === x).reduce((a, st) => a + st.charges - st.other, 0);
+  const charges = Math.round((segs.reduce((a, x) => a + sum.charges[x], 0) + undatedCharges(undatedIn)) * 100) / 100;
+  const segCharges = (x: Segment) => all.charges[x] + undatedCharges(allRes.undatedIn, x);
+  const net = Math.round((sum.total - charges) * 100) / 100;
   const period = picked ?? defaultPeriod(from, to);
   const meta = PERIODS.find((x) => x.id === period)!;
-  const chart = chartRows(sum.daily, period, segs);
+  const chart = chartRows(basis === 'net' ? netDaily(sum) : sum.daily, period, segs);
   // Profit / loss counts and best / worst follow the chart's period.
   const unit = meta.noun;
   const periods = chart.groups.filter((m) => m.total !== 0);
@@ -78,9 +84,8 @@ export function PnlHistoryView({ from, to, rangeLabel, view, onPick }: { from: s
   const grossWin = winners.reduce((a, [, v]) => a + v, 0);
   const grossLoss = -losers.reduce((a, [, v]) => a + v, 0);
   const dd = maxDrawdown(cumulativeSeries(chart.groups));
-  const net = sum.total - charges;
-  const shown = statementsIn.length > 0 ? net : sum.total;
-  const segTotals = SEGMENTS.map((x) => ({ ...x, v: all.segments[x.id].realised })).filter((x) => x.v !== 0);
+  const segValue = (x: Segment) => all.segments[x].realised - (basis === 'net' ? segCharges(x) : 0);
+  const segTotals = SEGMENTS.map((x) => ({ ...x, v: segValue(x.id) })).filter((x) => x.v !== 0);
   const lead = [...segTotals].sort((a, b) => b.v - a.v)[0];
   const lag = [...segTotals].sort((a, b) => a.v - b.v)[0];
 
@@ -88,26 +93,38 @@ export function PnlHistoryView({ from, to, rangeLabel, view, onPick }: { from: s
     <div className="flex flex-col gap-4">
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-[1.25fr_1fr_1fr_1fr]">
         <HeroCard
-          label={`${statementsIn.length > 0 ? 'Net' : 'Realised'} P&L · ${view === 'all' ? 'all segments' : labelOf(view)}`}
-          value={shown}
-          sub={
-            statementsIn.length > 0
-              ? `Realised ${signedInr(sum.total)} · charges ${inr(charges)}`
-              : `${rangeLabel} · ${fmtDate(from)} – ${fmtDate(to)} · before charges`
-          }
+          label={`${basis === 'net' ? 'Net P&L after charges & taxes' : 'Realised P&L (gross)'} · ${view === 'all' ? 'all segments' : labelOf(view)} · ${rangeLabel}`}
+          value={basis === 'net' ? net : sum.total}
+          sub={`${basis === 'net' ? `Realised ${signedInr(sum.total)}` : `Net ${signedInr(net)}`} · charges & taxes ${inr(charges)}${
+            sum.unpricedDays ? ` · charges unknown for ${sum.unpricedDays} day${sum.unpricedDays === 1 ? '' : 's'}` : ''
+          }`}
           spark={cumulativeSeries(chart.groups).map((p) => p.cum)}
         />
-        {SEGMENTS.map((x) => (
-          <SegmentCard
-            key={x.id}
-            seg={x.id}
-            data={all.segments[x.id]}
-            bars={groupByPeriod(all.daily.map((d) => ({ ...d, total: d[x.id] })), period === 'day' ? 'week' : period).map((g) => g.total).slice(-18)}
-            dated={all.daily.some((d) => d[x.id] !== 0)}
-            selected={view === x.id}
-            onPick={() => onPick(x.id)}
-          />
-        ))}
+        {SEGMENTS.map((x) => {
+          // An undated equity statement this range only partly covers: show it whole, labelled.
+          const whole = x.id === 'equity' && all.segments.equity.realised === 0 ? allRes.undatedOut.find((st) => st.segment === 'equity') : undefined;
+          const segDaily = basis === 'net' ? netDaily(all) : all.daily;
+          return (
+            <SegmentCard
+              key={x.id}
+              seg={x.id}
+              data={all.segments[x.id]}
+              value={whole ? whole.realised - (basis === 'net' ? whole.charges - whole.other : 0) : segValue(x.id)}
+              note={
+                whole
+                  ? `Whole statement ${fmtDate(whole.from)} – ${fmtDate(whole.to)} · no dates`
+                  : basis === 'net' && segCharges(x.id) > 0
+                    ? `After ${inr(segCharges(x.id))} charges & taxes`
+                    : undefined
+              }
+              count={whole ? whole.symbols : undefined}
+              bars={groupByPeriod(segDaily.map((d) => ({ ...d, total: d[x.id] })), period === 'day' ? 'week' : period).map((g) => g.total).slice(-18)}
+              dated={all.daily.some((d) => d[x.id] !== 0)}
+              selected={view === x.id}
+              onPick={() => onPick(x.id)}
+            />
+          );
+        })}
       </div>
 
       {sum.missingWeekdays > 0 && !empty && (
@@ -120,8 +137,21 @@ export function PnlHistoryView({ from, to, rangeLabel, view, onPick }: { from: s
       <div className="grid gap-4 lg:grid-cols-[minmax(0,2.2fr)_minmax(0,1fr)]">
         <div className={`${softCard} min-w-0`}>
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <h2 className="text-base font-semibold">{CHART_KINDS.find((k) => k.id === kind)!.title(meta.adjective)}</h2>
+            <h2 className="text-base font-semibold">
+              {CHART_KINDS.find((k) => k.id === kind)!.title(meta.adjective)}
+              <span className="ml-1.5 text-xs font-normal text-[var(--text-muted)]">{basis === 'net' ? 'net of charges' : 'gross'}</span>
+            </h2>
             <div className="flex flex-wrap gap-2">
+              <Segmented<'net' | 'gross'>
+                label="Net or gross"
+                size="xs"
+                value={basis}
+                onChange={setBasis}
+                options={[
+                  { id: 'net', label: 'Net', title: 'After charges and taxes' },
+                  { id: 'gross', label: 'Gross', title: 'Realised P&L before charges' },
+                ]}
+              />
               <Segmented<ChartKind> label="Chart" size="xs" value={kind} onChange={setKind} options={CHART_KINDS.map((k) => ({ id: k.id, label: k.label, title: k.hint }))} />
               {kind !== 'calendar' && (
                 <Segmented<Period> label="Group P&L by" size="xs" value={period} onChange={setPicked} options={PERIODS.map((x) => ({ id: x.id, label: x.id[0].toUpperCase(), title: x.label }))} />
@@ -169,7 +199,18 @@ export function PnlHistoryView({ from, to, rangeLabel, view, onPick }: { from: s
               value={dd ? signedInr(dd.amount) : '—'}
               v={dd?.amount}
             />
-            {statementsIn.length > 0 && <Insight name="Charges & other debits" sub={sum.total > 0 ? `${Math.round((charges / sum.total) * 100)}% of realised profit` : 'From Console statements'} value={inr(charges)} />}
+            <Insight
+              name="Charges & taxes"
+              sub={
+                sum.unpricedDays
+                  ? `Not known for ${sum.unpricedDays} tradebook day${sum.unpricedDays === 1 ? '' : 's'}`
+                  : sum.total > 0
+                    ? `${Math.round((charges / sum.total) * 100)}% of realised profit`
+                    : 'Brokerage, STT, GST, stamp duty, fees'
+              }
+              value={inr(charges)}
+            />
+            <Insight name="Net after charges" sub={`Realised ${signedInr(sum.total)}`} value={signedInr(net)} v={net} />
           </ul>
           {view === 'all' && lead && lag && lead.id !== lag.id && (
             <p className="mt-4 rounded-xl bg-[var(--surface-sunken)] px-3.5 py-3 text-xs text-[var(--text-secondary)]">
@@ -286,6 +327,9 @@ function MiniBars({ values }: { values: number[] }) {
 function SegmentCard({
   seg,
   data,
+  value,
+  note,
+  count: countIn,
   bars,
   dated,
   selected,
@@ -293,13 +337,17 @@ function SegmentCard({
 }: {
   seg: Segment;
   data: { realised: number; symbols: Record<string, number> };
+  /** Shown P&L (net or gross). */
+  value: number;
+  note?: string;
+  count?: number;
   bars: number[];
   dated: boolean;
   selected: boolean;
   onPick: () => void;
 }) {
   const st = SEG_STYLE[seg];
-  const count = Object.values(data.symbols).filter((v) => v !== 0).length;
+  const count = countIn ?? Object.values(data.symbols).filter((v) => v !== 0).length;
   return (
     <button
       type="button"
@@ -320,10 +368,12 @@ function SegmentCard({
           </span>
         </span>
       </span>
-      <span className="tabular mt-3 text-2xl font-bold" style={{ color: pnlColor(data.realised) }}>
-        {signedInr(data.realised)}
+      <span className="tabular mt-3 text-2xl font-bold" style={{ color: pnlColor(value) }}>
+        {signedInr(value)}
       </span>
-      <span className="text-[11px] text-[var(--text-muted)]">{dated ? `Last ${bars.length} periods` : count ? 'No dated history (statement only)' : 'No P&L in this range'}</span>
+      <span className="text-[11px] text-[var(--text-muted)]">
+        {note ?? (dated ? `Last ${bars.length} periods` : count ? 'No dated history (statement only)' : 'No P&L in this range')}
+      </span>
       <span className="mt-2 block">
         {dated ? (
           <MiniBars values={bars} />

@@ -208,8 +208,17 @@ try {
             ob_json(ob_cached('kite:pnl', static function (): array {
                 $pnl = ob_kite_pnl();
                 try {
+                    // Today's charges change only when an order fills: a minute's cache spares Kite.
+                    try {
+                        $charges = ob_cached('kite:charges-today', fn() => ob_kite_today_charges(), 60, 0);
+                    } catch (ObKiteNotAuthenticated $e) {
+                        throw $e;
+                    } catch (Throwable $e) {
+                        error_log('AddStock: today\'s charges failed: ' . $e->getMessage());
+                        $charges = null;
+                    }
                     // Every fresh fetch records today for the history view.
-                    ob_pnl_history_save_today($pnl['positions']);
+                    ob_pnl_history_save_today($pnl['positions'], $charges);
                 } catch (Throwable $e) {
                     error_log('AddStock: P&L history save failed: ' . $e->getMessage());
                 }
@@ -243,12 +252,17 @@ try {
             if ($xlsx !== '') {
                 // A P&L statement: one sheet per segment (other sheets are charges detail).
                 $done = [];
-                foreach (ob_xlsx_rows($xlsx) as $rows) {
+                $sheets = ob_xlsx_rows($xlsx);
+                foreach ($sheets as $rows) {
                     try {
                         $done[] = ob_pnl_import_statement($name, $rows);
                     } catch (InvalidArgumentException) {
                         // Not a P&L sheet (e.g. "Other Debits and Credits").
                     }
+                }
+                // Then the dated other debits / credits, attached to the statement just imported.
+                foreach ($sheets as $rows) {
+                    ob_pnl_import_debits($rows);
                 }
                 if (!$done) {
                     throw new InvalidArgumentException('No P&L statement found in this workbook. Download it from Console → Reports → P&L.');

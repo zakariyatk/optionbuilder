@@ -177,6 +177,11 @@ export interface HistorySummary {
   worst: HistoryDay | null;
   /** Weekdays in the range with no record at all (market holidays count too). */
   missingWeekdays: number;
+  /** Charges and taxes known for the chosen segments, per segment and per day. */
+  charges: Record<Segment, number>;
+  chargesByDate: Record<string, Partial<Record<Segment, number>>>;
+  /** Days with realised P&L but no charges on record (tradebook uploads). */
+  unpricedDays: number;
 }
 
 /**
@@ -194,6 +199,9 @@ export function summarizeHistory(
   const segments = Object.fromEntries(SEGMENTS.map((s) => [s.id, { realised: 0, symbols: {} as Record<string, number>, days: 0 }])) as HistorySummary['segments'];
   const daily: HistoryDay[] = [];
   const seen = new Set<string>();
+  const charges: Record<Segment, number> = { equity: 0, fo: 0, commodity: 0 };
+  const chargesByDate: HistorySummary['chargesByDate'] = {};
+  const unpriced = new Set<string>();
 
   for (const d of days) {
     if (d.date < from || d.date > to) continue;
@@ -210,6 +218,14 @@ export function summarizeHistory(
       agg.realised += s.realised;
       if (s.realised !== 0) agg.days += 1;
       for (const [sym, v] of Object.entries(s.symbols)) agg.symbols[sym] = (agg.symbols[sym] ?? 0) + v;
+      if (typeof s.charges === 'number') {
+        if (s.charges !== 0) {
+          charges[seg] += s.charges;
+          (chargesByDate[d.date] ??= {})[seg] = s.charges;
+        }
+      } else if (s.realised !== 0) {
+        unpriced.add(d.date);
+      }
     }
     if (any) seen.add(d.date);
     row.total = round2(row.total);
@@ -245,6 +261,9 @@ export function summarizeHistory(
     best: best && best.total > 0 ? best : null,
     worst: worst && worst.total < 0 ? worst : null,
     missingWeekdays,
+    charges: { equity: round2(charges.equity), fo: round2(charges.fo), commodity: round2(charges.commodity) },
+    chargesByDate,
+    unpricedDays: unpriced.size,
   };
 }
 
@@ -386,4 +405,14 @@ export function maxDrawdown(points: CumPoint[]): { amount: number; peakDate: str
   }
   const recovered = points.slice(i + 1).find((p) => p.cum >= worst!.peak);
   return { amount: worst.drawdown, peakDate, troughDate: worst.date, recoveredDate: recovered?.date ?? null };
+}
+
+/** The summary's days with each segment's charges taken off: net P&L per day. */
+export function netDaily(sum: HistorySummary): HistoryDay[] {
+  return sum.daily.map((d) => {
+    const c = sum.chargesByDate[d.date] ?? {};
+    const row = { date: d.date, equity: round2(d.equity - (c.equity ?? 0)), fo: round2(d.fo - (c.fo ?? 0)), commodity: round2(d.commodity - (c.commodity ?? 0)), total: 0 };
+    row.total = round2(row.equity + row.fo + row.commodity);
+    return row;
+  });
 }
