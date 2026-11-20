@@ -525,7 +525,7 @@ export function mockApi(base: string): Plugin {
           case '/auth/status':
             // MOCK_ANALYTICS_ONLY=1 shows the analytics-token state: live data, no broker login.
             if (process.env.MOCK_ANALYTICS_ONLY === '1') {
-              return send({ configured: true, authenticated: false, marketData: true, analytics: true, token: null, loginUrl: '/api/auth/upstox/login' });
+              return send({ configured: true, authenticated: false, marketData: true, analytics: true, token: null, loginUrl: '/api/auth/upstox/login', marginBroker: 'upstox' });
             }
             return send({
               configured: true,
@@ -534,7 +534,21 @@ export function mockApi(base: string): Plugin {
               analytics: false,
               token: { user_name: 'Demo (mock data)', issued_at: now, expires_at: now + 3_600_000 },
               loginUrl: null,
+              // MOCK_ZERODHA=0 shows the app with Zerodha not configured.
+              ...(process.env.MOCK_ZERODHA === '0'
+                ? { marginBroker: 'upstox' }
+                : {
+                    marginBroker: 'zerodha',
+                    zerodha: {
+                      configured: true,
+                      authenticated: true,
+                      token: { user_name: 'Demo (mock data)', issued_at: now, expires_at: now + 3_600_000 },
+                      loginUrl: '/api/auth/zerodha/login',
+                    },
+                  }),
             });
+          case '/zerodha/pnl':
+            return send(mockZerodhaPnl(now));
           case '/symbols':
             return send(SYMBOLS);
           case '/spot': {
@@ -566,5 +580,37 @@ export function mockApi(base: string): Plugin {
         }
       });
     },
+  };
+}
+
+/** A small Zerodha account for the P&L Report page: F&O positions (one closed today) and holdings. */
+function mockZerodhaPnl(now: number) {
+  const wiggle = (v: number) => Math.round(v * (1 + (Math.random() - 0.5) * 0.002) * 100) / 100;
+  const pos = (symbol: string, exchange: string, product: string, quantity: number, average: number, close: number, realised: number) => {
+    const last = quantity === 0 ? close : wiggle(close);
+    const unrealised = Math.round((last - average) * quantity * 100) / 100;
+    const m2m = Math.round(((last - close) * quantity + realised * 0.4) * 100) / 100;
+    return { symbol, exchange, product, quantity, buyQty: Math.max(quantity, 0), buyAvg: average, sellQty: Math.max(-quantity, 0), sellAvg: average, average, last, pnl: Math.round((realised + unrealised) * 100) / 100, realised, unrealised, m2m };
+  };
+  const positions = [
+    pos('NIFTY25N2524500CE', 'NFO', 'NRML', -75, 182.4, 141.3, 0),
+    pos('NIFTY25N2523800PE', 'NFO', 'NRML', -75, 96.1, 118.6, 0),
+    pos('BANKNIFTY25NOVFUT', 'NFO', 'NRML', 30, 51840, 52115, 0),
+    pos('RELIANCE', 'NSE', 'MIS', 0, 2954, 2961.5, 1240),
+  ];
+  const hold = (symbol: string, quantity: number, average: number, close: number) => {
+    const last = wiggle(close * 1.004);
+    return { symbol, exchange: 'NSE', quantity, average, last, invested: Math.round(average * quantity * 100) / 100, current: Math.round(last * quantity * 100) / 100, pnl: Math.round((last - average) * quantity * 100) / 100, dayChange: Math.round((last - close) * quantity * 100) / 100, dayChangePct: Math.round(((last - close) / close) * 10000) / 100 };
+  };
+  const holdings = [hold('HDFCBANK', 120, 1512.3, 1688.2), hold('INFY', 80, 1611, 1534.6), hold('TCS', 25, 3420, 3912.4), hold('ITC', 400, 402.5, 458.9)];
+  const sum = <T,>(rows: T[], f: (r: T) => number) => Math.round(rows.reduce((s, r) => s + f(r), 0) * 100) / 100;
+  return {
+    positions,
+    holdings: holdings.sort((a, b) => b.current - a.current),
+    totals: {
+      positions: { pnl: sum(positions, (p) => p.pnl), realised: sum(positions, (p) => p.realised), unrealised: sum(positions, (p) => p.unrealised), m2m: sum(positions, (p) => p.m2m) },
+      holdings: { invested: sum(holdings, (h) => h.invested), current: sum(holdings, (h) => h.current), pnl: sum(holdings, (h) => h.pnl), dayChange: sum(holdings, (h) => h.dayChange) },
+    },
+    at: now,
   };
 }

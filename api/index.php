@@ -141,7 +141,80 @@ try {
             'analytics' => ob_analytics_token() !== '',
             'token' => ob_token_info(),
             'loginUrl' => ob_upstox_configured() ? '/api/auth/upstox/login' : null,
+            // Account side (margin): Zerodha when configured, else the Upstox login above.
+            'marginBroker' => ob_kite_configured() ? 'zerodha' : 'upstox',
+            'zerodha' => [
+                'configured' => ob_kite_configured(),
+                'authenticated' => ob_kite_has_valid_token(),
+                'token' => ob_kite_token_info(),
+                'loginUrl' => ob_kite_configured() ? '/api/auth/zerodha/login' : null,
+            ],
         ]);
+    }
+
+    // ------------------------------------------------------- zerodha auth
+    if ($path === '/api/auth/zerodha/login') {
+        if (!ob_kite_configured()) {
+            http_response_code(400);
+            exit('Zerodha is not configured. Fill in kite_api_key and kite_api_secret in the config file.');
+        }
+        // Same `state` binding as Upstox, carried through Kite's redirect_params.
+        ob_session_start();
+        $state = bin2hex(random_bytes(16));
+        $_SESSION['ob_kite_state'] = $state;
+        header('Location: ' . ob_kite_auth_url($state), true, 302);
+        exit;
+    }
+
+    // Kite sends the user back here (the Redirect URL registered on the Kite app).
+    if ($path === '/api/auth/zerodha/callback') {
+        $requestToken = ob_query('request_token');
+        if ($requestToken === null || ob_query('status') === 'cancelled') {
+            http_response_code(400);
+            exit('Zerodha login was cancelled or returned no request token. Start again from the app.');
+        }
+        ob_session_start();
+        $expected = (string) ($_SESSION['ob_kite_state'] ?? '');
+        unset($_SESSION['ob_kite_state']);
+        if ($expected === '' || !hash_equals($expected, (string) ob_query('state'))) {
+            http_response_code(400);
+            exit('Zerodha login could not be verified (state mismatch). Start again from the app.');
+        }
+        try {
+            ob_kite_exchange_token($requestToken);
+            ob_cache_put('kite:pnl', null);
+            header('Content-Type: text/html; charset=utf-8');
+            exit('<!doctype html><meta charset="utf-8"><title>Zerodha connected</title>'
+                . '<body style="font:16px system-ui;padding:40px;max-width:32rem">'
+                . '<h2>Zerodha connected</h2><p>Broker margin now comes from your Zerodha account until 6:00 AM tomorrow. '
+                . 'Market data still comes from Upstox. You can close this tab and return to the app.</p></body>');
+        } catch (Throwable $e) {
+            http_response_code(502);
+            exit('Zerodha authorization failed: ' . htmlspecialchars($e->getMessage(), ENT_QUOTES));
+        }
+    }
+
+    // Live P&L straight from the Zerodha account (positions and holdings).
+    if ($path === '/api/zerodha/pnl') {
+        if (!ob_kite_configured()) {
+            ob_error('Zerodha is not configured on the server', 400);
+        }
+        if (!ob_kite_has_valid_token()) {
+            ob_error('ZERODHA_NOT_AUTHENTICATED', 401);
+        }
+        try {
+            // A few seconds of cache keeps several open tabs from tripping Kite's rate limit.
+            ob_json(ob_cached('kite:pnl', fn() => ob_kite_pnl(), 5, 0));
+        } catch (ObKiteNotAuthenticated) {
+            ob_error('ZERODHA_NOT_AUTHENTICATED', 401);
+        } catch (Throwable $e) {
+            ob_error('Failed to load Zerodha P&L', 502, $e->getMessage());
+        }
+    }
+
+    if ($path === '/api/auth/zerodha/logout' && $method === 'POST') {
+        ob_kite_clear_token();
+        ob_json(['ok' => true]);
     }
 
     if ($path === '/api/auth/upstox/login') {
@@ -371,8 +444,10 @@ try {
         if (!is_array($legs) || !$legs) {
             ob_error('legs array is required', 400);
         }
-        if (!ob_has_valid_token()) {
-            ob_error('NOT_AUTHENTICATED', 401);
+        // Zerodha serves margin when configured; Upstox otherwise.
+        $zerodha = ob_kite_configured();
+        if ($zerodha ? !ob_kite_has_valid_token() : !ob_has_valid_token()) {
+            ob_error($zerodha ? 'ZERODHA_NOT_AUTHENTICATED' : 'NOT_AUTHENTICATED', 401);
         }
 
         $instruments = [];
@@ -392,7 +467,9 @@ try {
         }
 
         try {
-            ob_json(ob_upstox_margin($instruments));
+            ob_json($zerodha ? ob_kite_margin($instruments) : ob_upstox_margin($instruments));
+        } catch (ObKiteNotAuthenticated) {
+            ob_error('ZERODHA_NOT_AUTHENTICATED', 401);
         } catch (ObNotAuthenticated) {
             ob_error('NOT_AUTHENTICATED', 401);
         } catch (Throwable $e) {

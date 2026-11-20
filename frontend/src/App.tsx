@@ -26,6 +26,7 @@ import { DraftMonitor } from './features/drafts/DraftMonitor';
 import { DraftsPage } from './features/drafts/DraftsPage';
 import { OpenInterestPage } from './features/oi/OpenInterestPage';
 import { PortfolioPage } from './features/portfolio/PortfolioPage';
+import { PnlReportPage } from './features/pnl/PnlReportPage';
 import { DailyReport } from './features/report/DailyReport';
 import { useBrokerMargin, useBrokerStatus, useOptionChain, useSpot, useSymbols } from './hooks/market';
 import { useAsync } from './hooks/useAsync';
@@ -165,8 +166,8 @@ function Workspace({ showLogout, onLogout }: { showLogout: boolean; onLogout: ()
   const { status: broker } = useBrokerStatus();
   // Live NSE data: today's Upstox login, or the 1-year analytics token on the server.
   const brokerConnected = !!(broker?.authenticated || broker?.marketData);
-  // Broker margin still needs today's login.
-  const brokerSession = !!broker?.authenticated;
+  // Broker margin needs today's login with the margin broker: Zerodha when configured, else Upstox.
+  const brokerSession = broker?.marginBroker === 'zerodha' ? !!broker.zerodha?.authenticated : !!broker?.authenticated;
   const marketPage = MARKET_PAGES.includes(route.page);
   const spotState = useSpot(symbol);
   const indiaBuilder = route.page === 'builder' && builderMarket === 'IN';
@@ -450,6 +451,12 @@ function Workspace({ showLogout, onLogout }: { showLogout: boolean; onLogout: ()
         {route.page === 'portfolio' && (
           <ErrorBoundary label="the portfolio">
             <PortfolioPage brokerConnected={brokerConnected} symbols={symbols} />
+          </ErrorBoundary>
+        )}
+
+        {route.page === 'pnl' && (
+          <ErrorBoundary label="the P&L report">
+            <PnlReportPage broker={broker} />
           </ErrorBoundary>
         )}
 

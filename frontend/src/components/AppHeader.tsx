@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { ChevronDown, ExternalLink, Grip, ListChecks, LogOut, Moon, Star, Sun } from 'lucide-react';
-import { UPSTOX_LOGIN_URL } from '../api/client';
+import { UPSTOX_LOGIN_URL, ZERODHA_LOGIN_URL } from '../api/client';
 import type { AuthStatus } from '../api/types';
 import { useTheme } from '../hooks/useTheme';
 import { MOBILE_TABS, NAV, PAGE_ICONS, PAGE_LABELS, SIDEBAR, type NavItem, type PageId, type Route } from './tabs';
@@ -8,7 +8,49 @@ import { Logo } from './Logo';
 import { Dot } from './ui';
 import { useRail } from '../store/rail';
 
+/** Zerodha serves margin only; market data stays on Upstox (see UpstoxBadge). */
+function ZerodhaBadge({ status }: { status: AuthStatus | null }) {
+  const z = status?.zerodha;
+  if (!z?.configured) return null;
+  if (z.authenticated) {
+    const expires = z.token?.expires_at
+      ? new Date(z.token.expires_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })
+      : null;
+    return (
+      <span
+        className="flex items-center gap-1.5 text-xs text-[var(--text-muted)]"
+        title={expires ? `Zerodha session (broker margin) valid until ${expires}` : 'Broker margin via Zerodha'}
+      >
+        <Dot color="var(--good)" />
+        Zerodha
+      </span>
+    );
+  }
+  return (
+    <a
+      href={ZERODHA_LOGIN_URL}
+      target="_blank"
+      rel="noreferrer"
+      className="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-medium hover:opacity-85 pointer-coarse:min-h-10"
+      style={{ background: 'var(--good-fill)', color: 'var(--good-text)' }}
+      title="Log in to Zerodha for real broker margin"
+    >
+      Connect Zerodha
+      <ExternalLink size={12} aria-hidden="true" />
+    </a>
+  );
+}
+
 function BrokerBadge({ status }: { status: AuthStatus | null }) {
+  return (
+    <span className="flex flex-wrap items-center gap-2">
+      <UpstoxBadge status={status} />
+      <ZerodhaBadge status={status} />
+    </span>
+  );
+}
+
+function UpstoxBadge({ status }: { status: AuthStatus | null }) {
   if (status?.authenticated) {
     const expires = status.token?.expires_at
       ? new Date(status.token.expires_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })
@@ -31,7 +73,8 @@ function BrokerBadge({ status }: { status: AuthStatus | null }) {
           <Dot color="var(--good)" />
           Live data
         </span>
-        {status.configured && (
+        {/* With Zerodha serving margin, the Upstox login adds nothing over the analytics token. */}
+        {status.configured && status.marginBroker !== 'zerodha' && (
           <a
             href={UPSTOX_LOGIN_URL}
             target="_blank"

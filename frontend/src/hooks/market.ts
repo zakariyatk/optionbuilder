@@ -3,6 +3,7 @@ import { api } from '../api/client';
 import type { AuthStatus, BrokerMargin, SymbolInfo } from '../api/types';
 import type { Leg } from '../domain/types';
 import { useAsync } from './useAsync';
+import { setMarginBrokerName } from '../lib/broker';
 
 /** Quotes and chain refresh this often while the tab is visible. */
 export const MARKET_POLL_MS = 15_000;
@@ -32,7 +33,11 @@ export function useBrokerStatus() {
     let cancelled = false;
     api
       .authStatus()
-      .then((s) => !cancelled && setStatus(s))
+      .then((s) => {
+        if (cancelled) return;
+        setMarginBrokerName(s.marginBroker === 'zerodha' ? 'Zerodha' : 'Upstox');
+        setStatus(s);
+      })
       .catch(() => !cancelled && setStatus(null));
     return () => {
       cancelled = true;
@@ -49,7 +54,7 @@ export function useBrokerStatus() {
 }
 
 /**
- * Real SPAN + exposure margin from Upstox. Only requested when every leg came
+ * Real SPAN + exposure margin from the margin broker (Zerodha or Upstox). Only requested when every leg came
  * from the live chain — a partial basket would understate the requirement.
  */
 export function useBrokerMargin(legs: Leg[], brokerConnected: boolean): { margin: number | null; loading: boolean } {

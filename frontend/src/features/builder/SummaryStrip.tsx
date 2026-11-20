@@ -1,5 +1,6 @@
 import type { StrategyMetrics } from '../../domain/types';
 import { useMarket } from './market';
+import { marginBrokerName } from '../../lib/broker';
 
 /** Headline numbers, pinned under the app header while the page scrolls. */
 export function SummaryStrip({
@@ -25,9 +26,9 @@ export function SummaryStrip({
     us
       ? { label: 'Capital at risk', value: margin === null ? 'Unlimited' : mk.money(margin), title: 'The most the position can lose at expiry' }
       : {
-          label: marginIsBroker ? 'Margin (Upstox)' : 'Est. margin',
+          label: marginIsBroker ? `Margin (${marginBrokerName()})` : 'Est. margin',
           value: margin === null ? '—' : mk.money(margin),
-          title: marginIsBroker ? 'Live SPAN + exposure from Upstox' : 'Estimate — confirm with your broker',
+          title: marginIsBroker ? `Live SPAN + exposure from ${marginBrokerName()}` : 'Estimate — confirm with your broker',
         },
   ];
   return (

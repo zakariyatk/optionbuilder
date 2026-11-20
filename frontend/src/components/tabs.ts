@@ -1,6 +1,6 @@
-import { ChartCandlestick, ChartColumn, ChartLine, FolderOpen, Layers, Newspaper, PieChart, Sparkles, Table2, type LucideIcon } from 'lucide-react';
+import { ChartCandlestick, ChartColumn, ChartLine, FolderOpen, IndianRupee, Layers, Newspaper, PieChart, Sparkles, Table2, type LucideIcon } from 'lucide-react';
 
-export type PageId = 'builder' | 'drafts' | 'ai' | 'chart' | 'oi' | 'chain' | 'report' | 'portfolio';
+export type PageId = 'builder' | 'drafts' | 'ai' | 'chart' | 'oi' | 'chain' | 'report' | 'portfolio' | 'pnl';
 
 export interface Route {
   page: PageId;
@@ -17,6 +17,7 @@ export const PAGE_LABELS: Record<PageId, string> = {
   chain: 'Option Chain',
   report: 'Daily Report',
   portfolio: 'Portfolio',
+  pnl: 'P&L Report',
 };
 
 export const PAGE_ICONS: Record<PageId, LucideIcon> = {
@@ -28,6 +29,7 @@ export const PAGE_ICONS: Record<PageId, LucideIcon> = {
   chain: Table2,
   report: Newspaper,
   portfolio: PieChart,
+  pnl: IndianRupee,
 };
 
 export interface NavItem {
@@ -41,7 +43,7 @@ export type NavEntry = { label: string; items: NavItem[] } | { label: string; pa
 export const SIDEBAR: { label: string; pages: PageId[] }[] = [
   { label: 'Trade', pages: ['builder', 'drafts', 'ai'] },
   { label: 'Analyse', pages: ['chart', 'oi', 'chain', 'report'] },
-  { label: 'Invest', pages: ['portfolio'] },
+  { label: 'Invest', pages: ['portfolio', 'pnl'] },
 ];
 
 /** Phone navigation groups: plain links, and groups that open as a sheet from the tab bar. */
@@ -65,7 +67,13 @@ export const NAV: NavEntry[] = [
       { page: 'report', description: 'Levels, flows, global cues and news' },
     ],
   },
-  { label: 'Portfolio', page: 'portfolio' },
+  {
+    label: 'Portfolio',
+    items: [
+      { page: 'portfolio', description: 'Your investments, P&L and performance' },
+      { page: 'pnl', description: 'Live P&L from your Zerodha account' },
+    ],
+  },
 ];
 
 /** Phone tab bar: the most used pages one tap away; the Analyse group opens as a sheet. */
@@ -75,7 +83,7 @@ export const MOBILE_TABS: MobileTab[] = [
   { label: 'Drafts', icon: FolderOpen, page: 'drafts' },
   { label: 'Chart', icon: ChartCandlestick, page: 'chart' },
   { label: 'Analyse', icon: ChartLine, group: 'Analyse' },
-  { label: 'Portfolio', icon: PieChart, page: 'portfolio' },
+  { label: 'Portfolio', icon: PieChart, group: 'Portfolio' },
 ];
 
 const PAGES = Object.keys(PAGE_LABELS) as PageId[];

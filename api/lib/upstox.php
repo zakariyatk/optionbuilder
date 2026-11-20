@@ -4,6 +4,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/http.php';
 require_once __DIR__ . '/cache.php';
+require_once __DIR__ . '/kite.php';
 
 /**
  * Upstox Developer API client — the port of upstoxClient.js.
@@ -127,14 +128,17 @@ function ob_clear_token(): void
     @unlink(ob_token_file());
 }
 
-/** Next 03:30 IST after $from, as a unix timestamp. */
-function ob_next_expiry_boundary(?int $from = null): int
+/**
+ * Next daily token cut-off after $from, as a unix timestamp: 03:30 IST for
+ * Upstox, or $atIst seconds after IST midnight (Zerodha: 06:00).
+ */
+function ob_next_expiry_boundary(?int $from = null, int $atIst = 3 * 3600 + 1800): int
 {
     $from ??= time();
     $istOffset = 5 * 3600 + 1800;
     $ist = $from + $istOffset;
-    // Midnight IST of the day $from falls in, then 03:30 on top.
-    $boundaryIst = (int) (floor($ist / 86400) * 86400) + 3 * 3600 + 1800;
+    // Midnight IST of the day $from falls in, then the cut-off on top.
+    $boundaryIst = (int) (floor($ist / 86400) * 86400) + $atIst;
     $boundary = $boundaryIst - $istOffset;
     return $boundary > $from ? $boundary : $boundary + 86400;
 }

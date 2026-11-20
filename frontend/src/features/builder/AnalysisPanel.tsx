@@ -6,6 +6,7 @@ import { isLinear, type Greeks, type Leg, type StrategyMetrics } from '../../dom
 import { num } from '../../lib/format';
 import { useMarket, type MarketView } from './market';
 import { Segmented } from './parts';
+import { marginBrokerName } from '../../lib/broker';
 
 const pct = (v: number, spot: number) => `${v >= spot ? '+' : '−'}${Math.abs(((v - spot) / spot) * 100).toFixed(1)}%`;
 const gcd = (a: number, b: number): number => (b === 0 ? a : gcd(b, a % b));
@@ -202,9 +203,9 @@ export function AnalysisPanel({
                   />
                 ) : (
                   <Tile
-                    label={marginIsBroker ? 'Margin (Upstox)' : 'Est. margin'}
+                    label={marginIsBroker ? `Margin (${marginBrokerName()})` : 'Est. margin'}
                     value={marginValue}
-                    tip={marginIsBroker ? 'Live SPAN + exposure from Upstox for these contracts' : 'A formula estimate, not your broker’s exact figure — confirm before trading'}
+                    tip={marginIsBroker ? `Live SPAN + exposure from ${marginBrokerName()} for these contracts` : 'A formula estimate, not your broker’s exact figure — confirm before trading'}
                   />
                 )}
 

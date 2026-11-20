@@ -66,14 +66,16 @@ fn notify(app: AppHandle, title: String, body: String) {
     let _ = app.notification().builder().title(title).body(body).show();
 }
 
-/// Hosts whose pages stay inside the window: the app's own start page, the site itself and Upstox, whose
-/// OAuth must land back on the site's callback with the session cookie.
+/// Hosts whose pages stay inside the window: the app's own start page, the site itself and the brokers
+/// (Upstox, Zerodha), whose logins must land back on the site's callback with the session cookie.
 fn stays_inside(host: &str) -> bool {
     let site = Url::parse(SITE).expect("SITE is a valid URL");
     host == "tauri.localhost"
         || host == site.host_str().unwrap_or_default()
         || host == "upstox.com"
         || host.ends_with(".upstox.com")
+        || host == "zerodha.com"
+        || host.ends_with(".zerodha.com")
 }
 
 /// Decide each top-level navigation: keep it in the window, or hand it to the system browser.
@@ -303,6 +305,8 @@ mod tests {
         assert!(stays_inside("tauri.localhost"));
         assert!(stays_inside("optionbuilder.adddots.com"));
         assert!(stays_inside("api.upstox.com"));
+        assert!(stays_inside("kite.zerodha.com"));
+        assert!(!stays_inside("evilzerodha.com"));
         assert!(!stays_inside("zqwuztvbpfifmkwtjyyk.supabase.co"));
         assert!(!stays_inside("evilupstox.com"));
     }

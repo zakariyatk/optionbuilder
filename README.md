@@ -19,6 +19,7 @@ Live at <https://optionbuilder.adddots.com/>.
 - **Saved strategies** – the working strategy survives reloads; name and save up to 50.
 - **Option chain** – ITM / ATM shading, unusual-activity detection (OI walls, volume
   surges, build-ups), IV and volume columns, manual-premium mode when offline.
+- **P&L Report** – live P&L of your Zerodha positions and holdings, with CSV export.
 - **Daily Report** – max-OI support/resistance for the monthly and December expiries,
   PCR, FII/DII flows, global cues with an India-centric sentiment read, condensed
   news; export as PNG/JPG or a 7-slide Instagram carousel (with Google Drive upload).
@@ -104,6 +105,23 @@ before `npm run dev:mock`.
 → Analytics → Generate Token, valid one year) and quotes, charts, the option
 chain, OI and the daily report stay live without it. Broker margin still
 needs Connect; until then the app shows its margin estimate.
+
+**Zerodha for the account side (optional).** Market data — quotes, charts,
+the option chain, OI and the daily report — always comes from Upstox. Set
+`kite_api_key` and `kite_api_secret` (Kite Developer → your app; the free
+Personal plan is enough) and the account APIs move to Zerodha: today that is
+broker margin, from `/margins/basket`. Register
+`https://<your-domain>/api/auth/zerodha/callback` as the Kite app's Redirect
+URL, and click **Connect Zerodha** in the header once a day (Kite logins end at
+06:00 IST). With the Upstox analytics token set, that is the only daily login.
+Legs carry Upstox instrument keys, so `api/lib/kite.php` matches each to its
+Zerodha contract by underlying, expiry, strike and type.
+
+**P&L Report** (Invest → P&L Report, `#pnl`) also reads the Zerodha account:
+positions (realised, unrealised, M2M) and holdings (P&L against average cost,
+today's change), refreshed every 15 s, with a CSV download. It is built from
+Kite's `/portfolio/positions` and `/portfolio/holdings`; historical statements
+(tax P&L, past years) exist only in Zerodha Console, which has no API.
 
 **Password (fallback).** Used only while Supabase sign-in is not set up. Store a
 password **hash**, not the password:
