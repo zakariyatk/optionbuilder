@@ -175,3 +175,27 @@ describe('cumulative P&L and drawdown', () => {
     expect(maxDrawdown(cumulativeSeries([g('a', 5)]))).toBeNull();
   });
 });
+
+import { netDaily } from './pnl';
+
+describe('charges and net P&L', () => {
+  const seg = (realised: number, charges: number | null) => ({ source: 'statement' as const, realised, today: null, charges, symbols: {} });
+  const days = [
+    { date: '2026-10-05', equity: null, fo: seg(1000, 120), commodity: seg(0, 15) },
+    { date: '2026-10-06', equity: null, fo: seg(-400, null), commodity: null },
+  ];
+
+  it('totals known charges and counts days without them', () => {
+    const s = summarizeHistory(days, '2026-10-01', '2026-10-31');
+    expect(s.charges).toEqual({ equity: 0, fo: 120, commodity: 15 });
+    expect(s.unpricedDays).toBe(1);
+    // A day with only charges (a penalty, a fee) still counts against net.
+    expect(netDaily(s).map((d) => d.total)).toEqual([865, -400]);
+  });
+
+  it('keeps charges to the chosen segments', () => {
+    const s = summarizeHistory(days, '2026-10-01', '2026-10-31', ['commodity']);
+    expect(s.charges).toEqual({ equity: 0, fo: 0, commodity: 15 });
+    expect(netDaily(s).map((d) => d.total)).toEqual([-15, 0]);
+  });
+});

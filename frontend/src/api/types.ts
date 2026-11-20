@@ -370,6 +370,8 @@ export interface PnlDaySegment {
   realised: number;
   /** Auto-saved days also keep that day's M2M. */
   today: number | null;
+  /** Charges and taxes that day (brokerage, STT, GST, stamp, fees, other debits); null when unknown (tradebooks). */
+  charges?: number | null;
   symbols: Record<string, number>;
 }
 

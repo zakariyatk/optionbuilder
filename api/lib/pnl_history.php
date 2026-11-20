@@ -55,7 +55,7 @@ function ob_pnl_history(?callable $change = null): array
     }
     flock($fh, $change ? LOCK_EX : LOCK_SH);
     $h = json_decode((string) stream_get_contents($fh), true);
-    $h = (is_array($h) ? $h : []) + ['auto' => [], 'trades' => [], 'coverage' => [], 'uploads' => [], 'multipliers' => [], 'statements' => []];
+    $h = (is_array($h) ? $h : []) + ['auto' => [], 'autoCharges' => [], 'trades' => [], 'coverage' => [], 'uploads' => [], 'multipliers' => [], 'statements' => []];
     if ($change !== null) {
         $next = $change($h);
         if (is_array($next)) {
@@ -87,7 +87,7 @@ function ob_pnl_underlying(string $symbol): string
  *
  * @param list<array> $positions rows from ob_kite_pnl()
  */
-function ob_pnl_history_save_today(array $positions): void
+function ob_pnl_history_save_today(array $positions, ?array $charges = null): void
 {
     $today = gmdate('Y-m-d', time() + 19800);
     $day = [];
@@ -103,8 +103,12 @@ function ob_pnl_history_save_today(array $positions): void
             $mult[ob_pnl_underlying($sym)] = (float) $p['multiplier'];
         }
     }
-    ob_pnl_history(static function (array $h) use ($today, $day, $mult): array {
+    ob_pnl_history(static function (array $h) use ($today, $day, $mult, $charges): array {
         $h['auto'][$today] = $day;
+        if ($charges !== null) {
+            // segment => today's charges and taxes, from Zerodha's charges API.
+            $h['autoCharges'][$today] = $charges;
+        }
         $h['multipliers'] = $mult + $h['multipliers'];
         return $h;
     });
@@ -302,8 +306,14 @@ function ob_pnl_history_report(): array
     // Statements: each symbol on its contract's expiry (or the period's last day).
     $st = [];
     $stCov = [];
+    $stCharges = [];
     foreach ($h['statements'] as $s) {
         $stCov[$s['segment']][] = [$s['from'], $s['to']];
+        if ($s['segment'] !== 'equity') {
+            foreach (ob_pnl_statement_charges($s) as $d => $c) {
+                $stCharges[$d][$s['segment']] = round(($stCharges[$d][$s['segment']] ?? 0) + $c, 4);
+            }
+        }
         if ($s['segment'] === 'equity') {
             // Stocks carry no expiry, so an equity statement can't be placed on
             // days: it is returned whole (`undated`) for ranges that cover it.
@@ -322,7 +332,7 @@ function ob_pnl_history_report(): array
         }
         return false;
     };
-    $dates = array_unique(array_merge(array_keys($h['auto']), array_keys($up['days']), array_keys($st)));
+    $dates = array_unique(array_merge(array_keys($h['auto']), array_keys($up['days']), array_keys($st), array_keys($stCharges)));
     sort($dates);
 
     $out = [];
@@ -335,16 +345,18 @@ function ob_pnl_history_report(): array
             $hasUp = isset($up['days'][$date][$seg]);
             if (($cov && $date >= $cov[0] && $date <= $cov[1]) || ($hasUp && !isset($h['auto'][$date][$seg]))) {
                 $syms = $up['days'][$date][$seg] ?? [];
-                $row[$seg] = ['source' => 'upload', 'realised' => round(array_sum($syms), 2), 'today' => null, 'symbols' => (object) $syms];
+                // Tradebooks carry no charges.
+                $row[$seg] = ['source' => 'upload', 'realised' => round(array_sum($syms), 2), 'today' => null, 'charges' => null, 'symbols' => (object) $syms];
             } elseif ($inStatement($seg, $date)) {
                 $syms = $st[$date][$seg] ?? [];
-                $row[$seg] = ['source' => 'statement', 'realised' => round(array_sum($syms), 2), 'today' => null, 'symbols' => (object) $syms];
+                $row[$seg] = ['source' => 'statement', 'realised' => round(array_sum($syms), 2), 'today' => null, 'charges' => $stCharges[$date][$seg] ?? 0.0, 'symbols' => (object) $syms];
             } elseif (isset($h['auto'][$date][$seg])) {
                 $a = $h['auto'][$date][$seg];
                 $row[$seg] = [
                     'source' => 'auto',
                     'realised' => round(array_sum(array_column($a, 'r')), 2),
                     'today' => round(array_sum(array_column($a, 't')), 2),
+                    'charges' => isset($h['autoCharges'][$date]) ? (float) ($h['autoCharges'][$date][$seg] ?? 0) : null,
                     'symbols' => (object) array_map(static fn($v) => $v['r'], $a),
                 ];
             } else {
@@ -479,6 +491,7 @@ function ob_pnl_import_statement(string $name, array $rows): array
     $charges = 0.0;
     $other = 0.0;
     $symbols = [];
+    $turnover = [];
     $col = null;
     foreach ($rows as $r) {
         $cells = array_values(array_filter($r, static fn($v) => $v !== null && $v !== ''));
@@ -511,15 +524,17 @@ function ob_pnl_import_statement(string $name, array $rows): array
                 continue;
             }
             $symbols[$sym] = round(($symbols[$sym] ?? 0) + (float) $pnl, 2);
+            // Turnover spreads the statement's charges over its contracts.
+            $turnover[$sym] = round(($turnover[$sym] ?? 0) + abs((float) ($r[$col['Buy Value']] ?? 0)) + abs((float) ($r[$col['Sell Value']] ?? 0)), 2);
         }
     }
     if ($seg === null || $from === null || $col === null) {
         throw new InvalidArgumentException('This doesn’t look like a Console P&L statement (no “P&L Statement for … from … to …” title or Symbol / Realized P&L table).');
     }
 
-    ob_pnl_history(static function (array $h) use ($seg, $from, $to, $symbols, $charges, $other, $name): array {
+    ob_pnl_history(static function (array $h) use ($seg, $from, $to, $symbols, $turnover, $charges, $other, $name): array {
         $h['statements'] = array_values(array_filter($h['statements'] ?? [], static fn($s) => !($s['segment'] === $seg && $s['from'] === $from && $s['to'] === $to)));
-        $h['statements'][] = ['segment' => $seg, 'from' => $from, 'to' => $to, 'name' => mb_substr($name, 0, 120), 'at' => time() * 1000, 'symbols' => $symbols, 'charges' => round($charges, 2), 'other' => round($other, 2)];
+        $h['statements'][] = ['segment' => $seg, 'from' => $from, 'to' => $to, 'name' => mb_substr($name, 0, 120), 'at' => time() * 1000, 'symbols' => $symbols, 'turnover' => $turnover, 'charges' => round($charges, 2), 'other' => round($other, 2), 'debits' => []];
         return $h;
     });
     return ['segment' => $seg, 'from' => $from, 'to' => $to, 'symbols' => count($symbols), 'realised' => round(array_sum($symbols), 2), 'charges' => round($charges, 2)];
@@ -546,4 +561,97 @@ function ob_pnl_statement_date(string $symbol, string $from, string $to): string
         return $to;
     }
     return $date < $from ? $from : $date;
+}
+
+/**
+ * Imports a Console "Other Debits and Credits" sheet (penalties, call & trade
+ * fees, DP and pledge charges, ...): each entry is dated, so it lands on its
+ * posting day. Attached to the statement for the same segment and period.
+ *
+ * @param list<list<mixed>> $rows one sheet
+ * @return int entries imported (0 if the sheet isn't one of these)
+ */
+function ob_pnl_import_debits(array $rows): int
+{
+    $seg = $from = $to = null;
+    $col = null;
+    $entries = [];
+    foreach ($rows as $r) {
+        $cells = array_values(array_filter($r, static fn($v) => $v !== null && $v !== ''));
+        $first = is_string($cells[0] ?? null) ? trim($cells[0]) : '';
+        if (preg_match('/Other Debits and Credits for (\w+) from (\d{4}-\d{2}-\d{2}) to (\d{4}-\d{2}-\d{2})/i', $first, $m)) {
+            $seg = match (strtoupper($m[1])) {
+                'FO', 'CDS', 'CUR' => 'fo',
+                'COM', 'MCX' => 'commodity',
+                default => 'equity',
+            };
+            [$from, $to] = [$m[2], $m[3]];
+            continue;
+        }
+        if ($col === null && in_array('Posting Date', $r, true) && in_array('Debit', $r, true)) {
+            $col = array_flip(array_map(static fn($v) => is_string($v) ? trim($v) : '', $r));
+            continue;
+        }
+        if ($col !== null) {
+            $date = ob_pnl_date((string) ($r[$col['Posting Date']] ?? ''));
+            if ($date === null) {
+                continue;
+            }
+            $amount = (float) ($r[$col['Credit']] ?? 0) - (float) ($r[$col['Debit']] ?? 0);
+            if ($amount != 0) {
+                $entries[] = [$date, round($amount, 2), mb_substr(trim((string) ($r[$col['Particulars']] ?? '')), 0, 120)];
+            }
+        }
+    }
+    if ($seg === null || $col === null) {
+        return 0;
+    }
+    $found = false;
+    ob_pnl_history(static function (array $h) use ($seg, $from, $to, $entries, &$found): array {
+        foreach ($h['statements'] as &$s) {
+            if ($s['segment'] === $seg && $s['from'] === $from && $s['to'] === $to) {
+                $s['debits'] = $entries;
+                $found = true;
+            }
+        }
+        return $h;
+    });
+    return $found ? count($entries) : 0;
+}
+
+/**
+ * A statement's charges per day: its total charges spread over its contracts
+ * by turnover (each contract's buy + sell value) and placed where the
+ * contract's P&L sits, plus each dated other debit / credit on its own day.
+ *
+ * @return array<string, float> date => charges (positive = cost)
+ */
+function ob_pnl_statement_charges(array $s): array
+{
+    $out = [];
+    $weights = $s['turnover'] ?? [];
+    if (!$weights || array_sum($weights) <= 0) {
+        // Older uploads have no turnover: spread by the size of each P&L instead.
+        $weights = array_map('abs', $s['symbols']);
+    }
+    $total = array_sum($weights);
+    if ($total > 0 && $s['charges'] > 0) {
+        foreach ($weights as $sym => $w) {
+            $d = ob_pnl_statement_date((string) $sym, $s['from'], $s['to']);
+            $out[$d] = ($out[$d] ?? 0) + $s['charges'] * $w / $total;
+        }
+    }
+    $dated = 0.0;
+    foreach ($s['debits'] ?? [] as [$date, $amount]) {
+        $d = max($s['from'], min($s['to'], $date));
+        $out[$d] = ($out[$d] ?? 0) - $amount;
+        $dated += $amount;
+    }
+    // Other debits not itemised by date (or from an upload without that sheet): the period's last day.
+    $rest = $s['other'] - $dated;
+    if (abs($rest) >= 0.01) {
+        $out[$s['to']] = ($out[$s['to']] ?? 0) - $rest;
+    }
+    // Kept to 4 decimals: rounding every share to paise drifts the total by a rupee.
+    return array_map(static fn($v) => round($v, 4), $out);
 }

@@ -504,3 +504,43 @@ function ob_kite_position_pnl(array $p, array $holdingBy): array
         'm2m' => round($m2m, 2),
     ];
 }
+
+/**
+ * Today's charges and taxes per segment (brokerage, STT / CTT, exchange and
+ * SEBI fees, GST, stamp duty), from Kite's virtual contract note: today's
+ * completed orders sent to /charges/orders. Null when it can't be worked out.
+ *
+ * @return array<string, float>|null segment => charges
+ */
+function ob_kite_today_charges(): ?array
+{
+    $orders = ob_kite_get('/orders')['data'] ?? [];
+    $done = [];
+    foreach ($orders as $o) {
+        if (($o['status'] ?? '') !== 'COMPLETE' || (int) ($o['filled_quantity'] ?? 0) <= 0) {
+            continue;
+        }
+        $done[] = [
+            'order_id' => (string) $o['order_id'],
+            'exchange' => (string) $o['exchange'],
+            'tradingsymbol' => (string) $o['tradingsymbol'],
+            'transaction_type' => (string) $o['transaction_type'],
+            'variety' => (string) ($o['variety'] ?? 'regular'),
+            'product' => (string) ($o['product'] ?? 'NRML'),
+            'order_type' => (string) ($o['order_type'] ?? 'MARKET'),
+            'quantity' => (int) $o['filled_quantity'],
+            'average_price' => (float) ($o['average_price'] ?? 0),
+        ];
+    }
+    $out = ['equity' => 0.0, 'fo' => 0.0, 'commodity' => 0.0];
+    if (!$done) {
+        return $out;
+    }
+    foreach (array_chunk($done, 100) as $batch) {
+        foreach (ob_kite_post_json('/charges/orders', $batch)['data'] ?? [] as $c) {
+            $seg = ob_kite_segment((string) ($c['exchange'] ?? ''));
+            $out[$seg] += (float) ($c['charges']['total'] ?? 0);
+        }
+    }
+    return array_map(static fn($v) => round($v, 2), $out);
+}
