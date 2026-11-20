@@ -590,13 +590,19 @@ function mockZerodhaPnl(now: number) {
     const last = quantity === 0 ? close : wiggle(close);
     const unrealised = Math.round((last - average) * quantity * 100) / 100;
     const m2m = Math.round(((last - close) * quantity + realised * 0.4) * 100) / 100;
-    return { symbol, exchange, product, quantity, buyQty: Math.max(quantity, 0), buyAvg: average, sellQty: Math.max(-quantity, 0), sellAvg: average, average, last, pnl: Math.round((realised + unrealised) * 100) / 100, realised, unrealised, m2m };
+    return { symbol, exchange, segment: exchange === 'MCX' ? 'commodity' : exchange === 'NFO' ? 'fo' : 'equity', product, quantity, buyQty: Math.max(quantity, 0), buyAvg: average, sellQty: Math.max(-quantity, 0), sellAvg: average, average, last, pnl: Math.round((realised + unrealised) * 100) / 100, realised, unrealised, m2m };
   };
   const positions = [
     pos('NIFTY25N2524500CE', 'NFO', 'NRML', -75, 182.4, 141.3, 0),
     pos('NIFTY25N2523800PE', 'NFO', 'NRML', -75, 96.1, 118.6, 0),
     pos('BANKNIFTY25NOVFUT', 'NFO', 'NRML', 30, 51840, 52115, 0),
+    pos('NIFTY25D0224000PE', 'NFO', 'NRML', 0, 64.2, 58.9, -2185),
     pos('RELIANCE', 'NSE', 'MIS', 0, 2954, 2961.5, 1240),
+    pos('SBIN', 'NSE', 'MIS', 0, 812.4, 809.1, -660),
+    pos('TATASTEEL', 'NSE', 'CNC', 200, 148.6, 151.2, 0),
+    pos('GOLD25DECFUT', 'MCX', 'NRML', 1, 76420, 76880, 0),
+    pos('CRUDEOIL25DEC5600CE', 'MCX', 'NRML', -100, 182, 151.5, 0),
+    pos('SILVERM25NOVFUT', 'MCX', 'NRML', 0, 91240, 90810, -2150),
   ];
   const hold = (symbol: string, quantity: number, average: number, close: number) => {
     const last = wiggle(close * 1.004);
@@ -607,6 +613,10 @@ function mockZerodhaPnl(now: number) {
   return {
     positions,
     holdings: holdings.sort((a, b) => b.current - a.current),
+    funds: {
+      equity: { available: 184_350.4, used: 312_880.25, openingBalance: 497_230.65, collateral: 0 },
+      commodity: { available: 41_920, used: 118_080, openingBalance: 160_000, collateral: 0 },
+    },
     totals: {
       positions: { pnl: sum(positions, (p) => p.pnl), realised: sum(positions, (p) => p.realised), unrealised: sum(positions, (p) => p.unrealised), m2m: sum(positions, (p) => p.m2m) },
       holdings: { invested: sum(holdings, (h) => h.invested), current: sum(holdings, (h) => h.current), pnl: sum(holdings, (h) => h.pnl), dayChange: sum(holdings, (h) => h.dayChange) },

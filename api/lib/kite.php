@@ -325,6 +325,14 @@ function ob_kite_pnl(): array
 {
     $positions = ob_kite_get('/portfolio/positions')['data']['net'] ?? [];
     $holdings = ob_kite_get('/portfolio/holdings')['data'] ?? [];
+    try {
+        $funds = ob_kite_funds(ob_kite_get('/user/margins')['data'] ?? []);
+    } catch (ObKiteNotAuthenticated $e) {
+        throw $e;
+    } catch (Throwable) {
+        // Funds are a nice-to-have on this page; P&L still shows without them.
+        $funds = null;
+    }
 
     $pos = [];
     $t = ['pnl' => 0.0, 'realised' => 0.0, 'unrealised' => 0.0, 'm2m' => 0.0];
@@ -332,6 +340,7 @@ function ob_kite_pnl(): array
         $row = [
             'symbol' => (string) ($p['tradingsymbol'] ?? ''),
             'exchange' => (string) ($p['exchange'] ?? ''),
+            'segment' => ob_kite_segment((string) ($p['exchange'] ?? '')),
             'product' => (string) ($p['product'] ?? ''),
             'quantity' => (int) ($p['quantity'] ?? 0),
             'buyQty' => (int) ($p['buy_quantity'] ?? 0),
@@ -386,10 +395,48 @@ function ob_kite_pnl(): array
     return [
         'positions' => $pos,
         'holdings' => $hold,
+        'funds' => $funds,
         'totals' => [
             'positions' => array_map(static fn(float $v): float => round($v, 2), $t),
             'holdings' => array_map(static fn(float $v): float => round($v, 2), $h),
         ],
         'at' => (int) round(microtime(true) * 1000),
     ];
+}
+
+/**
+ * The P&L page's segment for an exchange: equity (NSE, BSE cash), F&O (NFO, BFO,
+ * and currency derivatives CDS / BCD) or commodity (MCX, NCDEX).
+ */
+function ob_kite_segment(string $exchange): string
+{
+    return match (strtoupper($exchange)) {
+        'NFO', 'BFO', 'CDS', 'BCD' => 'fo',
+        'MCX', 'NCO', 'NCDEX' => 'commodity',
+        default => 'equity',
+    };
+}
+
+/**
+ * Funds per Zerodha segment from /user/margins. Zerodha keeps two: equity
+ * (which also funds F&O) and commodity.
+ *
+ * @return array{equity: ?array, commodity: ?array}
+ */
+function ob_kite_funds(array $data): array
+{
+    $one = static function (mixed $seg): ?array {
+        if (!is_array($seg) || ($seg['enabled'] ?? true) === false) {
+            return null;
+        }
+        return [
+            // What can still be used for new trades.
+            'available' => round((float) ($seg['net'] ?? 0), 2),
+            // Margin blocked by positions and orders.
+            'used' => round((float) ($seg['utilised']['debits'] ?? 0), 2),
+            'openingBalance' => round((float) ($seg['available']['opening_balance'] ?? 0), 2),
+            'collateral' => round((float) ($seg['available']['collateral'] ?? 0), 2),
+        ];
+    };
+    return ['equity' => $one($data['equity'] ?? null), 'commodity' => $one($data['commodity'] ?? null)];
 }

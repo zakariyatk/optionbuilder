@@ -309,6 +309,8 @@ export interface AiStatus {
 export interface ZerodhaPosition {
   symbol: string;
   exchange: string;
+  /** equity (NSE/BSE cash), fo (NFO/BFO/currency) or commodity (MCX). Older servers omit it. */
+  segment?: 'equity' | 'fo' | 'commodity';
   product: string;
   /** Net quantity: positive long, negative short, 0 once closed. */
   quantity: number;
@@ -339,9 +341,21 @@ export interface ZerodhaHolding {
 }
 
 /** Live P&L from the Zerodha account (GET /api/zerodha/pnl). */
+/** One Zerodha funds segment (equity also funds F&O). */
+export interface ZerodhaFunds {
+  /** Margin still free for new trades. */
+  available: number;
+  /** Margin blocked by positions and orders. */
+  used: number;
+  openingBalance: number;
+  collateral: number;
+}
+
 export interface ZerodhaPnl {
   positions: ZerodhaPosition[];
   holdings: ZerodhaHolding[];
+  /** null when Zerodha's funds call failed; a segment is null when it isn't enabled. */
+  funds?: { equity: ZerodhaFunds | null; commodity: ZerodhaFunds | null } | null;
   totals: {
     positions: { pnl: number; realised: number; unrealised: number; m2m: number };
     holdings: { invested: number; current: number; pnl: number; dayChange: number };
