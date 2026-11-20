@@ -334,26 +334,16 @@ function ob_kite_pnl(): array
         $funds = null;
     }
 
+    // Holdings first: shares sold from them today are settled against their cost below.
+    $holdingBy = [];
+    foreach ($holdings as $x) {
+        $holdingBy[strtoupper((string) ($x['exchange'] ?? '')) . ':' . strtoupper((string) ($x['tradingsymbol'] ?? ''))] = $x;
+    }
+
     $pos = [];
     $t = ['pnl' => 0.0, 'realised' => 0.0, 'unrealised' => 0.0, 'm2m' => 0.0];
     foreach ($positions as $p) {
-        $row = [
-            'symbol' => (string) ($p['tradingsymbol'] ?? ''),
-            'exchange' => (string) ($p['exchange'] ?? ''),
-            'segment' => ob_kite_segment((string) ($p['exchange'] ?? '')),
-            'product' => (string) ($p['product'] ?? ''),
-            'quantity' => (int) ($p['quantity'] ?? 0),
-            'buyQty' => (int) ($p['buy_quantity'] ?? 0),
-            'buyAvg' => (float) ($p['buy_price'] ?? 0),
-            'sellQty' => (int) ($p['sell_quantity'] ?? 0),
-            'sellAvg' => (float) ($p['sell_price'] ?? 0),
-            'average' => (float) ($p['average_price'] ?? 0),
-            'last' => (float) ($p['last_price'] ?? 0),
-            'pnl' => (float) ($p['pnl'] ?? 0),
-            'realised' => (float) ($p['realised'] ?? 0),
-            'unrealised' => (float) ($p['unrealised'] ?? 0),
-            'm2m' => (float) ($p['m2m'] ?? 0),
-        ];
+        $row = ob_kite_position_pnl($p, $holdingBy);
         foreach ($t as $k => $_) {
             $t[$k] += $row[$k];
         }
@@ -363,9 +353,10 @@ function ob_kite_pnl(): array
     $hold = [];
     $h = ['invested' => 0.0, 'current' => 0.0, 'pnl' => 0.0, 'dayChange' => 0.0];
     foreach ($holdings as $x) {
-        // T1 shares (bought yesterday, not yet delivered) are part of the holding.
-        $qty = (int) ($x['quantity'] ?? 0) + (int) ($x['t1_quantity'] ?? 0);
-        if ($qty === 0) {
+        // Settled + T1 (bought yesterday, not yet delivered), minus what was sold
+        // today: that sale is booked as realised P&L in positions, not here.
+        $qty = (int) ($x['quantity'] ?? 0) + (int) ($x['t1_quantity'] ?? 0) - (int) ($x['used_quantity'] ?? 0);
+        if ($qty <= 0) {
             continue;
         }
         $avg = (float) ($x['average_price'] ?? 0);
@@ -381,7 +372,7 @@ function ob_kite_pnl(): array
             'current' => round($last * $qty, 2),
             'pnl' => round(($last - $avg) * $qty, 2),
             'dayChange' => $close > 0 ? round(($last - $close) * $qty, 2) : 0.0,
-            'dayChangePct' => (float) ($x['day_change_percentage'] ?? 0),
+            'dayChangePct' => $close > 0 ? round(($last - $close) / $close * 100, 2) : 0.0,
         ];
         foreach ($h as $k => $_) {
             $h[$k] += $row[$k];
@@ -439,4 +430,77 @@ function ob_kite_funds(array $data): array
         ];
     };
     return ['equity' => $one($data['equity'] ?? null), 'commodity' => $one($data['commodity'] ?? null)];
+}
+
+/**
+ * One net position's P&L, computed the way Zerodha documents it rather than
+ * read from Kite's `realised` / `unrealised` fields, which Kite doesn't fill
+ * reliably (realised often 0, unrealised the whole P&L):
+ *
+ *   P&L        = (sell value − buy value) + net qty × LTP × multiplier
+ *   unrealised = net qty × (LTP − average price) × multiplier   (the open part)
+ *   realised   = P&L − unrealised                               (the closed part)
+ *   today/M2M  = (day sell value − day buy value)
+ *                + (net qty × LTP − overnight qty × yesterday's close) × multiplier
+ *
+ * The multiplier matters for MCX and currency contracts (P&L per point per lot).
+ * A delivery (CNC) sale from holdings has no buy side today, so it is realised
+ * against the holding's average cost instead of against the LTP.
+ *
+ * @param array<string,array> $holdingBy "EXCHANGE:SYMBOL" => Kite holding
+ */
+function ob_kite_position_pnl(array $p, array $holdingBy): array
+{
+    $f = static fn(string $k): float => (float) ($p[$k] ?? 0);
+    $m = $f('multiplier') ?: 1.0;
+    $qty = (int) ($p['quantity'] ?? 0);
+    $last = $f('last_price');
+    $avg = $f('average_price');
+    $symbol = (string) ($p['tradingsymbol'] ?? '');
+    $exchange = (string) ($p['exchange'] ?? '');
+
+    $hasValues = isset($p['buy_value']) || isset($p['sell_value']);
+    $pnl = $hasValues ? ($f('sell_value') - $f('buy_value')) + $qty * $last * $m : $f('pnl');
+    $unrealised = $qty !== 0 ? $qty * ($last - $avg) * $m : 0.0;
+    $realised = $pnl - $unrealised;
+
+    $hasDay = isset($p['day_buy_value']) || isset($p['day_sell_value']);
+    $m2m = $hasDay
+        ? ($f('day_sell_value') - $f('day_buy_value')) + ($qty * $last - (int) ($p['overnight_quantity'] ?? 0) * $f('close_price')) * $m
+        : $f('m2m');
+
+    // Sold from holdings today (CNC, nothing bought): profit is against the holding's cost.
+    $holding = $holdingBy[strtoupper($exchange) . ':' . strtoupper($symbol)] ?? null;
+    $soldFromHolding = false;
+    if ($holding !== null && ($p['product'] ?? '') === 'CNC' && $qty < 0 && (int) ($p['buy_quantity'] ?? 0) === 0) {
+        $sold = -$qty;
+        $cost = (float) ($holding['average_price'] ?? 0);
+        $close = (float) ($holding['close_price'] ?? 0);
+        $realised = $sold * ($f('sell_price') - $cost);
+        $unrealised = 0.0;
+        $pnl = $realised;
+        // Today's part: the sale against yesterday's close.
+        $m2m = $close > 0 ? $sold * ($f('sell_price') - $close) : $m2m;
+        $soldFromHolding = true;
+    }
+
+    return [
+        'symbol' => $symbol,
+        'exchange' => $exchange,
+        'segment' => ob_kite_segment($exchange),
+        'product' => (string) ($p['product'] ?? ''),
+        // A sale from holdings closes that quantity, so show it as closed.
+        'quantity' => $soldFromHolding ? 0 : $qty,
+        'buyQty' => (int) ($p['buy_quantity'] ?? 0),
+        'buyAvg' => $f('buy_price'),
+        'sellQty' => (int) ($p['sell_quantity'] ?? 0),
+        'sellAvg' => $f('sell_price'),
+        'average' => $soldFromHolding ? (float) ($holding['average_price'] ?? 0) : $avg,
+        'last' => $last,
+        'multiplier' => $m,
+        'pnl' => round($pnl, 2),
+        'realised' => round($realised, 2),
+        'unrealised' => round($unrealised, 2),
+        'm2m' => round($m2m, 2),
+    ];
 }
