@@ -1,7 +1,7 @@
 import type { Greeks, StrategyMetrics } from '../domain/types';
 import { inr, num } from '../lib/format';
 import { Card, Stat } from './ui';
-import { brokerName } from '../lib/broker';
+import { marginBrokerName } from '../lib/broker';
 
 function riskReward(m: StrategyMetrics, hasLegs: boolean): string {
   if (!hasLegs) return '—';
@@ -56,7 +56,7 @@ export function MetricsPanel({
           tone={m.netPremium >= 0 ? 'good' : 'critical'}
         />
         <Stat
-          label={brokerMargin === null ? 'Est. capital required' : `Margin required (${brokerName()})`}
+          label={brokerMargin === null ? 'Est. capital required' : `Margin required (${marginBrokerName()})`}
           value={marginLoading && brokerMargin === null ? '…' : inr(brokerMargin ?? m.marginEstimate)}
         />
         {m.equityOutlay > 0 && (
@@ -75,8 +75,8 @@ export function MetricsPanel({
 
       <p className="mt-3 text-[11px] leading-relaxed text-[var(--text-muted)]">
         {brokerMargin === null
-          ? `Margin is a ${m.isDefinedRisk ? 'defined-risk (max-loss based)' : 'naked-write, formula-based'} estimate, not your broker's exact SPAN + exposure figure — connect ${brokerName()}, or confirm with your broker's margin calculator, before placing the trade.`
-          : `Margin is the live SPAN + exposure figure from ${brokerName()} for these exact contracts.`}
+          ? `Margin is a ${m.isDefinedRisk ? 'defined-risk (max-loss based)' : 'naked-write, formula-based'} estimate, not your broker's exact SPAN + exposure figure — connect ${marginBrokerName()}, or confirm with your broker's margin calculator, before placing the trade.`
+          : `Margin is the live SPAN + exposure figure from ${marginBrokerName()} for these exact contracts.`}
         {hasLegs && greeks && ' Greeks use Black-Scholes with each leg’s IV (ATM IV where a leg has none).'}
       </p>
     </Card>

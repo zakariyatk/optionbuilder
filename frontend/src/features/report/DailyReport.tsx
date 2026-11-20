@@ -1,6 +1,6 @@
 import { useRef, useState, type ReactNode } from 'react';
 import { Camera, Download, ExternalLink, TriangleAlert } from 'lucide-react';
-import { BROKER_LOGIN_URL, api, assetUrl, errorMessage } from '../../api/client';
+import { UPSTOX_LOGIN_URL, api, assetUrl, errorMessage } from '../../api/client';
 import type { FiiDiiRow, GlobalMarkets, MaxOiSummary, NewsItem, OiPeak } from '../../api/types';
 import { Button, Card, Skeleton, Stat, type Tone } from '../../components/ui';
 import { formatExpiry, timeAgo } from '../../domain/dates';
@@ -9,7 +9,6 @@ import { compactIndian } from '../../lib/format';
 import { openInstagramCarousel } from '../instagram/instagramCarousel';
 import { downloadNodeAsImage, reportFilename, type ImageFormat } from './exportImage';
 import { OiDistributionChart } from './OiDistributionChart';
-import { brokerName } from '../../lib/broker';
 
 function Section({ title, subtitle, children }: { title: string; subtitle?: string; children: ReactNode }) {
   return (
@@ -372,8 +371,8 @@ export function DailyReport({ symbol, brokerConnected }: { symbol: string; broke
             </Async>
           ) : (
             <div className="text-xs text-[var(--text-muted)]">
-              Connect {brokerName()} to load open-interest data.{' '}
-              <a href={BROKER_LOGIN_URL} target="_blank" rel="noreferrer" className="text-[var(--good-text)] hover:underline">
+              Connect Upstox to load open-interest data.{' '}
+              <a href={UPSTOX_LOGIN_URL} target="_blank" rel="noreferrer" className="text-[var(--good-text)] hover:underline">
                 Connect
                 <ExternalLink size={12} aria-hidden="true" className="ml-0.5 inline align-[-1px]" />
               </a>

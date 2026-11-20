@@ -79,8 +79,7 @@ function ob_config(): array
         'upstox_api_key' => '',
         'upstox_api_secret' => '',
         'upstox_redirect_uri' => '',
-        // 'zerodha' or 'upstox'; empty picks Zerodha when its keys are set.
-        'broker' => '',
+        // Zerodha Kite Connect: account APIs (margin) when set; market data stays on Upstox.
         'kite_api_key' => '',
         'kite_api_secret' => '',
         // Password required to use the app. Prefer app_password_hash (from

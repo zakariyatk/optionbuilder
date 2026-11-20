@@ -131,39 +131,42 @@ try {
         ob_json(['ok' => true]);
     }
 
-    // --------------------------------------------------------- broker auth
+    // --------------------------------------------------------- upstox auth
     if ($path === '/api/auth/status') {
         ob_json([
-            'broker' => ob_broker(),
-            'brokerName' => ob_broker_name(),
-            'configured' => ob_broker_configured(),
+            'configured' => ob_upstox_configured(),
             'authenticated' => ob_has_valid_token(),
             // Quotes, candles and chains work: today's login or the 1-year analytics token.
             'marketData' => ob_has_market_data(),
             'analytics' => ob_analytics_token() !== '',
             'token' => ob_token_info(),
-            'loginUrl' => ob_broker_configured() ? '/api/auth/broker/login' : null,
+            'loginUrl' => ob_upstox_configured() ? '/api/auth/upstox/login' : null,
+            // Account side (margin): Zerodha when configured, else the Upstox login above.
+            'marginBroker' => ob_kite_configured() ? 'zerodha' : 'upstox',
+            'zerodha' => [
+                'configured' => ob_kite_configured(),
+                'authenticated' => ob_kite_has_valid_token(),
+                'token' => ob_kite_token_info(),
+                'loginUrl' => ob_kite_configured() ? '/api/auth/zerodha/login' : null,
+            ],
         ]);
     }
 
-    // Whichever broker the config picks. The frontend only links here.
-    if ($path === '/api/auth/broker/login' || $path === '/api/auth/zerodha/login') {
-        if (!ob_is_zerodha()) {
-            $path = '/api/auth/upstox/login';
-        } else {
-            if (!ob_kite_configured()) {
-                http_response_code(400);
-                exit('Zerodha is not configured. Fill in kite_api_key and kite_api_secret in the config file.');
-            }
-            ob_session_start();
-            $state = bin2hex(random_bytes(16));
-            $_SESSION['ob_oauth_state'] = $state;
-            header('Location: ' . ob_kite_auth_url($state), true, 302);
-            exit;
+    // ------------------------------------------------------- zerodha auth
+    if ($path === '/api/auth/zerodha/login') {
+        if (!ob_kite_configured()) {
+            http_response_code(400);
+            exit('Zerodha is not configured. Fill in kite_api_key and kite_api_secret in the config file.');
         }
+        // Same `state` binding as Upstox, carried through Kite's redirect_params.
+        ob_session_start();
+        $state = bin2hex(random_bytes(16));
+        $_SESSION['ob_kite_state'] = $state;
+        header('Location: ' . ob_kite_auth_url($state), true, 302);
+        exit;
     }
 
-    // Kite sends the user back here (the redirect URL registered on the Kite app).
+    // Kite sends the user back here (the Redirect URL registered on the Kite app).
     if ($path === '/api/auth/zerodha/callback') {
         $requestToken = ob_query('request_token');
         if ($requestToken === null || ob_query('status') === 'cancelled') {
@@ -171,24 +174,28 @@ try {
             exit('Zerodha login was cancelled or returned no request token. Start again from the app.');
         }
         ob_session_start();
-        $expected = (string) ($_SESSION['ob_oauth_state'] ?? '');
-        unset($_SESSION['ob_oauth_state']);
+        $expected = (string) ($_SESSION['ob_kite_state'] ?? '');
+        unset($_SESSION['ob_kite_state']);
         if ($expected === '' || !hash_equals($expected, (string) ob_query('state'))) {
             http_response_code(400);
             exit('Zerodha login could not be verified (state mismatch). Start again from the app.');
         }
         try {
             ob_kite_exchange_token($requestToken);
-            ob_cache_clear();
             header('Content-Type: text/html; charset=utf-8');
             exit('<!doctype html><meta charset="utf-8"><title>Zerodha connected</title>'
                 . '<body style="font:16px system-ui;padding:40px;max-width:32rem">'
-                . '<h2>Zerodha connected</h2><p>Live option chain and broker margins are now enabled until 6:00 AM tomorrow. '
-                . 'You can close this tab and return to the app.</p></body>');
+                . '<h2>Zerodha connected</h2><p>Broker margin now comes from your Zerodha account until 6:00 AM tomorrow. '
+                . 'Market data still comes from Upstox. You can close this tab and return to the app.</p></body>');
         } catch (Throwable $e) {
             http_response_code(502);
             exit('Zerodha authorization failed: ' . htmlspecialchars($e->getMessage(), ENT_QUOTES));
         }
+    }
+
+    if ($path === '/api/auth/zerodha/logout' && $method === 'POST') {
+        ob_kite_clear_token();
+        ob_json(['ok' => true]);
     }
 
     if ($path === '/api/auth/upstox/login') {
@@ -248,7 +255,7 @@ try {
         if ($symbol === '') {
             ob_error('symbol query param is required', 400);
         }
-        // MCX commodities have no Yahoo ticker: broker only.
+        // MCX commodities have no Yahoo ticker: Upstox only.
         if (ob_is_mcx($symbol)) {
             if (!ob_has_market_data()) {
                 ob_error('NOT_AUTHENTICATED', 401);
@@ -418,8 +425,10 @@ try {
         if (!is_array($legs) || !$legs) {
             ob_error('legs array is required', 400);
         }
-        if (!ob_has_valid_token()) {
-            ob_error('NOT_AUTHENTICATED', 401);
+        // Zerodha serves margin when configured; Upstox otherwise.
+        $zerodha = ob_kite_configured();
+        if ($zerodha ? !ob_kite_has_valid_token() : !ob_has_valid_token()) {
+            ob_error($zerodha ? 'ZERODHA_NOT_AUTHENTICATED' : 'NOT_AUTHENTICATED', 401);
         }
 
         $instruments = [];
@@ -435,11 +444,13 @@ try {
             ];
         }
         if (!$instruments) {
-            ob_error('No legs carried a broker instrument key', 400);
+            ob_error('No legs carried an Upstox instrument key', 400);
         }
 
         try {
-            ob_json(ob_upstox_margin($instruments));
+            ob_json($zerodha ? ob_kite_margin($instruments) : ob_upstox_margin($instruments));
+        } catch (ObKiteNotAuthenticated) {
+            ob_error('ZERODHA_NOT_AUTHENTICATED', 401);
         } catch (ObNotAuthenticated) {
             ob_error('NOT_AUTHENTICATED', 401);
         } catch (Throwable $e) {
@@ -476,8 +487,7 @@ try {
     if ($path === '/api/quotes') {
         $keys = array_values(array_unique(array_filter(
             array_map('trim', explode(',', ob_query('keys') ?? '')),
-            // Upstox "NSE_FO|12345" or Zerodha "NFO|M&M25DECFUT".
-            static fn(string $k): bool => (bool) preg_match('/^[A-Za-z_]+\|[\w\-& ]{1,48}$/', $k)
+            static fn(string $k): bool => (bool) preg_match('/^[A-Za-z_]+\|[\w\- ]{1,48}$/', $k)
         )));
         if (!$keys || count($keys) > 200) {
             ob_error('keys must list 1–200 instrument keys', 400);

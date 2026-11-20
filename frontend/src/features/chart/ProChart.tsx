@@ -3,7 +3,7 @@ import { ExternalLink } from 'lucide-react';
 import { KLineChartPro, type Datafeed, type Period, type SymbolInfo as ProSymbol } from '@klinecharts/pro';
 import '@klinecharts/pro/dist/klinecharts-pro.css';
 import { DomPosition, TooltipShowRule, type Chart, type KLineData } from 'klinecharts';
-import { api, BROKER_LOGIN_URL } from '../../api/client';
+import { api, UPSTOX_LOGIN_URL } from '../../api/client';
 import { marketOpen, sessionFor } from '../../lib/nse';
 import { displaySymbol, globalSymbol, isUs, searchGlobal } from '../../lib/markets';
 import { attachLiveTag, innerChart, LIVE_TAG_STYLES } from './liveTag';
@@ -23,7 +23,6 @@ import { installSmoothMotion } from './smoothMotion';
 import { installChartMemory, savedIndicators } from './chartMemory';
 import { useAlerts } from '../../store/alerts';
 import { signalAlerts } from '../alerts/alertSignals';
-import { brokerName } from '../../lib/broker';
 
 const INTRADAY_POLL_MS = 15_000;
 const DAILY_POLL_MS = 60_000;
@@ -617,9 +616,9 @@ export function ProChart({
   if (!live) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3 text-center text-sm text-[var(--text-muted)]">
-        Connect {brokerName()} to chart NSE symbols. US stocks chart without it — search one in the watchlist.
-        <a href={BROKER_LOGIN_URL} target="_blank" rel="noreferrer" className="inline-flex min-h-11 items-center gap-2 rounded-md bg-[var(--series-blue)] px-4 py-2 text-sm font-medium text-white">
-          Connect {brokerName()}
+        Connect Upstox to chart NSE symbols. US stocks chart without it — search one in the watchlist.
+        <a href={UPSTOX_LOGIN_URL} target="_blank" rel="noreferrer" className="inline-flex min-h-11 items-center gap-2 rounded-md bg-[var(--series-blue)] px-4 py-2 text-sm font-medium text-white">
+          Connect Upstox
           <ExternalLink size={16} aria-hidden="true" />
         </a>
       </div>

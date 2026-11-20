@@ -12,7 +12,7 @@ export interface Leg {
   lots: number;
   /** Units per lot. A stock leg uses lots = 1 and lotSize = share count. */
   lotSize: number;
-  /** Broker instrument key, present when the leg came from the live chain. Needed for broker margin. */
+  /** Upstox instrument key, present when the leg came from the live chain. Needed for broker margin. */
   instrumentKey?: string | null;
   /** Implied volatility in percent (e.g. 14.2), from the chain. */
   iv?: number | null;

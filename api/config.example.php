@@ -18,20 +18,7 @@
  */
 
 return [
-    // Which broker serves live NSE data: 'zerodha' or 'upstox'. Leave it out
-    // and Zerodha is used whenever kite_api_key and kite_api_secret are set.
-    'broker' => 'zerodha',
-
-    // ---- Zerodha (Kite Connect), from https://developers.kite.trade/apps
-    // Quotes, charts, the option chain and OI need the paid "Connect" plan;
-    // the free "Personal" plan can only log in and fetch margins.
-    // On the Kite app set the Redirect URL to EXACTLY
-    //   https://optionbuilder.adddots.com/api/auth/zerodha/callback
-    // (your own domain and folder). Kite logins expire at 06:00 IST daily.
-    'kite_api_key' => '',
-    'kite_api_secret' => '',
-
-    // ---- Upstox, from https://account.upstox.com/developer/apps
+    // From https://account.upstox.com/developer/apps
     'upstox_api_key' => '',
     'upstox_api_secret' => '',
     // Must match EXACTLY what is registered on the Upstox app, e.g.
@@ -42,6 +29,17 @@ return [
     // no daily Upstox login; broker margin still needs Connect.
     // Treat it like a password.
     'upstox_analytics_token' => '',
+
+    // Zerodha Kite Connect (optional), from https://developers.kite.trade/apps
+    // Used for the account side only — broker margin today — while every quote,
+    // chart, option chain and OI figure still comes from Upstox above. So the
+    // free "Personal" Kite plan is enough. When both are set, margin comes from
+    // Zerodha instead of the Upstox login.
+    // On the Kite app set the Redirect URL to EXACTLY
+    //   https://optionbuilder.adddots.com/api/auth/zerodha/callback
+    // (your own domain and folder). Kite logins expire at 06:00 IST daily.
+    'kite_api_key' => '',
+    'kite_api_secret' => '',
 
     // Supabase sign-in (recommended): a 6-digit email code or magic link, and
     // Google once enabled. When url, key and allowed_emails are set, the

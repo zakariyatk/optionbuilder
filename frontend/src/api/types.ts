@@ -62,7 +62,7 @@ export interface ChainRow {
 
 export interface OptionChain {
   /** 'yahoo' and 'model' are the US builder's live chain and its Black-Scholes fallback. */
-  source: 'upstox' | 'zerodha' | 'yahoo' | 'model';
+  source: 'upstox' | 'yahoo' | 'model';
   symbol: string;
   lotSize: number;
   underlyingValue: number | null;
@@ -75,12 +75,8 @@ export interface OptionChain {
 }
 
 export interface AuthStatus {
-  /** Which broker the server uses for live NSE data. */
-  broker?: 'upstox' | 'zerodha';
-  /** Its display name, e.g. "Zerodha". */
-  brokerName?: string;
   configured: boolean;
-  /** Today's broker login is active (needed for broker margin). */
+  /** Today's Upstox login is active (needed for broker margin). */
   authenticated: boolean;
   /** Live quotes, candles and chains are available — via the login or the analytics token. */
   marketData?: boolean;
@@ -88,6 +84,15 @@ export interface AuthStatus {
   analytics?: boolean;
   token:{ user_name: string | null; issued_at: number; expires_at: number } | null;
   loginUrl: string | null;
+  /** Who serves broker margin: Zerodha when the server has Kite keys, else the Upstox login. */
+  marginBroker?: 'zerodha' | 'upstox';
+  /** Zerodha (Kite Connect): account APIs only — market data stays on Upstox. */
+  zerodha?: {
+    configured: boolean;
+    authenticated: boolean;
+    token: { user_name: string | null; issued_at: number; expires_at: number } | null;
+    loginUrl: string | null;
+  };
 }
 
 export interface BrokerMargin {
@@ -166,7 +171,7 @@ export interface NewsItem {
 }
 
 export interface Quotes {
-  /** Last traded price per broker instrument key. */
+  /** Last traded price per Upstox instrument key. */
   quotes: Record<string, number>;
   at: number;
 }

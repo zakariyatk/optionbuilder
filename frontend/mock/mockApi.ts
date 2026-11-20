@@ -525,7 +525,7 @@ export function mockApi(base: string): Plugin {
           case '/auth/status':
             // MOCK_ANALYTICS_ONLY=1 shows the analytics-token state: live data, no broker login.
             if (process.env.MOCK_ANALYTICS_ONLY === '1') {
-              return send({ broker: 'upstox', brokerName: 'Upstox', configured: true, authenticated: false, marketData: true, analytics: true, token: null, loginUrl: '/api/auth/broker/login' });
+              return send({ configured: true, authenticated: false, marketData: true, analytics: true, token: null, loginUrl: '/api/auth/upstox/login', marginBroker: 'upstox' });
             }
             return send({
               configured: true,

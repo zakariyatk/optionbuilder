@@ -15,7 +15,6 @@ import { useOptionChain, useSpot } from '../../hooks/market';
 import { confirmDialog, promptDialog } from '../../lib/dialog';
 import { inr, num, signedInr, signedPct } from '../../lib/format';
 import { dateTime, useDraftQuotes } from './useDraftQuotes';
-import { brokerName } from '../../lib/broker';
 
 const pnlColor = (v: number) => (v > 0 ? 'var(--good-text)' : v < 0 ? 'var(--critical)' : 'var(--text-secondary)');
 
@@ -133,7 +132,7 @@ export function DraftMonitor({
 
   const close = async () => {
     if (!pnl.complete) {
-      setActionError(`Every leg needs a live price to close at market. Connect ${brokerName()}, or wait for quotes to load.`);
+      setActionError('Every leg needs a live price to close at market. Connect Upstox, or wait for quotes to load.');
       return;
     }
     const ok = await confirmDialog({
@@ -199,7 +198,7 @@ export function DraftMonitor({
       </div>
 
       {actionError && <Notice tone="critical">{actionError}</Notice>}
-      {!closed && !brokerConnected && <Notice>Connect {brokerName()} to monitor live prices and adjust legs. Showing entry prices only.</Notice>}
+      {!closed && !brokerConnected && <Notice>Connect Upstox to monitor live prices and adjust legs. Showing entry prices only.</Notice>}
       {!closed && missing > 0 && (
         <Notice>
           {missing} leg{missing > 1 ? 's were' : ' was'} added without a live-chain instrument, so {missing > 1 ? 'they have' : 'it has'} no live quote.

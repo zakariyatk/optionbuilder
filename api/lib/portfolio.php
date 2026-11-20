@@ -232,9 +232,6 @@ function ob_price_history(array $keys, string $range): array
  */
 function ob_futures_index(): array
 {
-    if (ob_is_zerodha()) {
-        return ob_kite_futures_index();
-    }
     return ob_cached('instruments:nse-fut', function (): array {
         $body = ob_get_text('https://assets.upstox.com/market-quote/instruments/exchange/NSE.json.gz', [], 60);
         if (strncmp($body, "\x1f\x8b", 2) === 0) {

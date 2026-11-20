@@ -2,8 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { api } from '../api/client';
 import type { AuthStatus, BrokerMargin, SymbolInfo } from '../api/types';
 import type { Leg } from '../domain/types';
-import { setBrokerName } from '../lib/broker';
 import { useAsync } from './useAsync';
+import { setMarginBrokerName } from '../lib/broker';
 
 /** Quotes and chain refresh this often while the tab is visible. */
 export const MARKET_POLL_MS = 15_000;
@@ -22,7 +22,7 @@ export function useOptionChain(symbol: string, expiry: string | undefined, enabl
 }
 
 /**
- * Broker (Upstox / Zerodha) connection status. Re-checked when the window regains focus, because
+ * Upstox connection status. Re-checked when the window regains focus, because
  * connecting happens in another tab (the OAuth consent screen).
  */
 export function useBrokerStatus() {
@@ -35,7 +35,7 @@ export function useBrokerStatus() {
       .authStatus()
       .then((s) => {
         if (cancelled) return;
-        setBrokerName(s.brokerName ?? 'Upstox');
+        setMarginBrokerName(s.marginBroker === 'zerodha' ? 'Zerodha' : 'Upstox');
         setStatus(s);
       })
       .catch(() => !cancelled && setStatus(null));
@@ -54,7 +54,7 @@ export function useBrokerStatus() {
 }
 
 /**
- * Real SPAN + exposure margin from the broker. Only requested when every leg came
+ * Real SPAN + exposure margin from the margin broker (Zerodha or Upstox). Only requested when every leg came
  * from the live chain — a partial basket would understate the requirement.
  */
 export function useBrokerMargin(legs: Leg[], brokerConnected: boolean): { margin: number | null; loading: boolean } {

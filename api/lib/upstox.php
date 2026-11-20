@@ -88,38 +88,6 @@ function ob_mcx_front_future(string $underlying): string
     throw new RuntimeException("No live MCX future found for \"$underlying\"");
 }
 
-/**
- * Which broker serves live Indian data: 'zerodha' (Kite Connect) or 'upstox'.
- * The config's `broker` wins; without one, Zerodha when its keys are filled in.
- */
-function ob_broker(): string
-{
-    $set = strtolower(trim((string) ob_config_get('broker', '')));
-    if ($set === 'zerodha' || $set === 'kite') {
-        return 'zerodha';
-    }
-    if ($set === 'upstox') {
-        return 'upstox';
-    }
-    return ob_kite_configured() ? 'zerodha' : 'upstox';
-}
-
-function ob_is_zerodha(): bool
-{
-    return ob_broker() === 'zerodha';
-}
-
-/** Display name, for messages the user sees. */
-function ob_broker_name(): string
-{
-    return ob_is_zerodha() ? 'Zerodha' : 'Upstox';
-}
-
-function ob_broker_configured(): bool
-{
-    return ob_is_zerodha() ? ob_kite_configured() : ob_upstox_configured();
-}
-
 function ob_upstox_configured(): bool
 {
     return ob_config_get('upstox_api_key') !== ''
@@ -131,7 +99,7 @@ function ob_upstox_configured(): bool
 
 function ob_token_file(): string
 {
-    return ob_data_dir() . (ob_is_zerodha() ? '/kite-token.json' : '/upstox-token.json');
+    return ob_data_dir() . '/upstox-token.json';
 }
 
 function ob_read_token(): ?array
@@ -191,10 +159,6 @@ function ob_has_valid_token(): bool
  */
 function ob_analytics_token(): string
 {
-    // Zerodha has no equivalent: its market data always needs the daily login.
-    if (ob_is_zerodha()) {
-        return '';
-    }
     return trim((string) ob_config_get('upstox_analytics_token', ''));
 }
 
@@ -373,9 +337,6 @@ function ob_upstox_post(string $path, array $payload): array
  */
 function ob_resolve_instrument_key(string $symbol): string
 {
-    if (ob_is_zerodha()) {
-        return ob_kite_resolve_instrument_key($symbol);
-    }
     $upper = strtoupper($symbol);
     if (isset(OB_INDEX_INSTRUMENT_KEYS[$upper])) {
         return OB_INDEX_INSTRUMENT_KEYS[$upper];
@@ -426,9 +387,6 @@ function ob_resolve_instrument_key(string $symbol): string
 /** @return array{expiries: string[], lotSize: ?int} */
 function ob_option_contracts(string $instrumentKey): array
 {
-    if (ob_is_zerodha()) {
-        return ob_kite_option_contracts($instrumentKey);
-    }
     $json = ob_upstox_get('/option/contract', ['instrument_key' => $instrumentKey]);
     $contracts = $json['data'] ?? [];
 
@@ -450,9 +408,6 @@ function ob_option_contracts(string $instrumentKey): array
 
 function ob_option_chain_raw(string $instrumentKey, string $expiry): array
 {
-    if (ob_is_zerodha()) {
-        return ob_kite_option_chain_raw($instrumentKey, $expiry);
-    }
     $json = ob_upstox_get('/option/chain', [
         'instrument_key' => $instrumentKey,
         'expiry_date' => $expiry,
@@ -466,9 +421,6 @@ function ob_option_chain_raw(string $instrumentKey, string $expiry): array
  */
 function ob_upstox_margin(array $instruments): mixed
 {
-    if (ob_is_zerodha()) {
-        return ob_kite_margin($instruments);
-    }
     $json = ob_upstox_post('/charges/margin', ['instruments' => $instruments]);
     return $json['data'] ?? null;
 }

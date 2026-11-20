@@ -13,7 +13,6 @@ import { AiChart, type Mark } from './AiChart';
 import { buildBrief, type AiResult, type AiSource } from './aiBrief';
 import { analyse, localHelperUp } from './aiClient';
 import { computeLevels, type Action, type Bar, type Levels, type Zone } from './levels';
-import { brokerName } from '../../lib/broker';
 
 const TIMEFRAMES = ['5m', '15m', '1h', '4h', '1D'] as const;
 type Tf = (typeof TIMEFRAMES)[number];
@@ -307,7 +306,7 @@ export function AiTradePage({ symbol: appSymbol, symbolInfo, brokerConnected }: 
       {loadError && (
         <Notice tone={loadError.broker ? 'warning' : 'critical'}>
           {loadError.broker || (!brokerConnected && loadError.message.includes('NOT_AUTHENTICATED'))
-            ? `Connect ${brokerName()} to chart Indian symbols here. Global markets (gold, crypto, US) work without it.`
+            ? 'Connect Upstox to chart Indian symbols here. Global markets (gold, crypto, US) work without it.'
             : `Candles: ${loadError.message}`}
         </Notice>
       )}

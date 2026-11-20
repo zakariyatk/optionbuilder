@@ -31,7 +31,6 @@ import { useBrokerMargin, useBrokerStatus, useOptionChain, useSpot, useSymbols }
 import { useAsync } from './hooks/useAsync';
 import { confirmDialog } from './lib/dialog';
 import { loadBuilderMarket, saveBuilderMarket, useStrategy, useUsStrategy, type BuilderMarket } from './store/strategy';
-import { brokerName } from './lib/broker';
 
 const PAGE_KEY = 'option-builder-tab';
 
@@ -166,8 +165,8 @@ function Workspace({ showLogout, onLogout }: { showLogout: boolean; onLogout: ()
   const { status: broker } = useBrokerStatus();
   // Live NSE data: today's Upstox login, or the 1-year analytics token on the server.
   const brokerConnected = !!(broker?.authenticated || broker?.marketData);
-  // Broker margin still needs today's login.
-  const brokerSession = !!broker?.authenticated;
+  // Broker margin needs today's login with the margin broker: Zerodha when configured, else Upstox.
+  const brokerSession = broker?.marginBroker === 'zerodha' ? !!broker.zerodha?.authenticated : !!broker?.authenticated;
   const marketPage = MARKET_PAGES.includes(route.page);
   const spotState = useSpot(symbol);
   const indiaBuilder = route.page === 'builder' && builderMarket === 'IN';
@@ -529,7 +528,7 @@ function Workspace({ showLogout, onLogout }: { showLogout: boolean; onLogout: ()
             chain={chain}
             chainLoading={chainState.loading}
             chainNotice={brokerConnected && chainState.error && !chain ? <Notice tone="critical">Option chain: {chainState.error}</Notice> : null}
-            quoteSource={chain?.rows?.length ? `Live ${brokerName()} quotes` : 'No live chain — premiums are manual'}
+            quoteSource={chain?.rows?.length ? 'Live Upstox quotes' : 'No live chain — premiums are manual'}
             expiry={activeExpiry}
             onExpiryChange={setExpiry}
             updatedAt={chainState.updatedAt ?? spotState.updatedAt}

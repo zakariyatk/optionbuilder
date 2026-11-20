@@ -35,7 +35,6 @@ import { PerformanceChart, type ChartLine } from './PerformanceChart';
 import { SectorCards } from './SectorCards';
 import { TransactionDialog, type TxnDraft } from './TransactionDialog';
 import { useFuturesQuotes, useLiveQuotes, usePortfolios, usePriceHistory, useSectors } from './usePortfolios';
-import { brokerName } from '../../lib/broker';
 
 // ------------------------------------------------------------ settings
 
@@ -910,7 +909,7 @@ export function PortfolioPage({ brokerConnected, symbols }: { brokerConnected: b
                           </td>
                           <td className={td}>{(Math.abs(f.lots) * f.lotSize).toLocaleString('en-IN')}</td>
                           <td className={td}>{num(f.avgEntry)}</td>
-                          <td className={td} title={own ? `Futures LTP from ${brokerName()}` : `Underlying spot — connect ${brokerName()} for the future’s own price`}>
+                          <td className={td} title={own ? 'Futures LTP from Upstox' : 'Underlying spot — connect Upstox for the future’s own price'}>
                             {price === null ? '—' : num(price)}
                             {!own && price !== null && <span className="ml-1 text-[10px] text-[var(--text-muted)]">≈ spot</span>}
                           </td>

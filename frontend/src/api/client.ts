@@ -24,7 +24,6 @@ import type {
   UsSearchResult,
   WatchQuote,
 } from './types';
-import { brokerName } from '../lib/broker';
 
 /** App root without the trailing slash, e.g. "/optionbuilder". */
 export const APP_BASE = import.meta.env.BASE_URL.replace(/\/$/, '');
@@ -32,8 +31,11 @@ export const APP_BASE = import.meta.env.BASE_URL.replace(/\/$/, '');
 export const apiUrl = (path: string) => `${APP_BASE}${path}`;
 export const assetUrl = (path: string) => `${APP_BASE}/${path.replace(/^\//, '')}`;
 
-/** Opened in a new tab: the broker's (Upstox or Zerodha) login screen, which redirects back to the backend. */
-export const BROKER_LOGIN_URL = apiUrl('/api/auth/broker/login');
+/** Opened in a new tab: Upstox's OAuth consent screen, which redirects back to the backend. */
+export const UPSTOX_LOGIN_URL = apiUrl('/api/auth/upstox/login');
+
+/** Opened in a new tab: Zerodha's Kite login, for broker margin (market data stays on Upstox). */
+export const ZERODHA_LOGIN_URL = apiUrl('/api/auth/zerodha/login');
 
 /** Thrown when the app session is missing or expired — the shell reacts by showing the login gate. */
 export class LoginRequiredError extends Error {
@@ -56,7 +58,7 @@ export class ApiError extends Error {
     this.detail = detail;
   }
 
-  /** The broker token is missing or expired — the user needs to reconnect the broker, not retry. */
+  /** The broker token is missing or expired — the user needs to reconnect Upstox, not retry. */
   get needsBrokerLogin(): boolean {
     return this.code === 'NOT_AUTHENTICATED' || this.detail === 'NOT_AUTHENTICATED';
   }
@@ -200,7 +202,7 @@ export const api = {
 };
 
 export function errorMessage(e: unknown): string {
-  if (e instanceof ApiError && e.needsBrokerLogin) return `${brokerName()} session expired — reconnect to load live data.`;
+  if (e instanceof ApiError && e.needsBrokerLogin) return 'Upstox session expired — reconnect to load live data.';
   if (e instanceof Error) return e.message;
   return String(e);
 }

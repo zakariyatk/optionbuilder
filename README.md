@@ -3,7 +3,7 @@
 *Your Stocks. Your Strategy.*
 
 A workspace for building and analysing NSE options strategies: live option chains
-via Zerodha (Kite Connect) or Upstox, payoff graphs at expiry and on any target date, position Greeks,
+via Upstox, payoff graphs at expiry and on any target date, position Greeks,
 broker margin, and a daily market report with image and Instagram export.
 
 Live at <https://optionbuilder.adddots.com/>.
@@ -14,7 +14,7 @@ Live at <https://optionbuilder.adddots.com/>.
   (spreads, straddles, strangles, iron condor / butterfly) or by hand; options,
   futures and stock legs (covered calls).
 - **Payoff chart** – expiry and Black-Scholes target-date curves, breakevens, zoom/pan.
-- **Risk metrics** – max profit / loss, risk:reward, net credit/debit, live broker
+- **Risk metrics** – max profit / loss, risk:reward, net credit/debit, live Upstox
   SPAN + exposure margin (or a labelled estimate), and Delta / Gamma / Theta / Vega.
 - **Saved strategies** – the working strategy survives reloads; name and save up to 50.
 - **Option chain** – ITM / ATM shading, unusual-activity detection (OI walls, volume
@@ -34,7 +34,7 @@ frontend/        React 19 + TypeScript + Vite + Tailwind v4 (the app)
   src/features/    Daily Report, Instagram carousel
   src/store/       strategy state (zustand, persisted)
   mock/            offline backend with recorded market data for `npm run dev:mock`
-api/             PHP 8.1+ backend: auth, broker login (Zerodha / Upstox), chain, margin, report data
+api/             PHP 8.1+ backend: auth, Upstox OAuth, chain, margin, report data
 deploy/          web-root .htaccess (security headers, caching)
 scripts/         release packaging
 ```
@@ -98,29 +98,23 @@ In the Supabase dashboard:
 To try it with the mock backend, set `MOCK_SUPABASE_URL` and `MOCK_SUPABASE_KEY`
 before `npm run dev:mock`.
 
-**Broker: Zerodha or Upstox.** Set `'broker' => 'zerodha'` with `kite_api_key`
-and `kite_api_secret` from <https://developers.kite.trade/apps>, and register
-`https://<your-domain>/api/auth/zerodha/callback` as the Kite app's Redirect URL
-(`api/lib/kite.php` holds the client). Connect logs in once per day (Kite tokens
-die at 06:00 IST). Notes on Zerodha:
-- Quotes, charts, the option chain and OI need the paid Kite Connect plan; the
-  free Personal plan only covers login and margin.
-- Kite has no option-chain or Greeks API, so the chain is built from the NFO
-  instruments list plus one quote call, and IV is solved server-side.
-- Kite gives no previous-day OI, so OI change is measured against the last OI
-  the server saw on an earlier day (`kite-oi-history.json` in the data dir) and
-  reads 0 until the app has been used on one earlier trading day.
-- Kite allows ~3 candle requests a second, so the Open Interest page tracks the
-  20 strikes nearest the money (Upstox: 61) and may take ~15 s to load.
-- Strategies and drafts saved while on Upstox carry Upstox instrument keys; their
-  live prices and broker margin won't load until the legs are re-added from the chain.
-
 **Upstox without the daily login (optional).** Upstox access tokens die at
 03:30 IST, so Connect is needed once per trading day. Set
 `upstox_analytics_token` to a read-only Analytics Token (Upstox Developer Apps
 → Analytics → Generate Token, valid one year) and quotes, charts, the option
 chain, OI and the daily report stay live without it. Broker margin still
 needs Connect; until then the app shows its margin estimate.
+
+**Zerodha for the account side (optional).** Market data — quotes, charts,
+the option chain, OI and the daily report — always comes from Upstox. Set
+`kite_api_key` and `kite_api_secret` (Kite Developer → your app; the free
+Personal plan is enough) and the account APIs move to Zerodha: today that is
+broker margin, from `/margins/basket`. Register
+`https://<your-domain>/api/auth/zerodha/callback` as the Kite app's Redirect
+URL, and click **Connect Zerodha** in the header once a day (Kite logins end at
+06:00 IST). With the Upstox analytics token set, that is the only daily login.
+Legs carry Upstox instrument keys, so `api/lib/kite.php` matches each to its
+Zerodha contract by underlying, expiry, strike and type.
 
 **Password (fallback).** Used only while Supabase sign-in is not set up. Store a
 password **hash**, not the password:
