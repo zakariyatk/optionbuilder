@@ -52,20 +52,9 @@ export function PnlHistoryView({ from, to, rangeLabel, view, onPick }: { from: s
     return state.error ? <Notice tone="critical">P&amp;L history: {state.error}</Notice> : <Skeleton className="h-64" />;
   }
 
-  const covered: [string, string][] = [
-    ...h.statements.filter((s) => segs.includes(s.segment)).map((s): [string, string] => [s.from, s.to]),
-    ...segs.flatMap((s) => (h.coverage[s] ? [h.coverage[s]!] : [])),
-  ];
-  const sum = summarizeHistory(h.days, from, to, segs, covered);
-  // Undated equity statements count whole, and only when the range spans their period.
-  const undatedIn = h.statements.filter((s) => s.undated && segs.includes(s.segment) && s.from >= from && s.to <= to);
-  const undatedOut = h.statements.filter((s) => s.undated && segs.includes(s.segment) && !(s.from >= from && s.to <= to) && s.from <= to && s.to >= from);
-  for (const st of undatedIn) {
-    const seg = sum.segments[st.segment];
-    for (const [sym, v] of Object.entries(st.undated!)) seg.symbols[sym] = Math.round(((seg.symbols[sym] ?? 0) + v) * 100) / 100;
-    seg.realised = Math.round((seg.realised + st.realised) * 100) / 100;
-    sum.total = Math.round((sum.total + st.realised) * 100) / 100;
-  }
+  const { sum, undatedIn, undatedOut } = rangeSummary(h, from, to, segs);
+  // The segment cards always show all three, whatever the filter.
+  const all = view === 'all' ? sum : rangeSummary(h, from, to, SEGMENTS.map((x) => x.id)).sum;
   // Charges are only known from statements whose whole period sits in the range.
   const statementsIn = h.statements.filter((s) => segs.includes(s.segment) && s.from >= from && s.to <= to);
   const charges = statementsIn.reduce((a, s) => a + s.charges - s.other, 0);
@@ -80,62 +69,46 @@ export function PnlHistoryView({ from, to, rangeLabel, view, onPick }: { from: s
   const when = (d: HistoryDay) => periodLabel(d.date, period, true);
   const empty = sum.daily.every((d) => d.total === 0) && sum.total === 0;
 
+  // Instruments across the chosen segments: winners, losers, win rate, profit factor.
+  const instruments = Object.entries(Object.assign({}, ...segs.map((x) => sum.segments[x].symbols)) as Record<string, number>)
+    .filter(([, v]) => v !== 0)
+    .sort((a, b) => b[1] - a[1]);
+  const winners = instruments.filter(([, v]) => v > 0);
+  const losers = instruments.filter(([, v]) => v < 0).reverse();
+  const grossWin = winners.reduce((a, [, v]) => a + v, 0);
+  const grossLoss = -losers.reduce((a, [, v]) => a + v, 0);
+  const dd = maxDrawdown(cumulativeSeries(chart.groups));
+  const net = sum.total - charges;
+  const shown = statementsIn.length > 0 ? net : sum.total;
+  const segTotals = SEGMENTS.map((x) => ({ ...x, v: all.segments[x.id].realised })).filter((x) => x.v !== 0);
+  const lead = [...segTotals].sort((a, b) => b.v - a.v)[0];
+  const lag = [...segTotals].sort((a, b) => a.v - b.v)[0];
+
   return (
     <div className="flex flex-col gap-4">
-      <Card>
-        <CardHeader title={`Realised P&L · ${rangeLabel}`}>
-          <span className="text-xs text-[var(--text-muted)]">
-            {fmtDate(from)} – {fmtDate(to)}
-          </span>
-        </CardHeader>
-        <div className="grid gap-5 p-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)]">
-          <div className="flex flex-col gap-4">
-            <div>
-              <div className="text-[10px] uppercase tracking-wide text-[var(--text-muted)]">
-                Realised P&amp;L{view === 'all' ? ' · all segments' : ` · ${labelOf(view)}`}
-              </div>
-              <div className="tabular text-4xl font-semibold leading-tight sm:text-5xl" style={{ color: pnlColor(sum.total) }}>
-                {signedInr(sum.total)}
-              </div>
-              {statementsIn.length > 0 ? (
-                <div className="mt-1 text-xs text-[var(--text-secondary)]">
-                  Charges &amp; other debits {inr(charges)} · Net <span style={{ color: pnlColor(sum.total - charges) }}>{signedInr(sum.total - charges)}</span>
-                </div>
-              ) : (
-                <div className="mt-1 text-xs text-[var(--text-muted)]">Before charges and taxes</div>
-              )}
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <Stat label={`Profit ${unit}s`} value={periods.filter((d) => d.total > 0).length} tone={periods.some((d) => d.total > 0) ? 'good' : undefined} />
-              <Stat label={`Loss ${unit}s`} value={periods.filter((d) => d.total < 0).length} tone={periods.some((d) => d.total < 0) ? 'critical' : undefined} />
-              <Stat label={`Best ${unit}`} value={best ? signedInr(best.total) : '—'} tone={best ? 'good' : undefined} hint={best ? when(best) : undefined} />
-              <Stat label={`Worst ${unit}`} value={worst ? signedInr(worst.total) : '—'} tone={worst ? 'critical' : undefined} hint={worst ? when(worst) : undefined} />
-            </div>
-          </div>
-          <div className="flex flex-col gap-4">
-            {view === 'all' && (
-              <div>
-                <div className="mb-2 text-xs font-semibold">P&amp;L by segment</div>
-                <DivergingBars
-                  label="Realised P&L by segment"
-                  rows={SEGMENTS.map((s) => ({
-                    key: s.id,
-                    label: s.label,
-                    value: sum.segments[s.id].realised,
-                    detail: (
-                      <div className="flex flex-col gap-0.5">
-                        <div className="mb-0.5 font-semibold">{s.label}</div>
-                        <TipLine name="Realised" value={sum.segments[s.id].realised} />
-                        <div className="text-[var(--text-muted)]">{sum.segments[s.id].days} trading days</div>
-                      </div>
-                    ),
-                  }))}
-                />
-              </div>
-            )}
-          </div>
-        </div>
-      </Card>
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-[1.25fr_1fr_1fr_1fr]">
+        <HeroCard
+          label={`${statementsIn.length > 0 ? 'Net' : 'Realised'} P&L · ${view === 'all' ? 'all segments' : labelOf(view)}`}
+          value={shown}
+          sub={
+            statementsIn.length > 0
+              ? `Realised ${signedInr(sum.total)} · charges ${inr(charges)}`
+              : `${rangeLabel} · ${fmtDate(from)} – ${fmtDate(to)} · before charges`
+          }
+          spark={cumulativeSeries(chart.groups).map((p) => p.cum)}
+        />
+        {SEGMENTS.map((x) => (
+          <SegmentCard
+            key={x.id}
+            seg={x.id}
+            data={all.segments[x.id]}
+            bars={groupByPeriod(all.daily.map((d) => ({ ...d, total: d[x.id] })), period === 'day' ? 'week' : period).map((g) => g.total).slice(-18)}
+            dated={all.daily.some((d) => d[x.id] !== 0)}
+            selected={view === x.id}
+            onPick={() => onPick(x.id)}
+          />
+        ))}
+      </div>
 
       {sum.missingWeekdays > 0 && !empty && (
         <Notice tone="info">
@@ -144,19 +117,22 @@ export function PnlHistoryView({ from, to, rangeLabel, view, onPick }: { from: s
         </Notice>
       )}
 
-      <Card>
-        <CardHeader title={CHART_KINDS.find((k) => k.id === kind)!.title(meta.adjective)}>
-          <Segmented<ChartKind> label="Chart" size="xs" value={kind} onChange={setKind} options={CHART_KINDS.map((k) => ({ id: k.id, label: k.label, title: k.hint }))} />
-          {kind !== 'calendar' && (
-            <Segmented<Period> label="Group P&L by" size="xs" value={period} onChange={setPicked} options={PERIODS.map((x) => ({ id: x.id, label: x.label }))} />
-          )}
-        </CardHeader>
-        <div className="p-4">
-          <p className="mb-3 text-xs text-[var(--text-muted)]">{CHART_KINDS.find((k) => k.id === kind)!.hint}</p>
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,2.2fr)_minmax(0,1fr)]">
+        <div className={`${softCard} min-w-0`}>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 className="text-base font-semibold">{CHART_KINDS.find((k) => k.id === kind)!.title(meta.adjective)}</h2>
+            <div className="flex flex-wrap gap-2">
+              <Segmented<ChartKind> label="Chart" size="xs" value={kind} onChange={setKind} options={CHART_KINDS.map((k) => ({ id: k.id, label: k.label, title: k.hint }))} />
+              {kind !== 'calendar' && (
+                <Segmented<Period> label="Group P&L by" size="xs" value={period} onChange={setPicked} options={PERIODS.map((x) => ({ id: x.id, label: x.id[0].toUpperCase(), title: x.label }))} />
+              )}
+            </div>
+          </div>
+          <p className="mb-3 mt-1 text-xs text-[var(--text-muted)]">{CHART_KINDS.find((k) => k.id === kind)!.hint}</p>
           {!chart.rows.some((r) => r.value !== 0) ? (
-            <p className="py-8 text-center text-sm text-[var(--text-muted)]">No P&amp;L recorded in this range.</p>
+            <p className="py-10 text-center text-sm text-[var(--text-muted)]">No dated P&amp;L in this range.</p>
           ) : kind === 'bars' ? (
-            <ColumnBars rows={chart.rows} label={`${meta.adjective} realised P&L`} />
+            <ColumnBars rows={chart.rows} label={`${meta.adjective} realised P&L`} height={220} />
           ) : kind === 'calendar' ? (
             <CalendarHeatmap
               label="Daily realised P&L calendar"
@@ -167,19 +143,49 @@ export function PnlHistoryView({ from, to, rangeLabel, view, onPick }: { from: s
           ) : (
             <CumulativeView groups={chart.groups} period={period} drawdown={kind === 'drawdown'} />
           )}
+
+          {instruments.length > 0 && <Movers winners={winners} losers={losers} />}
         </div>
-      </Card>
+
+        <div className={softCard}>
+          <h2 className="text-base font-semibold">Insights</h2>
+          <ul className="mt-1">
+            <Insight
+              name="Win rate"
+              sub={instruments.length ? `${winners.length} of ${instruments.length} instruments in profit` : 'No closed trades in this range'}
+              value={instruments.length ? `${Math.round((winners.length / instruments.length) * 100)}%` : '—'}
+            />
+            <Insight name="Profit factor" sub="Gross profit for every ₹1 of loss" value={grossLoss > 0 ? (grossWin / grossLoss).toFixed(2) : grossWin > 0 ? 'No losses' : '—'} />
+            <Insight name={`Best ${unit}`} sub={best ? when(best) : `No profitable ${unit}`} value={best ? signedInr(best.total) : '—'} v={best?.total} />
+            <Insight name={`Worst ${unit}`} sub={worst ? when(worst) : `No losing ${unit}`} value={worst ? signedInr(worst.total) : '—'} v={worst?.total} />
+            <Insight
+              name={`Profit / loss ${unit}s`}
+              sub={`Out of ${periods.length} ${unit}${periods.length === 1 ? '' : 's'} with P&L`}
+              value={`${periods.filter((d) => d.total > 0).length} / ${periods.filter((d) => d.total < 0).length}`}
+            />
+            <Insight
+              name="Max drawdown"
+              sub={dd ? (dd.recoveredDate ? `Made back ${periodLabel(dd.recoveredDate, period, true)}` : 'Not made back yet') : 'Never below a previous high'}
+              value={dd ? signedInr(dd.amount) : '—'}
+              v={dd?.amount}
+            />
+            {statementsIn.length > 0 && <Insight name="Charges & other debits" sub={sum.total > 0 ? `${Math.round((charges / sum.total) * 100)}% of realised profit` : 'From Console statements'} value={inr(charges)} />}
+          </ul>
+          {view === 'all' && lead && lag && lead.id !== lag.id && (
+            <p className="mt-4 rounded-xl bg-[var(--surface-sunken)] px-3.5 py-3 text-xs text-[var(--text-secondary)]">
+              {lead.label} led the period with {signedInr(lead.v)}
+              {lag.v < 0 ? `, while ${lag.label} lost ${signedInr(lag.v)}` : `; ${lag.label} added the least (${signedInr(lag.v)})`}.
+            </p>
+          )}
+        </div>
+      </div>
 
       {undatedIn.length > 0 && (
         <Notice tone="info">
-          Equity P&amp;L of {signedInr(undatedIn.reduce((a, s) => a + s.realised, 0))} comes from a P&amp;L statement with no trade dates: it&apos;s in the totals but not in the
-          charts. Upload an equity Tradebook (CSV) to see it month by month.
+          Equity P&amp;L of {signedInr(undatedIn.reduce((a, x) => a + x.realised, 0))} comes from a P&amp;L statement with no trade dates: it&apos;s in the totals but not in the
+          charts. Upload an equity Tradebook (CSV) to see it by date.
         </Notice>
       )}
-
-      {segs.map((s) => (
-        <SegmentHistory key={s} seg={s} data={sum.segments[s]} onPick={view === 'all' ? () => onPick(s) : undefined} />
-      ))}
 
       {undatedOut.map((st) => (
         <WholeStatement key={`${st.segment}:${st.from}:${st.to}`} st={st} />
@@ -190,56 +196,197 @@ export function PnlHistoryView({ from, to, rangeLabel, view, onPick }: { from: s
   );
 }
 
-function SegmentHistory({ seg, data, onPick }: { seg: Segment; data: { realised: number; symbols: Record<string, number>; days: number }; onPick?: () => void }) {
-  const meta = SEGMENTS.find((s) => s.id === seg)!;
-  const items = symbolItems(data.symbols).filter((i) => i.pnl !== 0);
-  const winners = items.filter((i) => i.pnl > 0);
-  const losers = items.filter((i) => i.pnl < 0);
+/** Rounded card used across this page (design B). */
+const softCard = 'rounded-[20px] border border-[var(--border)] bg-[var(--surface-card)] p-5';
+
+/** Identity colour per segment — icon tiles only; figures stay in text colours. */
+const SEG_STYLE: Record<Segment, { icon: string; tint: string; noun: string }> = {
+  commodity: { icon: '◆', tint: '#d9a93b', noun: 'contracts' },
+  fo: { icon: 'ƒ', tint: '#7c8cf8', noun: 'contracts' },
+  equity: { icon: '▲', tint: '#3fb6d4', noun: 'stocks' },
+};
+
+/** Realised P&L for a range and set of segments, undated equity statements folded in when the range covers them. */
+function rangeSummary(h: PnlHistory, from: string, to: string, segs: Segment[]) {
+  const covered: [string, string][] = [
+    ...h.statements.filter((x) => segs.includes(x.segment)).map((x): [string, string] => [x.from, x.to]),
+    ...segs.flatMap((x) => (h.coverage[x] ? [h.coverage[x]!] : [])),
+  ];
+  const sum = summarizeHistory(h.days, from, to, segs, covered);
+  const undatedIn = h.statements.filter((x) => x.undated && segs.includes(x.segment) && x.from >= from && x.to <= to);
+  const undatedOut = h.statements.filter((x) => x.undated && segs.includes(x.segment) && !(x.from >= from && x.to <= to) && x.from <= to && x.to >= from);
+  for (const st of undatedIn) {
+    const seg = sum.segments[st.segment];
+    for (const [sym, v] of Object.entries(st.undated!)) seg.symbols[sym] = Math.round(((seg.symbols[sym] ?? 0) + v) * 100) / 100;
+    seg.realised = Math.round((seg.realised + st.realised) * 100) / 100;
+    sum.total = Math.round((sum.total + st.realised) * 100) / 100;
+  }
+  return { sum, undatedIn, undatedOut };
+}
+
+function HeroCard({ label, value, sub, spark }: { label: string; value: number; sub: string; spark: number[] }) {
+  const hue = value >= 0 ? 'var(--good)' : 'var(--critical)';
   return (
-    <Card>
-      <CardHeader
-        title={
-          <span className="flex items-baseline gap-2">
-            {onPick ? (
-              <button type="button" onClick={onPick} className="hover:underline" title={`Show only ${meta.label}`}>
-                {meta.label}
-              </button>
-            ) : (
-              meta.label
-            )}
-            <span className="text-xs font-normal text-[var(--text-muted)]">{meta.note}</span>
-          </span>
-        }
-      >
-        <span className="tabular text-sm font-semibold" style={{ color: pnlColor(data.realised) }}>
-          {signedInr(data.realised)}
+    <div
+      className="flex min-w-0 flex-col rounded-[22px] border p-5"
+      style={{
+        background: `linear-gradient(140deg, color-mix(in srgb, ${hue} 26%, var(--surface-card)) 0%, color-mix(in srgb, ${hue} 10%, var(--surface-card)) 45%, var(--surface-card) 100%)`,
+        borderColor: `color-mix(in srgb, ${hue} 30%, var(--border))`,
+      }}
+    >
+      <div className="text-xs text-[var(--text-secondary)]">{label}</div>
+      <div className="tabular mt-1 text-4xl font-bold tracking-tight sm:text-[2.6rem]" style={{ color: value === 0 ? 'var(--text-primary)' : value > 0 ? 'var(--good-text)' : 'var(--critical)' }}>
+        {signedInr(value)}
+      </div>
+      <div className="mt-1 text-xs text-[var(--text-secondary)]">{sub}</div>
+      <div className="mt-auto pt-4">{spark.length > 1 && <Sparkline values={spark} color={hue} />}</div>
+    </div>
+  );
+}
+
+/** A small running-total line with a soft area, no axes. */
+function Sparkline({ values, color }: { values: number[]; color: string }) {
+  const W = 400;
+  const H = 56;
+  const hi = Math.max(0, ...values);
+  const lo = Math.min(0, ...values);
+  const span = hi - lo || 1;
+  const pts = values.map((v, i) => `${i ? 'L' : 'M'}${((i / (values.length - 1)) * W).toFixed(1)},${(((hi - v) / span) * H).toFixed(1)}`).join(' ');
+  const zero = ((hi / span) * H).toFixed(1);
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" className="h-14 w-full" aria-hidden="true">
+      <path d={`${pts} L${W},${zero} L0,${zero} Z`} fill={color} opacity={0.18} />
+      <path d={pts} fill="none" stroke={color} strokeWidth={2} strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+    </svg>
+  );
+}
+
+/** Small profit / loss columns, no axes. */
+function MiniBars({ values }: { values: number[] }) {
+  const W = 300;
+  const H = 52;
+  const hi = Math.max(0, ...values);
+  const lo = Math.min(0, ...values);
+  const span = hi - lo || 1;
+  const z = (hi / span) * H;
+  const bw = (W - 3 * (values.length - 1)) / values.length;
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" className="h-[52px] w-full" aria-hidden="true">
+      <line x1={0} x2={W} y1={z} y2={z} stroke="var(--border-strong)" vectorEffect="non-scaling-stroke" />
+      {values.map((v, i) => {
+        const bh = (Math.abs(v) / span) * H;
+        return bh > 0 ? (
+          <rect key={i} x={i * (bw + 3)} y={v > 0 ? z - bh : z} width={bw} height={Math.max(bh, 1)} rx={Math.min(2, bw / 2)} fill={v > 0 ? 'var(--good)' : 'var(--critical)'} />
+        ) : null;
+      })}
+    </svg>
+  );
+}
+
+function SegmentCard({
+  seg,
+  data,
+  bars,
+  dated,
+  selected,
+  onPick,
+}: {
+  seg: Segment;
+  data: { realised: number; symbols: Record<string, number> };
+  bars: number[];
+  dated: boolean;
+  selected: boolean;
+  onPick: () => void;
+}) {
+  const st = SEG_STYLE[seg];
+  const count = Object.values(data.symbols).filter((v) => v !== 0).length;
+  return (
+    <button
+      type="button"
+      onClick={onPick}
+      aria-pressed={selected}
+      title={`Show only ${labelOf(seg)}`}
+      className="flex min-w-0 flex-col rounded-[20px] border border-[var(--border)] bg-[var(--surface-card)] p-5 text-left transition-colors hover:border-[var(--border-strong)]"
+      style={{ borderColor: selected ? st.tint : undefined, boxShadow: selected ? `0 0 0 1px ${st.tint}` : undefined }}
+    >
+      <span className="flex items-center gap-2.5">
+        <span className="grid h-9 w-9 place-items-center rounded-[10px] text-base font-bold" style={{ background: `color-mix(in srgb, ${st.tint} 16%, transparent)`, color: st.tint }} aria-hidden="true">
+          {st.icon}
         </span>
-      </CardHeader>
-      {items.length === 0 ? (
-        <p className="px-4 py-6 text-center text-sm text-[var(--text-muted)]">No realised {meta.label} P&amp;L in this range.</p>
-      ) : (
-        <div className="grid gap-5 p-4 md:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)]">
-          <div>
-            <div className="mb-2 text-xs font-semibold">P&amp;L by instrument</div>
-            <DivergingBars
-              label={`${meta.label} realised P&L by instrument`}
-              rows={topMovers(items, 10).map((r) => ({
-                key: r.key,
-                label: r.label,
-                value: r.value,
-                detail: r.items.length > 1 ? <div>{r.items.length} instruments</div> : undefined,
-              }))}
-            />
+        <span>
+          <span className="block text-sm font-semibold">{labelOf(seg)}</span>
+          <span className="block text-[11px] text-[var(--text-muted)]">
+            {count} {st.noun}
+          </span>
+        </span>
+      </span>
+      <span className="tabular mt-3 text-2xl font-bold" style={{ color: pnlColor(data.realised) }}>
+        {signedInr(data.realised)}
+      </span>
+      <span className="text-[11px] text-[var(--text-muted)]">{dated ? `Last ${bars.length} periods` : count ? 'No dated history (statement only)' : 'No P&L in this range'}</span>
+      <span className="mt-2 block">
+        {dated ? (
+          <MiniBars values={bars} />
+        ) : (
+          <span className="block h-[52px] rounded-[10px]" style={{ background: 'repeating-linear-gradient(135deg, var(--surface-sunken) 0 6px, transparent 6px 12px)' }} />
+        )}
+      </span>
+    </button>
+  );
+}
+
+function Insight({ name, sub, value, v }: { name: string; sub: string; value: string; v?: number }) {
+  return (
+    <li className="flex items-center justify-between gap-3 border-t border-[var(--border)] py-3 first:border-t-0">
+      <span className="min-w-0">
+        <span className="block text-sm">{name}</span>
+        <span className="block text-[11px] text-[var(--text-muted)]">{sub}</span>
+      </span>
+      <span className="tabular shrink-0 text-sm font-semibold" style={{ color: v === undefined ? 'var(--text-primary)' : pnlColor(v) }}>
+        {value}
+      </span>
+    </li>
+  );
+}
+
+/** Top winners and losers with bars to scale; the rest one click away. */
+function Movers({ winners, losers }: { winners: [string, number][]; losers: [string, number][] }) {
+  const [open, setOpen] = useState(false);
+  const n = open ? Infinity : 5;
+  const max = Math.max(...[...winners, ...losers].map(([, v]) => Math.abs(v)), 1);
+  const list = (title: string, rows: [string, number][]) => (
+    <div className="min-w-0">
+      <div className="mb-1 text-sm font-semibold">
+        {title} <span className="font-normal text-[var(--text-muted)]">· {rows.length}</span>
+      </div>
+      {rows.length === 0 && <p className="py-2 text-xs text-[var(--text-muted)]">None</p>}
+      {rows.slice(0, n).map(([k, v]) => (
+        <div key={k} className="py-2">
+          <div className="flex justify-between gap-2 text-[13px]">
+            <span className="truncate">{k}</span>
+            <span className="tabular shrink-0" style={{ color: pnlColor(v) }}>
+              {signedInr(v)}
+            </span>
           </div>
-          <div className="grid h-fit grid-cols-2 gap-3">
-            <Stat label="Realised" value={signedInr(data.realised)} tone={tone(data.realised)} size="lg" />
-            <Stat label="Days with P&L" value={data.days || '—'} size="lg" hint={data.days === 0 ? 'Statement has no dates' : undefined} />
-            <Stat label={`Winners · ${winners.length}`} value={signedInr(winners.reduce((a, i) => a + i.pnl, 0))} tone="good" />
-            <Stat label={`Losers · ${losers.length}`} value={signedInr(losers.reduce((a, i) => a + i.pnl, 0))} tone={losers.length ? 'critical' : undefined} />
+          <div className="mt-1.5 h-[5px] rounded-full bg-[var(--surface-sunken)]">
+            <div className="h-[5px] rounded-full" style={{ width: `${Math.max(2, (Math.abs(v) / max) * 100)}%`, background: v > 0 ? 'var(--good)' : 'var(--critical)' }} />
           </div>
         </div>
+      ))}
+    </div>
+  );
+  return (
+    <div className="mt-6">
+      <div className="grid gap-6 sm:grid-cols-2">
+        {list('Top winners', winners)}
+        {list('Top losers', losers)}
+      </div>
+      {(winners.length > 5 || losers.length > 5) && (
+        <button type="button" onClick={() => setOpen((o) => !o)} className="mt-3 text-xs font-medium text-[var(--series-blue)] hover:underline">
+          {open ? 'Show top 5' : `Show all ${winners.length + losers.length} instruments`}
+        </button>
       )}
-    </Card>
+    </div>
   );
 }
 
