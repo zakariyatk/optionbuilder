@@ -26,6 +26,7 @@ import { DraftMonitor } from './features/drafts/DraftMonitor';
 import { DraftsPage } from './features/drafts/DraftsPage';
 import { OpenInterestPage } from './features/oi/OpenInterestPage';
 import { PortfolioPage } from './features/portfolio/PortfolioPage';
+import { PnlReportPage } from './features/pnl/PnlReportPage';
 import { DailyReport } from './features/report/DailyReport';
 import { useBrokerMargin, useBrokerStatus, useOptionChain, useSpot, useSymbols } from './hooks/market';
 import { useAsync } from './hooks/useAsync';
@@ -450,6 +451,12 @@ function Workspace({ showLogout, onLogout }: { showLogout: boolean; onLogout: ()
         {route.page === 'portfolio' && (
           <ErrorBoundary label="the portfolio">
             <PortfolioPage brokerConnected={brokerConnected} symbols={symbols} />
+          </ErrorBoundary>
+        )}
+
+        {route.page === 'pnl' && (
+          <ErrorBoundary label="the P&L report">
+            <PnlReportPage broker={broker} />
           </ErrorBoundary>
         )}
 

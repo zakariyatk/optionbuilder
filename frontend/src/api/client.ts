@@ -23,6 +23,7 @@ import type {
   SymbolsResponse,
   UsSearchResult,
   WatchQuote,
+  ZerodhaPnl,
 } from './types';
 
 /** App root without the trailing slash, e.g. "/optionbuilder". */
@@ -164,6 +165,8 @@ export const api = {
 
   quotes: (keys: string[]) => get<Quotes>(`/api/quotes?keys=${encodeURIComponent(keys.join(','))}`),
 
+  /** Live P&L from the Zerodha account: positions and holdings. */
+  zerodhaPnl: () => get<ZerodhaPnl>('/api/zerodha/pnl'),
   drafts: () => get<{ drafts: Draft[] }>('/api/drafts'),
   createDraft: (draft: NewDraft) => post<{ draft: Draft }>('/api/drafts', draft),
   renameDraft: (id: string, name: string) => post<{ draft: Draft }>('/api/drafts/update', { id, name }),

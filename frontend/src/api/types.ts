@@ -304,3 +304,47 @@ export interface AiStatus {
   limit: number;
   used: number;
 }
+
+/** One net position from Zerodha (open, or closed today). */
+export interface ZerodhaPosition {
+  symbol: string;
+  exchange: string;
+  product: string;
+  /** Net quantity: positive long, negative short, 0 once closed. */
+  quantity: number;
+  buyQty: number;
+  buyAvg: number;
+  sellQty: number;
+  sellAvg: number;
+  average: number;
+  last: number;
+  pnl: number;
+  realised: number;
+  unrealised: number;
+  /** Mark-to-market against yesterday's close: today's move. */
+  m2m: number;
+}
+
+export interface ZerodhaHolding {
+  symbol: string;
+  exchange: string;
+  quantity: number;
+  average: number;
+  last: number;
+  invested: number;
+  current: number;
+  pnl: number;
+  dayChange: number;
+  dayChangePct: number;
+}
+
+/** Live P&L from the Zerodha account (GET /api/zerodha/pnl). */
+export interface ZerodhaPnl {
+  positions: ZerodhaPosition[];
+  holdings: ZerodhaHolding[];
+  totals: {
+    positions: { pnl: number; realised: number; unrealised: number; m2m: number };
+    holdings: { invested: number; current: number; pnl: number; dayChange: number };
+  };
+  at: number;
+}

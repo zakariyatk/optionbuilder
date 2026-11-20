@@ -305,3 +305,91 @@ function ob_kite_margin(array $instruments): array
         'final_margin' => isset($data['final']['total']) ? (float) $data['final']['total'] : null,
     ];
 }
+
+// ------------------------------------------------------------------ P&L report
+
+function ob_kite_get(string $path): array
+{
+    return ob_kite_check(ob_http_request('GET', OB_KITE_API . $path, ob_kite_headers(), null, 30), $path);
+}
+
+/**
+ * Live P&L from the Zerodha account: open and closed-today positions (F&O,
+ * intraday and delivery trades) and long-term holdings, with totals.
+ * Prices are Zerodha's own last prices, so this needs no Upstox data.
+ *
+ * Kite Connect has no API for Console's historical P&L statements, so this is
+ * the account as it stands now: today's realised P&L plus open positions.
+ */
+function ob_kite_pnl(): array
+{
+    $positions = ob_kite_get('/portfolio/positions')['data']['net'] ?? [];
+    $holdings = ob_kite_get('/portfolio/holdings')['data'] ?? [];
+
+    $pos = [];
+    $t = ['pnl' => 0.0, 'realised' => 0.0, 'unrealised' => 0.0, 'm2m' => 0.0];
+    foreach ($positions as $p) {
+        $row = [
+            'symbol' => (string) ($p['tradingsymbol'] ?? ''),
+            'exchange' => (string) ($p['exchange'] ?? ''),
+            'product' => (string) ($p['product'] ?? ''),
+            'quantity' => (int) ($p['quantity'] ?? 0),
+            'buyQty' => (int) ($p['buy_quantity'] ?? 0),
+            'buyAvg' => (float) ($p['buy_price'] ?? 0),
+            'sellQty' => (int) ($p['sell_quantity'] ?? 0),
+            'sellAvg' => (float) ($p['sell_price'] ?? 0),
+            'average' => (float) ($p['average_price'] ?? 0),
+            'last' => (float) ($p['last_price'] ?? 0),
+            'pnl' => (float) ($p['pnl'] ?? 0),
+            'realised' => (float) ($p['realised'] ?? 0),
+            'unrealised' => (float) ($p['unrealised'] ?? 0),
+            'm2m' => (float) ($p['m2m'] ?? 0),
+        ];
+        foreach ($t as $k => $_) {
+            $t[$k] += $row[$k];
+        }
+        $pos[] = $row;
+    }
+
+    $hold = [];
+    $h = ['invested' => 0.0, 'current' => 0.0, 'pnl' => 0.0, 'dayChange' => 0.0];
+    foreach ($holdings as $x) {
+        // T1 shares (bought yesterday, not yet delivered) are part of the holding.
+        $qty = (int) ($x['quantity'] ?? 0) + (int) ($x['t1_quantity'] ?? 0);
+        if ($qty === 0) {
+            continue;
+        }
+        $avg = (float) ($x['average_price'] ?? 0);
+        $last = (float) ($x['last_price'] ?? 0);
+        $close = (float) ($x['close_price'] ?? 0);
+        $row = [
+            'symbol' => (string) ($x['tradingsymbol'] ?? ''),
+            'exchange' => (string) ($x['exchange'] ?? ''),
+            'quantity' => $qty,
+            'average' => $avg,
+            'last' => $last,
+            'invested' => round($avg * $qty, 2),
+            'current' => round($last * $qty, 2),
+            'pnl' => round(($last - $avg) * $qty, 2),
+            'dayChange' => $close > 0 ? round(($last - $close) * $qty, 2) : 0.0,
+            'dayChangePct' => (float) ($x['day_change_percentage'] ?? 0),
+        ];
+        foreach ($h as $k => $_) {
+            $h[$k] += $row[$k];
+        }
+        $hold[] = $row;
+    }
+
+    usort($pos, static fn(array $a, array $b): int => [$a['quantity'] === 0, $a['symbol']] <=> [$b['quantity'] === 0, $b['symbol']]);
+    usort($hold, static fn(array $a, array $b): int => $b['current'] <=> $a['current']);
+
+    return [
+        'positions' => $pos,
+        'holdings' => $hold,
+        'totals' => [
+            'positions' => array_map(static fn(float $v): float => round($v, 2), $t),
+            'holdings' => array_map(static fn(float $v): float => round($v, 2), $h),
+        ],
+        'at' => (int) round(microtime(true) * 1000),
+    ];
+}

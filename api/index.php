@@ -182,6 +182,7 @@ try {
         }
         try {
             ob_kite_exchange_token($requestToken);
+            ob_cache_put('kite:pnl', null);
             header('Content-Type: text/html; charset=utf-8');
             exit('<!doctype html><meta charset="utf-8"><title>Zerodha connected</title>'
                 . '<body style="font:16px system-ui;padding:40px;max-width:32rem">'
@@ -190,6 +191,24 @@ try {
         } catch (Throwable $e) {
             http_response_code(502);
             exit('Zerodha authorization failed: ' . htmlspecialchars($e->getMessage(), ENT_QUOTES));
+        }
+    }
+
+    // Live P&L straight from the Zerodha account (positions and holdings).
+    if ($path === '/api/zerodha/pnl') {
+        if (!ob_kite_configured()) {
+            ob_error('Zerodha is not configured on the server', 400);
+        }
+        if (!ob_kite_has_valid_token()) {
+            ob_error('ZERODHA_NOT_AUTHENTICATED', 401);
+        }
+        try {
+            // A few seconds of cache keeps several open tabs from tripping Kite's rate limit.
+            ob_json(ob_cached('kite:pnl', fn() => ob_kite_pnl(), 5, 0));
+        } catch (ObKiteNotAuthenticated) {
+            ob_error('ZERODHA_NOT_AUTHENTICATED', 401);
+        } catch (Throwable $e) {
+            ob_error('Failed to load Zerodha P&L', 502, $e->getMessage());
         }
     }
 
