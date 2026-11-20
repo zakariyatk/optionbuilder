@@ -252,3 +252,98 @@ export function summarizeHistory(
 export function symbolItems(symbols: Record<string, number>): PnlItem[] {
   return Object.entries(symbols).map(([symbol, pnl]) => ({ key: symbol, symbol, kind: 'position' as const, open: false, pnl, realised: pnl, unrealised: 0, today: 0 }));
 }
+
+/** How the history chart groups days. Years are Indian financial years (April–March). */
+export type Period = 'day' | 'week' | 'month' | 'year';
+
+export const PERIODS: { id: Period; label: string; adjective: string; noun: string }[] = [
+  { id: 'day', label: 'Day', adjective: 'Daily', noun: 'day' },
+  { id: 'week', label: 'Week', adjective: 'Weekly', noun: 'week' },
+  { id: 'month', label: 'Month', adjective: 'Monthly', noun: 'month' },
+  { id: 'year', label: 'Year', adjective: 'Yearly', noun: 'year' },
+];
+
+const DAY_MS = 86_400_000;
+const utc = (d: string) => Date.parse(`${d}T00:00:00Z`);
+const isoOf = (t: number) => new Date(t).toISOString().slice(0, 10);
+
+/** First day of the period a date falls in: itself, its Monday, the 1st, or 1 April of its FY. */
+export function periodStart(date: string, p: Period): string {
+  const [y, m] = date.split('-').map(Number);
+  switch (p) {
+    case 'day':
+      return date;
+    case 'week': {
+      const t = utc(date);
+      return isoOf(t - ((new Date(t).getUTCDay() + 6) % 7) * DAY_MS);
+    }
+    case 'month':
+      return `${date.slice(0, 7)}-01`;
+    case 'year':
+      return `${m >= 4 ? y : y - 1}-04-01`;
+  }
+}
+
+function nextStart(start: string, p: Period): string {
+  const [y, m] = start.split('-').map(Number);
+  switch (p) {
+    case 'day':
+      return isoOf(utc(start) + DAY_MS);
+    case 'week':
+      return isoOf(utc(start) + 7 * DAY_MS);
+    case 'month':
+      return m === 12 ? `${y + 1}-01-01` : `${y}-${String(m + 1).padStart(2, '0')}-01`;
+    case 'year':
+      return `${y + 1}-04-01`;
+  }
+}
+
+/** The period a range reads best in when the user hasn't picked one. */
+export function defaultPeriod(from: string, to: string): Period {
+  const days = (utc(to) - utc(from)) / DAY_MS;
+  return days <= 92 ? 'day' : 'month';
+}
+
+/**
+ * Days summed into periods, oldest first, each dated by its first day. Weeks,
+ * months and years include empty periods between the first and last with P&L
+ * (so bars sit on a true time scale) while that stays under `maxBars`; days
+ * are only those with a record.
+ */
+export function groupByPeriod(daily: HistoryDay[], p: Period, maxBars = 400): HistoryDay[] {
+  const by = new Map<string, HistoryDay>();
+  for (const d of daily) {
+    const k = periodStart(d.date, p);
+    const g = by.get(k) ?? { date: k, equity: 0, fo: 0, commodity: 0, total: 0 };
+    g.equity = round2(g.equity + d.equity);
+    g.fo = round2(g.fo + d.fo);
+    g.commodity = round2(g.commodity + d.commodity);
+    g.total = round2(g.total + d.total);
+    by.set(k, g);
+  }
+  const keys = [...by.keys()].sort();
+  if (p === 'day' || keys.length < 2) return keys.map((k) => by.get(k)!);
+  const filled: HistoryDay[] = [];
+  for (let k = keys[0]; k <= keys[keys.length - 1]; k = nextStart(k, p)) {
+    filled.push(by.get(k) ?? { date: k, equity: 0, fo: 0, commodity: 0, total: 0 });
+    if (filled.length > maxBars) return keys.map((key) => by.get(key)!);
+  }
+  return filled;
+}
+
+/** A period's name: short for the chart axis, long for figures. */
+export function periodLabel(start: string, p: Period, long = false): string {
+  const fmt = (o: Intl.DateTimeFormatOptions) => new Date(`${start}T00:00:00Z`).toLocaleDateString('en-IN', { ...o, timeZone: 'UTC' });
+  switch (p) {
+    case 'day':
+      return long ? fmt({ day: 'numeric', month: 'short', year: 'numeric' }) : fmt({ day: 'numeric', month: 'short' });
+    case 'week':
+      return long ? `Week of ${fmt({ day: 'numeric', month: 'short', year: 'numeric' })}` : fmt({ day: 'numeric', month: 'short', year: '2-digit' });
+    case 'month':
+      return long ? fmt({ month: 'long', year: 'numeric' }) : fmt({ month: 'short', year: '2-digit' });
+    case 'year': {
+      const y = Number(start.slice(0, 4));
+      return long ? `FY ${y}-${String(y + 1).slice(2)}` : `FY${String(y).slice(2)}-${String(y + 1).slice(2)}`;
+    }
+  }
+}

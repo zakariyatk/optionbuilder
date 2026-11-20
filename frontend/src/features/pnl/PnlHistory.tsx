@@ -3,10 +3,11 @@ import { FileUp, Trash2 } from 'lucide-react';
 import { api, errorMessage } from '../../api/client';
 import type { PnlHistory } from '../../api/types';
 import { Button, Card, CardHeader, Notice, Skeleton, Stat, type Tone } from '../../components/ui';
-import { SEGMENTS, summarizeHistory, symbolItems, topMovers, type HistoryDay, type Segment } from '../../domain/pnl';
+import { defaultPeriod, groupByPeriod, periodLabel, PERIODS, SEGMENTS, summarizeHistory, symbolItems, topMovers, type HistoryDay, type Period, type Segment } from '../../domain/pnl';
 import { useAsync } from '../../hooks/useAsync';
 import { confirmDialog } from '../../lib/dialog';
 import { inr, signedInr } from '../../lib/format';
+import { Segmented } from '../builder/parts';
 import { ColumnBars, DivergingBars, TipLine } from './charts';
 
 type View = 'all' | Segment;
@@ -17,9 +18,8 @@ const labelOf = (s: Segment) => SEGMENTS.find((x) => x.id === s)!.label;
 const fmtDate = (d: string, opts: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'short', year: 'numeric' }) =>
   new Date(`${d}T00:00:00Z`).toLocaleDateString('en-IN', { ...opts, timeZone: 'UTC' });
 
-/** Day-by-day bars up to three months; past that, one bar per month stays readable. */
-function chartRows(daily: HistoryDay[], from: string, to: string, segs: Segment[]) {
-  const long = Date.parse(to) - Date.parse(from) > 92 * 86_400_000;
+/** Chart bars for the chosen period, each with its per-segment breakdown. */
+function chartRows(daily: HistoryDay[], period: Period, segs: Segment[]) {
   const detail = (d: Pick<HistoryDay, Segment | 'total'>) => (
     <div className="flex flex-col gap-0.5">
       {segs.map((s) => (
@@ -28,40 +28,10 @@ function chartRows(daily: HistoryDay[], from: string, to: string, segs: Segment[
       {segs.length > 1 && <TipLine name="Total" value={d.total} />}
     </div>
   );
-  if (!long) {
-    return {
-      monthly: false,
-      months: daily,
-      rows: daily.map((d) => ({ key: d.date, label: fmtDate(d.date, { day: 'numeric', month: 'short' }), value: d.total, detail: detail(d) })),
-    };
-  }
-  const byMonth = new Map<string, HistoryDay>();
-  for (const d of daily) {
-    const k = d.date.slice(0, 7);
-    const m = byMonth.get(k) ?? { date: `${k}-01`, equity: 0, fo: 0, commodity: 0, total: 0 };
-    m.equity += d.equity;
-    m.fo += d.fo;
-    m.commodity += d.commodity;
-    m.total += d.total;
-    byMonth.set(k, m);
-  }
-  // Every month from the first to the last with P&L, empty ones included, so bars sit on a true time scale.
-  const keys = [...byMonth.keys()].sort();
-  const months: HistoryDay[] = [];
-  if (keys.length) {
-    let [y, mo] = keys[0].split('-').map(Number);
-    const [ly, lm] = keys[keys.length - 1].split('-').map(Number);
-    while (y < ly || (y === ly && mo <= lm)) {
-      const k = `${y}-${String(mo).padStart(2, '0')}`;
-      months.push(byMonth.get(k) ?? { date: `${k}-01`, equity: 0, fo: 0, commodity: 0, total: 0 });
-      mo += 1;
-      if (mo > 12) [y, mo] = [y + 1, 1];
-    }
-  }
+  const groups = groupByPeriod(daily, period);
   return {
-    monthly: true,
-    months,
-    rows: months.map((m) => ({ key: m.date, label: fmtDate(m.date, { month: 'short', year: '2-digit' }), value: Math.round(m.total * 100) / 100, detail: detail(m) })),
+    groups,
+    rows: groups.map((g) => ({ key: g.date, label: periodLabel(g.date, period), value: g.total, detail: detail(g) })),
   };
 }
 
@@ -72,6 +42,8 @@ function chartRows(daily: HistoryDay[], from: string, to: string, segs: Segment[
  */
 export function PnlHistoryView({ from, to, rangeLabel, view, onPick }: { from: string; to: string; rangeLabel: string; view: View; onPick: (s: Segment) => void }) {
   const state = useAsync(() => api.pnlHistory(), []);
+  // Day / week / month / year; until picked, whatever suits the range.
+  const [picked, setPicked] = useState<Period | null>(null);
   const h = state.data;
   const segs: Segment[] = view === 'all' ? SEGMENTS.map((s) => s.id) : [view];
 
@@ -96,13 +68,15 @@ export function PnlHistoryView({ from, to, rangeLabel, view, onPick }: { from: s
   // Charges are only known from statements whose whole period sits in the range.
   const statementsIn = h.statements.filter((s) => segs.includes(s.segment) && s.from >= from && s.to <= to);
   const charges = statementsIn.reduce((a, s) => a + s.charges - s.other, 0);
-  const chart = chartRows(sum.daily, from, to, segs);
-  // Long ranges read in months: profit / loss counts and best / worst follow the chart.
-  const unit = chart.monthly ? 'month' : 'day';
-  const periods = chart.months.filter((m) => m.total !== 0);
+  const period = picked ?? defaultPeriod(from, to);
+  const meta = PERIODS.find((x) => x.id === period)!;
+  const chart = chartRows(sum.daily, period, segs);
+  // Profit / loss counts and best / worst follow the chart's period.
+  const unit = meta.noun;
+  const periods = chart.groups.filter((m) => m.total !== 0);
   const best = periods.reduce<HistoryDay | null>((a, d) => (d.total > 0 && (!a || d.total > a.total) ? d : a), null);
   const worst = periods.reduce<HistoryDay | null>((a, d) => (d.total < 0 && (!a || d.total < a.total) ? d : a), null);
-  const when = (d: HistoryDay) => (chart.monthly ? fmtDate(d.date, { month: 'long', year: 'numeric' }) : fmtDate(d.date));
+  const when = (d: HistoryDay) => periodLabel(d.date, period, true);
   const empty = sum.daily.every((d) => d.total === 0) && sum.total === 0;
 
   return (
@@ -159,9 +133,12 @@ export function PnlHistoryView({ from, to, rangeLabel, view, onPick }: { from: s
               </div>
             )}
             <div>
-              <div className="mb-2 text-xs font-semibold">{chart.monthly ? 'Monthly' : 'Daily'} P&amp;L</div>
+              <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                <span className="text-xs font-semibold">{meta.adjective} P&amp;L</span>
+                <Segmented<Period> label="Group P&L by" size="xs" value={period} onChange={setPicked} options={PERIODS.map((x) => ({ id: x.id, label: x.label }))} />
+              </div>
               {chart.rows.some((r) => r.value !== 0) ? (
-                <ColumnBars rows={chart.rows} label={`${chart.monthly ? 'Monthly' : 'Daily'} realised P&L`} />
+                <ColumnBars rows={chart.rows} label={`${meta.adjective} realised P&L`} />
               ) : (
                 <p className="py-8 text-center text-sm text-[var(--text-muted)]">No P&amp;L recorded in this range.</p>
               )}
@@ -180,7 +157,7 @@ export function PnlHistoryView({ from, to, rangeLabel, view, onPick }: { from: s
       {undatedIn.length > 0 && (
         <Notice tone="info">
           Equity P&amp;L of {signedInr(undatedIn.reduce((a, s) => a + s.realised, 0))} comes from a P&amp;L statement with no trade dates: it&apos;s in the totals but not in the
-          monthly chart. Upload an equity Tradebook (CSV) to see it month by month.
+          chart. Upload an equity Tradebook (CSV) to see it month by month.
         </Notice>
       )}
 

@@ -175,7 +175,8 @@ export function ColumnBars({ rows, label, height = 168 }: { rows: ColumnRow[]; l
         </div>
         <div className="relative min-w-0 flex-1" style={{ height }} role="list" aria-label={label}>
           <span className="absolute inset-x-0 h-px bg-[var(--border-strong)]" style={{ top: zeroY }} aria-hidden="true" />
-          <div className="absolute inset-0 flex items-stretch gap-[2px]">
+          {/* Many bars (weeks over years): a 1px gap and hairline bars still fit. */}
+          <div className={`absolute inset-0 flex items-stretch ${rows.length > 150 ? 'gap-px' : 'gap-[2px]'}`}>
             {rows.map((r, i) => {
               const h = (Math.abs(r.value) / span) * height;
               return (
@@ -184,7 +185,7 @@ export function ColumnBars({ rows, label, height = 168 }: { rows: ColumnRow[]; l
                   role="listitem"
                   tabIndex={0}
                   aria-label={`${r.label}: ${signedInr(r.value)}`}
-                  className="relative min-w-[2px] flex-1 cursor-default rounded-sm outline-none hover:bg-[var(--surface-sunken)] focus-visible:bg-[var(--surface-sunken)] focus-visible:ring-2 focus-visible:ring-[var(--series-blue)]"
+                  className="relative min-w-px flex-1 cursor-default rounded-sm outline-none hover:bg-[var(--surface-sunken)] focus-visible:bg-[var(--surface-sunken)] focus-visible:ring-2 focus-visible:ring-[var(--series-blue)]"
                   onMouseEnter={(e) => show(i, e.currentTarget)}
                   onFocus={(e) => show(i, e.currentTarget)}
                   onBlur={() => setTip(null)}

@@ -114,3 +114,40 @@ describe('summarizeHistory', () => {
     expect(s.daily.map((d) => d.total)).toEqual([0, -400, 0]);
   });
 });
+
+import { groupByPeriod, periodLabel, periodStart } from './pnl';
+
+describe('periods', () => {
+  it('finds the start of a day, week, month and financial year', () => {
+    expect(periodStart('2026-11-20', 'day')).toBe('2026-11-20');
+    expect(periodStart('2026-11-20', 'week')).toBe('2026-11-16'); // Friday → Monday
+    expect(periodStart('2026-11-16', 'week')).toBe('2026-11-16');
+    expect(periodStart('2026-11-22', 'week')).toBe('2026-11-16'); // Sunday
+    expect(periodStart('2026-11-20', 'month')).toBe('2026-11-01');
+    expect(periodStart('2026-11-20', 'year')).toBe('2026-04-01');
+    expect(periodStart('2026-03-31', 'year')).toBe('2025-04-01');
+  });
+
+  const d = (date: string, fo: number) => ({ date, equity: 0, fo, commodity: 0, total: fo });
+
+  it('sums into periods and fills the empty ones between', () => {
+    const daily = [d('2025-11-03', 100), d('2025-11-20', -40), d('2026-01-05', 10), d('2026-05-02', 7)];
+    expect(groupByPeriod(daily, 'month').map((g) => [g.date, g.total])).toEqual([
+      ['2025-11-01', 60], ['2025-12-01', 0], ['2026-01-01', 10], ['2026-02-01', 0], ['2026-03-01', 0], ['2026-04-01', 0], ['2026-05-01', 7],
+    ]);
+    expect(groupByPeriod(daily, 'year').map((g) => [g.date, g.total])).toEqual([['2025-04-01', 70], ['2026-04-01', 7]]);
+    expect(groupByPeriod(daily, 'week').length).toBe(26); // 3 Nov 2025 … 27 Apr 2026
+    expect(groupByPeriod(daily, 'day').map((g) => g.date)).toEqual(daily.map((x) => x.date));
+  });
+
+  it('stops filling past the bar limit', () => {
+    const daily = [d('2017-04-03', 1), d('2026-11-16', 2)];
+    expect(groupByPeriod(daily, 'week', 100).map((g) => g.total)).toEqual([1, 2]);
+  });
+
+  it('names periods', () => {
+    expect(periodLabel('2025-04-01', 'year')).toBe('FY25-26');
+    expect(periodLabel('2025-04-01', 'year', true)).toBe('FY 2025-26');
+    expect(periodLabel('2026-11-16', 'week', true)).toBe('Week of 16 Nov 2026');
+  });
+});
