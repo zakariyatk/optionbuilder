@@ -3,12 +3,12 @@ import { FileUp, Trash2 } from 'lucide-react';
 import { api, errorMessage } from '../../api/client';
 import type { PnlHistory } from '../../api/types';
 import { Button, Card, CardHeader, Notice, Skeleton, Stat, type Tone } from '../../components/ui';
-import { defaultPeriod, groupByPeriod, periodLabel, PERIODS, SEGMENTS, summarizeHistory, symbolItems, topMovers, type HistoryDay, type Period, type Segment } from '../../domain/pnl';
+import { cumulativeSeries, defaultPeriod, groupByPeriod, maxDrawdown, periodLabel, PERIODS, SEGMENTS, summarizeHistory, symbolItems, topMovers, type HistoryDay, type Period, type Segment } from '../../domain/pnl';
 import { useAsync } from '../../hooks/useAsync';
 import { confirmDialog } from '../../lib/dialog';
 import { inr, signedInr } from '../../lib/format';
 import { Segmented } from '../builder/parts';
-import { ColumnBars, DivergingBars, TipLine } from './charts';
+import { CalendarHeatmap, ColumnBars, DivergingBars, LineArea, TipLine } from './charts';
 
 type View = 'all' | Segment;
 
@@ -44,6 +44,7 @@ export function PnlHistoryView({ from, to, rangeLabel, view, onPick }: { from: s
   const state = useAsync(() => api.pnlHistory(), []);
   // Day / week / month / year; until picked, whatever suits the range.
   const [picked, setPicked] = useState<Period | null>(null);
+  const [kind, setKind] = useState<ChartKind>('bars');
   const h = state.data;
   const segs: Segment[] = view === 'all' ? SEGMENTS.map((s) => s.id) : [view];
 
@@ -132,17 +133,6 @@ export function PnlHistoryView({ from, to, rangeLabel, view, onPick }: { from: s
                 />
               </div>
             )}
-            <div>
-              <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-                <span className="text-xs font-semibold">{meta.adjective} P&amp;L</span>
-                <Segmented<Period> label="Group P&L by" size="xs" value={period} onChange={setPicked} options={PERIODS.map((x) => ({ id: x.id, label: x.label }))} />
-              </div>
-              {chart.rows.some((r) => r.value !== 0) ? (
-                <ColumnBars rows={chart.rows} label={`${meta.adjective} realised P&L`} />
-              ) : (
-                <p className="py-8 text-center text-sm text-[var(--text-muted)]">No P&amp;L recorded in this range.</p>
-              )}
-            </div>
           </div>
         </div>
       </Card>
@@ -154,10 +144,36 @@ export function PnlHistoryView({ from, to, rangeLabel, view, onPick }: { from: s
         </Notice>
       )}
 
+      <Card>
+        <CardHeader title={CHART_KINDS.find((k) => k.id === kind)!.title(meta.adjective)}>
+          <Segmented<ChartKind> label="Chart" size="xs" value={kind} onChange={setKind} options={CHART_KINDS.map((k) => ({ id: k.id, label: k.label, title: k.hint }))} />
+          {kind !== 'calendar' && (
+            <Segmented<Period> label="Group P&L by" size="xs" value={period} onChange={setPicked} options={PERIODS.map((x) => ({ id: x.id, label: x.label }))} />
+          )}
+        </CardHeader>
+        <div className="p-4">
+          <p className="mb-3 text-xs text-[var(--text-muted)]">{CHART_KINDS.find((k) => k.id === kind)!.hint}</p>
+          {!chart.rows.some((r) => r.value !== 0) ? (
+            <p className="py-8 text-center text-sm text-[var(--text-muted)]">No P&amp;L recorded in this range.</p>
+          ) : kind === 'bars' ? (
+            <ColumnBars rows={chart.rows} label={`${meta.adjective} realised P&L`} />
+          ) : kind === 'calendar' ? (
+            <CalendarHeatmap
+              label="Daily realised P&L calendar"
+              days={Object.fromEntries(sum.daily.map((d) => [d.date, d.total]))}
+              from={sum.daily.length && sum.daily[0].date > from ? sum.daily[0].date : from}
+              to={to}
+            />
+          ) : (
+            <CumulativeView groups={chart.groups} period={period} drawdown={kind === 'drawdown'} />
+          )}
+        </div>
+      </Card>
+
       {undatedIn.length > 0 && (
         <Notice tone="info">
           Equity P&amp;L of {signedInr(undatedIn.reduce((a, s) => a + s.realised, 0))} comes from a P&amp;L statement with no trade dates: it&apos;s in the totals but not in the
-          chart. Upload an equity Tradebook (CSV) to see it month by month.
+          charts. Upload an equity Tradebook (CSV) to see it month by month.
         </Notice>
       )}
 
@@ -224,6 +240,65 @@ function SegmentHistory({ seg, data, onPick }: { seg: Segment; data: { realised:
         </div>
       )}
     </Card>
+  );
+}
+
+type ChartKind = 'bars' | 'cumulative' | 'calendar' | 'drawdown';
+
+const CHART_KINDS: { id: ChartKind; label: string; title: (adjective: string) => string; hint: string }[] = [
+  { id: 'bars', label: 'Bars', title: (a) => `${a} P&L`, hint: 'Each bar is one period: green above the line is profit, red below is loss.' },
+  { id: 'cumulative', label: 'Cumulative', title: () => 'Cumulative P&L', hint: 'Your running total: how profit or loss built up over the range.' },
+  { id: 'calendar', label: 'Calendar', title: () => 'P&L calendar', hint: 'Every trading day in a calendar: deeper green for bigger profit, deeper red for bigger loss.' },
+  { id: 'drawdown', label: 'Drawdown', title: () => 'Drawdown', hint: 'How far the running total fell below its previous high, and when it was made back.' },
+];
+
+/** Running total, or its fall from the high, with the figures that go with it. */
+function CumulativeView({ groups, period, drawdown }: { groups: HistoryDay[]; period: Period; drawdown: boolean }) {
+  const pts = cumulativeSeries(groups);
+  const dd = maxDrawdown(pts);
+  const last = pts[pts.length - 1];
+  const high = pts.reduce((a, p) => (p.cum > a.cum ? p : a), pts[0]);
+  const low = pts.reduce((a, p) => (p.cum < a.cum ? p : a), pts[0]);
+  const label = (d: string) => periodLabel(d, period, true);
+  const current = last ? last.drawdown : 0;
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        {drawdown ? (
+          <>
+            <Stat label="Max drawdown" value={dd ? signedInr(dd.amount) : '—'} tone={dd ? 'critical' : undefined} hint={dd ? `Low on ${label(dd.troughDate)}` : 'Never below a high'} />
+            <Stat label="From the high of" value={dd?.peakDate ? label(dd.peakDate) : dd ? 'Start of range' : '—'} />
+            <Stat label="Made back" value={dd ? (dd.recoveredDate ? label(dd.recoveredDate) : 'Not yet') : '—'} tone={dd && !dd.recoveredDate ? 'warning' : undefined} />
+            <Stat label="Now below high" value={current < 0 ? signedInr(current) : 'At a high'} tone={current < 0 ? 'critical' : 'good'} />
+          </>
+        ) : (
+          <>
+            <Stat label="Total" value={signedInr(last?.cum ?? 0)} tone={tone(last?.cum ?? 0)} />
+            <Stat label="Highest" value={high ? signedInr(high.cum) : '—'} hint={high ? label(high.date) : undefined} />
+            <Stat label="Lowest" value={low ? signedInr(low.cum) : '—'} hint={low ? label(low.date) : undefined} />
+            <Stat label="Max drawdown" value={dd ? signedInr(dd.amount) : '—'} tone={dd ? 'critical' : undefined} />
+          </>
+        )}
+      </div>
+      <LineArea
+        label={drawdown ? 'Drawdown' : 'Cumulative P&L'}
+        tone={drawdown ? 'loss' : 'accent'}
+        points={pts.map((p) => ({
+          key: p.date,
+          label: periodLabel(p.date, period),
+          value: drawdown ? p.drawdown : p.cum,
+          detail: (
+            <div className="flex flex-col gap-0.5">
+              <div className="text-[var(--text-muted)]">{label(p.date)}</div>
+              <TipLine name="This period" value={p.value} />
+              <TipLine name="Running total" value={p.cum} />
+              {drawdown && <TipLine name="Below high" value={p.drawdown} />}
+            </div>
+          ),
+        }))}
+      />
+    </div>
   );
 }
 

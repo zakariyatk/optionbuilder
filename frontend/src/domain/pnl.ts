@@ -347,3 +347,43 @@ export function periodLabel(start: string, p: Period, long = false): string {
     }
   }
 }
+
+/** One point of the running P&L: the period's P&L, the total so far, its high-water mark and the fall from it. */
+export interface CumPoint {
+  date: string;
+  value: number;
+  cum: number;
+  /** Highest running total so far (at least 0: the range starts flat). */
+  peak: number;
+  /** cum − peak: 0 at a new high, negative while below it. */
+  drawdown: number;
+}
+
+/** Running total of realised P&L across periods, with the drawdown from its peak. */
+export function cumulativeSeries(groups: HistoryDay[]): CumPoint[] {
+  let cum = 0;
+  let peak = 0;
+  return groups.map((g) => {
+    cum = round2(cum + g.total);
+    peak = Math.max(peak, cum);
+    return { date: g.date, value: g.total, cum, peak, drawdown: round2(cum - peak) };
+  });
+}
+
+/** The deepest fall from a peak: how much, from when, to when, and when (if ever) it was made back. */
+export function maxDrawdown(points: CumPoint[]): { amount: number; peakDate: string | null; troughDate: string; recoveredDate: string | null } | null {
+  let worst: CumPoint | null = null;
+  for (const p of points) if (p.drawdown < 0 && (!worst || p.drawdown < worst.drawdown)) worst = p;
+  if (!worst) return null;
+  const i = points.indexOf(worst);
+  // The peak is the last point before the trough sitting at that high-water mark (none if it was the start).
+  let peakDate: string | null = null;
+  for (let j = i - 1; j >= 0; j--) {
+    if (points[j].cum === worst.peak) {
+      peakDate = points[j].date;
+      break;
+    }
+  }
+  const recovered = points.slice(i + 1).find((p) => p.cum >= worst!.peak);
+  return { amount: worst.drawdown, peakDate, troughDate: worst.date, recoveredDate: recovered?.date ?? null };
+}

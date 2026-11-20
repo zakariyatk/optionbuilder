@@ -151,3 +151,27 @@ describe('periods', () => {
     expect(periodLabel('2026-11-16', 'week', true)).toBe('Week of 16 Nov 2026');
   });
 });
+
+import { cumulativeSeries, maxDrawdown } from './pnl';
+
+describe('cumulative P&L and drawdown', () => {
+  const g = (date: string, total: number) => ({ date, equity: 0, fo: total, commodity: 0, total });
+  const pts = cumulativeSeries([g('d1', 100), g('d2', -30), g('d3', -50), g('d4', 60), g('d5', 40), g('d6', -10)]);
+
+  it('runs the total and measures the fall from each high', () => {
+    expect(pts.map((p) => p.cum)).toEqual([100, 70, 20, 80, 120, 110]);
+    expect(pts.map((p) => p.peak)).toEqual([100, 100, 100, 100, 120, 120]);
+    expect(pts.map((p) => p.drawdown)).toEqual([0, -30, -80, -20, 0, -10]);
+  });
+
+  it('finds the deepest drawdown and when it was made back', () => {
+    expect(maxDrawdown(pts)).toEqual({ amount: -80, peakDate: 'd1', troughDate: 'd3', recoveredDate: 'd5' });
+  });
+
+  it('counts a loss from the start of the range as a drawdown from zero', () => {
+    const down = cumulativeSeries([g('a', -50), g('b', 20)]);
+    expect(down.map((p) => p.drawdown)).toEqual([-50, -30]);
+    expect(maxDrawdown(down)).toEqual({ amount: -50, peakDate: null, troughDate: 'a', recoveredDate: null });
+    expect(maxDrawdown(cumulativeSeries([g('a', 5)]))).toBeNull();
+  });
+});
