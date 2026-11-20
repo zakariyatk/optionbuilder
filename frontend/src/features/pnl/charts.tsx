@@ -33,7 +33,8 @@ export function DivergingBars({ rows, label }: { rows: BarRow[]; label: string }
   const zero = maxNeg / span;
   // Label column fits the longest name (contract symbols run long), up to 45% of the chart.
   const chars = Math.max(6, ...rows.map((r) => r.labelChars ?? (typeof r.label === 'string' ? r.label.length : 10)));
-  const labelWidth = `min(${chars + 2}ch, 45%)`;
+  // Capitals run wider than the "0" a ch is measured on.
+  const labelWidth = `min(${Math.ceil(chars * 1.25) + 2}ch, 45%)`;
 
   const place = (i: number, clientX: number, clientY: number) => {
     const r = box.current?.getBoundingClientRect();
@@ -134,6 +135,102 @@ export function FundsMeter({ used, available, note }: { used: number; available:
         <span className="tabular">Free {inr(available)}</span>
       </div>
       {note && <p className="mt-1 text-[11px] text-[var(--text-muted)]">{note}</p>}
+    </div>
+  );
+}
+
+export interface ColumnRow {
+  key: string;
+  /** Axis label (a date or a month). */
+  label: string;
+  value: number;
+  detail?: ReactNode;
+}
+
+/**
+ * P&L per day (or month) as columns from a zero line: profit up, loss down.
+ * Hover or focus a column for its breakdown; the largest gain and loss are
+ * labelled on the axis so the scale reads without gridlines.
+ */
+export function ColumnBars({ rows, label, height = 168 }: { rows: ColumnRow[]; label: string; height?: number }) {
+  const box = useRef<HTMLDivElement>(null);
+  const [tip, setTip] = useState<{ i: number; x: number } | null>(null);
+  const maxPos = Math.max(0, ...rows.map((r) => r.value));
+  const maxNeg = Math.max(0, ...rows.map((r) => -r.value));
+  const span = maxPos + maxNeg || 1;
+  const zeroY = (maxPos / span) * height;
+  const show = (i: number, el: HTMLElement) => {
+    const b = box.current?.getBoundingClientRect();
+    const r = el.getBoundingClientRect();
+    if (b) setTip({ i, x: r.left - b.left + r.width / 2 });
+  };
+  const ticks = rows.length > 1 ? [0, Math.floor((rows.length - 1) / 2), rows.length - 1] : [0];
+
+  return (
+    <div ref={box} className="relative text-[10px]" onMouseLeave={() => setTip(null)}>
+      <div className="flex">
+        <div className="tabular flex w-16 shrink-0 flex-col justify-between pr-2 text-right text-[var(--text-muted)]" style={{ height }} aria-hidden="true">
+          <span>{maxPos > 0 ? signedInr(maxPos) : ''}</span>
+          <span>{maxNeg > 0 ? signedInr(-maxNeg) : ''}</span>
+        </div>
+        <div className="relative min-w-0 flex-1" style={{ height }} role="list" aria-label={label}>
+          <span className="absolute inset-x-0 h-px bg-[var(--border-strong)]" style={{ top: zeroY }} aria-hidden="true" />
+          <div className="absolute inset-0 flex items-stretch gap-[2px]">
+            {rows.map((r, i) => {
+              const h = (Math.abs(r.value) / span) * height;
+              return (
+                <div
+                  key={r.key}
+                  role="listitem"
+                  tabIndex={0}
+                  aria-label={`${r.label}: ${signedInr(r.value)}`}
+                  className="relative min-w-[2px] flex-1 cursor-default rounded-sm outline-none hover:bg-[var(--surface-sunken)] focus-visible:bg-[var(--surface-sunken)] focus-visible:ring-2 focus-visible:ring-[var(--series-blue)]"
+                  onMouseEnter={(e) => show(i, e.currentTarget)}
+                  onFocus={(e) => show(i, e.currentTarget)}
+                  onBlur={() => setTip(null)}
+                >
+                  {h > 0 && (
+                    <span
+                      className="absolute inset-x-0 mx-auto max-w-6"
+                      style={{
+                        top: r.value >= 0 ? zeroY - Math.max(h, 1) : zeroY,
+                        height: Math.max(h, 1),
+                        background: barColor(r.value),
+                        borderRadius: r.value >= 0 ? '3px 3px 0 0' : '0 0 3px 3px',
+                      }}
+                      aria-hidden="true"
+                    />
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+      <div className="relative ml-16 mt-1 h-4 text-[var(--text-muted)]" aria-hidden="true">
+        {ticks.map((i) => (
+          <span
+            key={i}
+            className="absolute whitespace-nowrap"
+            style={{
+              left: `${((i + 0.5) / rows.length) * 100}%`,
+              transform: i === 0 ? 'translateX(-10%)' : i === rows.length - 1 ? 'translateX(-90%)' : 'translateX(-50%)',
+            }}
+          >
+            {rows[i]?.label}
+          </span>
+        ))}
+      </div>
+      {tip && rows[tip.i] && (
+        <div
+          className="pointer-events-none absolute top-0 z-10 w-max max-w-[16rem] rounded-md border border-[var(--border)] bg-[var(--surface-raised)] px-2.5 py-2 text-xs shadow-lg"
+          style={{ left: Math.max(64, Math.min(tip.x - 80, (box.current?.clientWidth ?? 0) - 170)) }}
+          role="tooltip"
+        >
+          <div className="mb-0.5 font-semibold">{rows[tip.i].label}</div>
+          {rows[tip.i].detail ?? <TipLine name="Realised" value={rows[tip.i].value} />}
+        </div>
+      )}
     </div>
   );
 }

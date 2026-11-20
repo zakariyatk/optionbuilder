@@ -13,6 +13,7 @@ require_once __DIR__ . '/lib/cache.php';
 require_once __DIR__ . '/lib/http.php';
 require_once __DIR__ . '/lib/symbols.php';
 require_once __DIR__ . '/lib/upstox.php';
+require_once __DIR__ . '/lib/pnl_history.php';
 require_once __DIR__ . '/lib/chain.php';
 require_once __DIR__ . '/lib/us_options.php';
 require_once __DIR__ . '/lib/markets.php';
@@ -204,12 +205,72 @@ try {
         }
         try {
             // A few seconds of cache keeps several open tabs from tripping Kite's rate limit.
-            ob_json(ob_cached('kite:pnl', fn() => ob_kite_pnl(), 5, 0));
+            ob_json(ob_cached('kite:pnl', static function (): array {
+                $pnl = ob_kite_pnl();
+                try {
+                    // Every fresh fetch records today for the history view.
+                    ob_pnl_history_save_today($pnl['positions']);
+                } catch (Throwable $e) {
+                    error_log('AddStock: P&L history save failed: ' . $e->getMessage());
+                }
+                return $pnl;
+            }, 5, 0));
         } catch (ObKiteNotAuthenticated) {
             ob_error('ZERODHA_NOT_AUTHENTICATED', 401);
         } catch (Throwable $e) {
             ob_error('Failed to load Zerodha P&L', 502, $e->getMessage());
         }
+    }
+
+    // P&L history: auto-saved days plus uploaded Console tradebooks. Local data, no Zerodha login needed.
+    if ($path === '/api/zerodha/pnl/history') {
+        try {
+            ob_json(ob_pnl_history_report());
+        } catch (Throwable $e) {
+            ob_error('Failed to load P&L history', 500, $e->getMessage());
+        }
+    }
+
+    if ($path === '/api/zerodha/pnl/upload' && $method === 'POST') {
+        $b = ob_body();
+        $name = (string) ($b['name'] ?? 'upload');
+        $csv = (string) ($b['csv'] ?? '');
+        $xlsx = base64_decode((string) ($b['xlsx'] ?? ''), true) ?: '';
+        if (($csv === '' && $xlsx === '') || strlen($csv) + strlen($xlsx) > 20_000_000) {
+            ob_error('Upload a Console tradebook (CSV) or P&L statement (.xlsx) under 20 MB', 400);
+        }
+        try {
+            if ($xlsx !== '') {
+                // A P&L statement: one sheet per segment (other sheets are charges detail).
+                $done = [];
+                foreach (ob_xlsx_rows($xlsx) as $rows) {
+                    try {
+                        $done[] = ob_pnl_import_statement($name, $rows);
+                    } catch (InvalidArgumentException) {
+                        // Not a P&L sheet (e.g. "Other Debits and Credits").
+                    }
+                }
+                if (!$done) {
+                    throw new InvalidArgumentException('No P&L statement found in this workbook. Download it from Console → Reports → P&L.');
+                }
+                ob_json(['kind' => 'statement', 'statements' => $done]);
+            }
+            // CSV: a tradebook, or a P&L statement saved as CSV.
+            if (preg_match('/P&L Statement for/i', $csv)) {
+                $rows = array_map('str_getcsv', preg_split('/\r?\n/', $csv) ?: []);
+                ob_json(['kind' => 'statement', 'statements' => [ob_pnl_import_statement($name, $rows)]]);
+            }
+            ob_json(['kind' => 'tradebook'] + ob_pnl_import_tradebook($name, $csv));
+        } catch (InvalidArgumentException $e) {
+            ob_error($e->getMessage(), 400);
+        } catch (Throwable $e) {
+            ob_error('Failed to import the tradebook', 500, $e->getMessage());
+        }
+    }
+
+    if ($path === '/api/zerodha/pnl/uploads/clear' && $method === 'POST') {
+        ob_pnl_clear_uploads();
+        ob_json(['ok' => true]);
     }
 
     if ($path === '/api/auth/zerodha/logout' && $method === 'POST') {

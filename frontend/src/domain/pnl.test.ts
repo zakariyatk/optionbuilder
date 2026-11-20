@@ -60,3 +60,54 @@ describe('topMovers', () => {
     expect(rows.reduce((a, r) => a + r.value, 0)).toBe(-21);
   });
 });
+
+import { presetRange, summarizeHistory } from './pnl';
+import type { PnlHistoryDay } from '../api/types';
+
+describe('presetRange', () => {
+  it('works out weeks, months and Indian financial years', () => {
+    // 2026-11-20 is a Friday.
+    expect(presetRange('week', '2026-11-20')).toEqual({ from: '2026-11-16', to: '2026-11-20' });
+    expect(presetRange('month', '2026-11-20')).toEqual({ from: '2026-11-01', to: '2026-11-20' });
+    expect(presetRange('lastMonth', '2026-11-20')).toEqual({ from: '2026-10-01', to: '2026-10-31' });
+    expect(presetRange('lastMonth', '2026-01-10')).toEqual({ from: '2025-12-01', to: '2025-12-31' });
+    expect(presetRange('fy', '2026-11-20')).toEqual({ from: '2026-04-01', to: '2026-11-20' });
+    expect(presetRange('fy', '2027-02-10')).toEqual({ from: '2026-04-01', to: '2027-02-10' });
+    expect(presetRange('lastFy', '2026-11-20')).toEqual({ from: '2025-04-01', to: '2026-03-31' });
+  });
+});
+
+describe('summarizeHistory', () => {
+  const seg = (realised: number, symbols: Record<string, number>) => ({ source: 'upload' as const, realised, today: null, symbols });
+  const days: PnlHistoryDay[] = [
+    { date: '2026-10-05', equity: seg(100, { INFY: 100 }), fo: seg(0, {}), commodity: null },
+    { date: '2026-10-06', equity: null, fo: seg(-400, { NIFTYPE: -400 }), commodity: seg(250, { GOLDM: 250 }) },
+    { date: '2026-10-12', equity: seg(50, { INFY: 50 }), fo: null, commodity: null },
+    { date: '2026-11-02', equity: seg(999, { TCS: 999 }), fo: null, commodity: null },
+  ];
+
+  it('totals a range by segment, day and symbol', () => {
+    const s = summarizeHistory(days, '2026-10-01', '2026-10-31');
+    expect(s.total).toBe(0);
+    expect(s.segments.equity).toEqual({ realised: 150, symbols: { INFY: 150 }, days: 2 });
+    expect(s.segments.fo.realised).toBe(-400);
+    expect(s.daily.map((d) => d.total)).toEqual([100, -150, 50]);
+    expect(s.profitDays).toBe(2);
+    expect(s.lossDays).toBe(1);
+    expect(s.best?.date).toBe('2026-10-05');
+    expect(s.worst?.date).toBe('2026-10-06');
+  });
+
+  it('counts weekdays with no record', () => {
+    // 1–9 Oct 2026: weekdays are 1,2,5,6,7,8,9; records on 5 and 6.
+    expect(summarizeHistory(days, '2026-10-01', '2026-10-09').missingWeekdays).toBe(5);
+    // An uploaded statement for 1–7 Oct accounts for those days.
+    expect(summarizeHistory(days, '2026-10-01', '2026-10-09', undefined, [['2026-10-01', '2026-10-07']]).missingWeekdays).toBe(2);
+  });
+
+  it('filters to chosen segments', () => {
+    const s = summarizeHistory(days, '2026-10-01', '2026-10-31', ['fo']);
+    expect(s.total).toBe(-400);
+    expect(s.daily.map((d) => d.total)).toEqual([0, -400, 0]);
+  });
+});

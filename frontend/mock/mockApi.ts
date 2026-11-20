@@ -547,6 +547,9 @@ export function mockApi(base: string): Plugin {
                     },
                   }),
             });
+          case '/zerodha/pnl/history':
+            // No uploads in the demo: the history view shows its empty state and upload panel.
+            return send({ days: [], autoSince: null, autoDays: 0, coverage: {}, uploads: [], unmatched: {}, expired: {}, multipliers: {}, statements: [] });
           case '/zerodha/pnl':
             return send(mockZerodhaPnl(now));
           case '/symbols':
