@@ -362,3 +362,65 @@ export interface ZerodhaPnl {
   };
   at: number;
 }
+
+/** One segment's realised P&L on one day of the history. */
+export interface PnlDaySegment {
+  /** upload: a Console tradebook; statement: a Console P&L statement (placed on contract expiry); auto: saved by the app that day. */
+  source: 'upload' | 'statement' | 'auto';
+  realised: number;
+  /** Auto-saved days also keep that day's M2M. */
+  today: number | null;
+  symbols: Record<string, number>;
+}
+
+export interface PnlHistoryDay {
+  date: string;
+  equity: PnlDaySegment | null;
+  fo: PnlDaySegment | null;
+  commodity: PnlDaySegment | null;
+}
+
+export interface PnlUpload {
+  at: number;
+  name: string;
+  from: string;
+  to: string;
+  segments: ('equity' | 'fo' | 'commodity')[];
+  trades: number;
+}
+
+/** GET /api/zerodha/pnl/history */
+export interface PnlHistory {
+  days: PnlHistoryDay[];
+  autoSince: string | null;
+  autoDays: number;
+  coverage: Partial<Record<'equity' | 'fo' | 'commodity', [string, string]>>;
+  uploads: PnlUpload[];
+  /** Equity shares sold that the uploads have no purchase for (bought before the earliest tradebook). */
+  unmatched: Record<string, number>;
+  /** Options held to expiry, settled at ₹0 (signed open quantity). */
+  expired: Record<string, number>;
+  /** Lot multipliers applied to commodity / currency tradebook trades. */
+  multipliers: Record<string, number>;
+  /** Uploaded Console P&L statements, with their charges. */
+  statements: PnlStatement[];
+}
+
+export interface PnlStatement {
+  segment: 'equity' | 'fo' | 'commodity';
+  from: string;
+  to: string;
+  name: string;
+  at: number;
+  realised: number;
+  charges: number;
+  /** "Other Credit & Debit" (negative = debit). */
+  other: number;
+  symbols: number;
+  /** Equity statements: per-symbol P&L with no dates, counted only for ranges covering the whole period. */
+  undated: Record<string, number> | null;
+}
+
+export type PnlUploadResult =
+  | { kind: 'tradebook'; imported: number; duplicates: number; from: string; to: string; segments: string[] }
+  | { kind: 'statement'; statements: { segment: 'equity' | 'fo' | 'commodity'; from: string; to: string; symbols: number; realised: number; charges: number }[] };

@@ -24,6 +24,8 @@ import type {
   UsSearchResult,
   WatchQuote,
   ZerodhaPnl,
+  PnlHistory,
+  PnlUploadResult,
 } from './types';
 
 /** App root without the trailing slash, e.g. "/optionbuilder". */
@@ -167,6 +169,11 @@ export const api = {
 
   /** Live P&L from the Zerodha account: positions and holdings. */
   zerodhaPnl: () => get<ZerodhaPnl>('/api/zerodha/pnl'),
+  /** Realised P&L per day: auto-saved days plus uploaded Console tradebooks. */
+  pnlHistory: () => get<PnlHistory>('/api/zerodha/pnl/history'),
+  /** A Console tradebook (csv) or P&L statement (xlsx as base64, or csv). */
+  uploadTradebook: (name: string, file: { csv: string } | { xlsx: string }) => post<PnlUploadResult>('/api/zerodha/pnl/upload', { name, ...file }),
+  clearTradebooks: () => post<{ ok: true }>('/api/zerodha/pnl/uploads/clear', {}),
   drafts: () => get<{ drafts: Draft[] }>('/api/drafts'),
   createDraft: (draft: NewDraft) => post<{ draft: Draft }>('/api/drafts', draft),
   renameDraft: (id: string, name: string) => post<{ draft: Draft }>('/api/drafts/update', { id, name }),

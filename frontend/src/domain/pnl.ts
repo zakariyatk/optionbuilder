@@ -1,4 +1,4 @@
-import type { ZerodhaPnl, ZerodhaPosition } from '../api/types';
+import type { PnlHistoryDay, ZerodhaPnl, ZerodhaPosition } from '../api/types';
 
 /** The P&L Report's three sections. */
 export type Segment = 'equity' | 'fo' | 'commodity';
@@ -104,4 +104,147 @@ export function topMovers(items: PnlItem[], max = 8): { key: string; label: stri
   const rows = shown.map((i) => ({ key: i.key, label: i.symbol, value: i.pnl, items: [i] }));
   if (rest.length) rows.push({ key: 'others', label: `Others (${rest.length})`, value: round2(rest.reduce((s, i) => s + i.pnl, 0)), items: rest });
   return rows;
+}
+
+// ------------------------------------------------------------------- history
+
+
+export type RangeId = 'today' | 'week' | 'month' | 'lastMonth' | 'fy' | 'lastFy' | 'custom';
+
+export const RANGES: { id: RangeId; label: string }[] = [
+  { id: 'today', label: 'Today' },
+  { id: 'week', label: 'This week' },
+  { id: 'month', label: 'This month' },
+  { id: 'lastMonth', label: 'Last month' },
+  { id: 'fy', label: 'This FY' },
+  { id: 'lastFy', label: 'Last FY' },
+  { id: 'custom', label: 'Custom' },
+];
+
+const iso = (y: number, m: number, d: number) => `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+
+/** Today in India as YYYY-MM-DD, whatever the browser's time zone. */
+export function istToday(now = Date.now()): string {
+  return new Date(now + 19_800_000).toISOString().slice(0, 10);
+}
+
+/** The from–to dates (inclusive, YYYY-MM-DD) of a preset range; Indian financial years start 1 April. */
+export function presetRange(id: Exclude<RangeId, 'custom'>, today: string): { from: string; to: string } {
+  const [y, m, d] = today.split('-').map(Number);
+  switch (id) {
+    case 'today':
+      return { from: today, to: today };
+    case 'week': {
+      const dt = new Date(Date.UTC(y, m - 1, d));
+      const back = (dt.getUTCDay() + 6) % 7; // days since Monday
+      dt.setUTCDate(dt.getUTCDate() - back);
+      return { from: dt.toISOString().slice(0, 10), to: today };
+    }
+    case 'month':
+      return { from: iso(y, m, 1), to: today };
+    case 'lastMonth': {
+      const py = m === 1 ? y - 1 : y;
+      const pm = m === 1 ? 12 : m - 1;
+      return { from: iso(py, pm, 1), to: iso(py, pm, new Date(Date.UTC(py, pm, 0)).getUTCDate()) };
+    }
+    case 'fy': {
+      const start = m >= 4 ? y : y - 1;
+      return { from: iso(start, 4, 1), to: today };
+    }
+    case 'lastFy': {
+      const start = (m >= 4 ? y : y - 1) - 1;
+      return { from: iso(start, 4, 1), to: iso(start + 1, 3, 31) };
+    }
+  }
+}
+
+export interface HistoryDay {
+  date: string;
+  equity: number;
+  fo: number;
+  commodity: number;
+  total: number;
+}
+
+export interface HistorySummary {
+  total: number;
+  segments: Record<Segment, { realised: number; symbols: Record<string, number>; days: number }>;
+  /** Days with any record, oldest first — values for the chosen segments only. */
+  daily: HistoryDay[];
+  profitDays: number;
+  lossDays: number;
+  best: HistoryDay | null;
+  worst: HistoryDay | null;
+  /** Weekdays in the range with no record at all (market holidays count too). */
+  missingWeekdays: number;
+}
+
+/**
+ * Realised P&L over a date range, by segment, by day and by symbol.
+ * `covered` are periods an uploaded tradebook or statement accounts for:
+ * their days aren't missing even when nothing was traded on them.
+ */
+export function summarizeHistory(
+  days: PnlHistoryDay[],
+  from: string,
+  to: string,
+  only: Segment[] = ['equity', 'fo', 'commodity'],
+  covered: [string, string][] = [],
+): HistorySummary {
+  const segments = Object.fromEntries(SEGMENTS.map((s) => [s.id, { realised: 0, symbols: {} as Record<string, number>, days: 0 }])) as HistorySummary['segments'];
+  const daily: HistoryDay[] = [];
+  const seen = new Set<string>();
+
+  for (const d of days) {
+    if (d.date < from || d.date > to) continue;
+    const row: HistoryDay = { date: d.date, equity: 0, fo: 0, commodity: 0, total: 0 };
+    let any = false;
+    for (const seg of ['equity', 'fo', 'commodity'] as Segment[]) {
+      const s = d[seg];
+      if (!s) continue;
+      any = true;
+      if (!only.includes(seg)) continue;
+      row[seg] = s.realised;
+      row.total += s.realised;
+      const agg = segments[seg];
+      agg.realised += s.realised;
+      if (s.realised !== 0) agg.days += 1;
+      for (const [sym, v] of Object.entries(s.symbols)) agg.symbols[sym] = (agg.symbols[sym] ?? 0) + v;
+    }
+    if (any) seen.add(d.date);
+    row.total = round2(row.total);
+    daily.push(row);
+  }
+
+  for (const s of Object.values(segments)) {
+    s.realised = round2(s.realised);
+    for (const k of Object.keys(s.symbols)) s.symbols[k] = round2(s.symbols[k]);
+  }
+  const traded = daily.filter((d) => d.total !== 0);
+  const best = traded.reduce<HistoryDay | null>((a, d) => (!a || d.total > a.total ? d : a), null);
+  const worst = traded.reduce<HistoryDay | null>((a, d) => (!a || d.total < a.total ? d : a), null);
+
+  let missingWeekdays = 0;
+  for (let t = Date.parse(`${from}T00:00:00Z`); t <= Date.parse(`${to}T00:00:00Z`); t += 86_400_000) {
+    const dt = new Date(t);
+    const wd = dt.getUTCDay();
+    const day = dt.toISOString().slice(0, 10);
+    if (wd !== 0 && wd !== 6 && !seen.has(day) && !covered.some(([f, t]) => day >= f && day <= t)) missingWeekdays += 1;
+  }
+
+  return {
+    total: round2(Object.values(segments).reduce((a, s) => a + s.realised, 0)),
+    segments,
+    daily,
+    profitDays: traded.filter((d) => d.total > 0).length,
+    lossDays: traded.filter((d) => d.total < 0).length,
+    best: best && best.total > 0 ? best : null,
+    worst: worst && worst.total < 0 ? worst : null,
+    missingWeekdays,
+  };
+}
+
+/** A symbol → P&L map as chart items. */
+export function symbolItems(symbols: Record<string, number>): PnlItem[] {
+  return Object.entries(symbols).map(([symbol, pnl]) => ({ key: symbol, symbol, kind: 'position' as const, open: false, pnl, realised: pnl, unrealised: 0, today: 0 }));
 }

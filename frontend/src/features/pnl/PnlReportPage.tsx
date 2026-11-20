@@ -3,11 +3,12 @@ import { Download, ExternalLink, RefreshCw } from 'lucide-react';
 import { api, ZERODHA_LOGIN_URL } from '../../api/client';
 import type { AuthStatus, ZerodhaFunds, ZerodhaPnl } from '../../api/types';
 import { Button, Card, CardHeader, Notice, Skeleton, Stat, type Tone } from '../../components/ui';
-import { pnlBySegment, positionSegment, SEGMENTS, topMovers, type Segment, type SegmentPnl } from '../../domain/pnl';
+import { istToday, pnlBySegment, positionSegment, presetRange, RANGES, SEGMENTS, topMovers, type RangeId, type Segment, type SegmentPnl } from '../../domain/pnl';
 import { useAsync } from '../../hooks/useAsync';
 import { inr, num, signedInr, signedPct } from '../../lib/format';
 import { Segmented } from '../builder/parts';
 import { DivergingBars, FundsMeter, TipLine } from './charts';
+import { PnlHistoryView } from './PnlHistory';
 
 /** P&L refreshes this often while the tab is visible. */
 const PNL_POLL_MS = 15_000;
@@ -45,10 +46,66 @@ function Breakdown({ title, realised, unrealised, today }: { title: string; real
  * per segment with its figures, its biggest movers, funds and every row.
  */
 export function PnlReportPage({ broker }: { broker: AuthStatus | null }) {
+  const today = istToday();
+  const [range, setRange] = useState<RangeId>('today');
+  const [custom, setCustom] = useState({ from: `${today.slice(0, 8)}01`, to: today });
+  const [view, setView] = useState<View>('all');
+  const r = range === 'custom' ? custom : presetRange(range, today);
+  const rangeLabel = range === 'custom' ? 'Custom range' : RANGES.find((x) => x.id === range)!.label;
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="max-w-full overflow-x-auto">
+          <Segmented<RangeId> label="Date range" value={range} onChange={setRange} options={RANGES} />
+        </div>
+        {range === 'custom' && (
+          <span className="flex flex-wrap items-center gap-1.5 text-xs">
+            <input
+              type="date"
+              aria-label="From"
+              value={custom.from}
+              max={custom.to}
+              onChange={(e) => e.target.value && setCustom((c) => ({ ...c, from: e.target.value }))}
+              className={dateInput}
+            />
+            <span className="text-[var(--text-muted)]">to</span>
+            <input
+              type="date"
+              aria-label="To"
+              value={custom.to}
+              min={custom.from}
+              max={today}
+              onChange={(e) => e.target.value && setCustom((c) => ({ ...c, to: e.target.value }))}
+              className={dateInput}
+            />
+          </span>
+        )}
+      </div>
+      {range === 'today' ? (
+        <LivePnl broker={broker} view={view} setView={setView} />
+      ) : (
+        <>
+          <Segmented<View>
+            label="Segment"
+            value={view}
+            onChange={setView}
+            options={[{ id: 'all', label: 'All' }, ...SEGMENTS.map((s) => ({ id: s.id, label: s.label, title: s.note }))]}
+          />
+          <PnlHistoryView from={r.from} to={r.to} rangeLabel={rangeLabel} view={view} onPick={setView} />
+        </>
+      )}
+    </div>
+  );
+}
+
+const dateInput = 'rounded-md border border-[var(--border)] bg-[var(--surface-card)] px-2 py-1 text-xs pointer-coarse:min-h-9';
+
+/** Today: live from the Zerodha account (needs today's Zerodha login). */
+function LivePnl({ broker, view, setView }: { broker: AuthStatus | null; view: View; setView: (v: View) => void }) {
   const z = broker?.zerodha;
   const connected = !!z?.authenticated;
   const state = useAsync(() => api.zerodhaPnl(), [connected], { pollMs: PNL_POLL_MS, enabled: connected });
-  const [view, setView] = useState<View>('all');
 
   if (broker && !z?.configured) {
     return (
