@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { ChevronDown, ExternalLink, Grip, ListChecks, LogOut, Moon, Star, Sun } from 'lucide-react';
-import { UPSTOX_LOGIN_URL } from '../api/client';
+import { BROKER_LOGIN_URL } from '../api/client';
 import type { AuthStatus } from '../api/types';
 import { useTheme } from '../hooks/useTheme';
 import { MOBILE_TABS, NAV, PAGE_ICONS, PAGE_LABELS, SIDEBAR, type NavItem, type PageId, type Route } from './tabs';
 import { Logo } from './Logo';
 import { Dot } from './ui';
 import { useRail } from '../store/rail';
+import { brokerName } from '../lib/broker';
 
 function BrokerBadge({ status }: { status: AuthStatus | null }) {
   if (status?.authenticated) {
@@ -16,10 +17,10 @@ function BrokerBadge({ status }: { status: AuthStatus | null }) {
     return (
       <span
         className="flex items-center gap-1.5 text-xs text-[var(--text-muted)]"
-        title={expires ? `Upstox session valid until ${expires}` : undefined}
+        title={expires ? `${brokerName()} session valid until ${expires}` : undefined}
       >
         <Dot color="var(--good)" />
-        Live via Upstox
+        Live via {brokerName()}
       </span>
     );
   }
@@ -27,18 +28,18 @@ function BrokerBadge({ status }: { status: AuthStatus | null }) {
     // Analytics token: live data with no daily login; Connect only adds broker margin.
     return (
       <span className="flex items-center gap-2 text-xs text-[var(--text-muted)]">
-        <span className="flex items-center gap-1.5" title="Live market data via the Upstox analytics token">
+        <span className="flex items-center gap-1.5" title={`Live market data via the ${brokerName()} analytics token`}>
           <Dot color="var(--good)" />
           Live data
         </span>
         {status.configured && (
           <a
-            href={UPSTOX_LOGIN_URL}
+            href={BROKER_LOGIN_URL}
             target="_blank"
             rel="noreferrer"
             className="inline-flex items-center gap-1 rounded-md px-2 py-0.5 font-medium hover:opacity-85 pointer-coarse:min-h-10"
             style={{ background: 'var(--good-fill)', color: 'var(--good-text)' }}
-            title="Log in to Upstox for real broker margin"
+            title={`Log in to ${brokerName()} for real broker margin`}
           >
             Connect for margin
             <ExternalLink size={12} aria-hidden="true" />
@@ -50,13 +51,13 @@ function BrokerBadge({ status }: { status: AuthStatus | null }) {
   if (status?.configured) {
     return (
       <a
-        href={UPSTOX_LOGIN_URL}
+        href={BROKER_LOGIN_URL}
         target="_blank"
         rel="noreferrer"
         className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium hover:opacity-85 pointer-coarse:min-h-10"
         style={{ background: 'var(--good-fill)', color: 'var(--good-text)' }}
       >
-        Connect Upstox for live data
+        Connect {brokerName()} for live data
         <ExternalLink size={14} aria-hidden="true" />
       </a>
     );
@@ -330,7 +331,7 @@ function RightRail({
           })}
         </nav>
         <span className="flex-1" />
-        <span title={broker?.authenticated || broker?.marketData ? 'Live via Upstox' : 'Upstox not connected'} className="mb-1">
+        <span title={broker?.authenticated || broker?.marketData ? `Live via ${brokerName()}` : `${brokerName()} not connected`} className="mb-1">
           <Dot color={broker?.authenticated || broker?.marketData ? 'var(--good)' : 'var(--warning)'} />
         </span>
         <button

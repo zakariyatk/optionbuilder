@@ -44,6 +44,9 @@ function ob_candle_rows(array $res): array
 
 function ob_candles(string $symbol, string $tf): array
 {
+    if (ob_is_zerodha()) {
+        return ob_kite_candles($symbol, $tf);
+    }
     [$unit, $interval, $days] = OB_CANDLE_TIMEFRAMES[$tf];
     $key = rawurlencode(ob_resolve_instrument_key($symbol));
     $tz = new DateTimeZone('Asia/Kolkata');
@@ -73,6 +76,9 @@ function ob_candles(string $symbol, string $tf): array
  */
 function ob_upstox_watch_quotes(array $symbols): array
 {
+    if (ob_is_zerodha()) {
+        return ob_kite_watch_quotes($symbols);
+    }
     $keys = [];
     foreach ($symbols as $s) {
         try {

@@ -9,6 +9,8 @@ declare(strict_types=1);
  */
 
 const OB_OI_MAX_STRIKES = 61;
+/** Zerodha serves ~3 candle requests a second, so fewer strikes keep the page quick (2 per strike + spot). */
+const OB_OI_MAX_STRIKES_KITE = 20;
 
 /** Candle rows → [unix => [close, oi]]. */
 function ob_oi_points(string $body): array
@@ -34,6 +36,9 @@ function ob_oi_points(string $body): array
  */
 function ob_oi_fetch(array $keys, bool $intraday): array
 {
+    if (ob_is_zerodha()) {
+        return ob_kite_oi_fetch($keys, $intraday);
+    }
     $tz = new DateTimeZone('Asia/Kolkata');
     $to = (new DateTimeImmutable('now', $tz))->format('Y-m-d');
     $from = (new DateTimeImmutable('-7 days', $tz))->format('Y-m-d');
@@ -66,11 +71,12 @@ function ob_oi_intraday(string $symbol, string $expiry, float $min, float $max):
     }
     $chain = ob_reshape_chain(ob_option_chain_raw($underlying, $expiry), $symbol, $expiries, $expiry, $lotSize);
     $rows = array_values(array_filter($chain['rows'], static fn(array $r): bool => $r['strike'] >= $min && $r['strike'] <= $max));
-    if (count($rows) > OB_OI_MAX_STRIKES) {
+    $maxStrikes = ob_is_zerodha() ? OB_OI_MAX_STRIKES_KITE : OB_OI_MAX_STRIKES;
+    if (count($rows) > $maxStrikes) {
         // Keep the strikes nearest the money.
         $spot = (float) ($chain['underlyingValue'] ?? 0);
         usort($rows, static fn($a, $b) => abs($a['strike'] - $spot) <=> abs($b['strike'] - $spot));
-        $rows = array_slice($rows, 0, OB_OI_MAX_STRIKES);
+        $rows = array_slice($rows, 0, $maxStrikes);
         usort($rows, static fn($a, $b) => $a['strike'] <=> $b['strike']);
     }
 

@@ -197,6 +197,9 @@ function ob_draft_patch(array $draft, array $in): array
  */
 function ob_upstox_ltp(array $keys): array
 {
+    if (ob_is_zerodha()) {
+        return ob_kite_ltp($keys);
+    }
     $res = ob_upstox_get('/market-quote/ltp', ['instrument_key' => implode(',', $keys)]);
     $out = [];
     foreach (($res['data'] ?? []) as $q) {

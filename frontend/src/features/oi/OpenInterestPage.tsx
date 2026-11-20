@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { ExternalLink, Minus, Plus, RotateCcw } from 'lucide-react';
-import { api, UPSTOX_LOGIN_URL } from '../../api/client';
+import { api, BROKER_LOGIN_URL } from '../../api/client';
 import type { SpotQuote } from '../../api/types';
 import { Card } from '../../components/ui';
 import { daysToExpiry, formatExpiry } from '../../domain/dates';
@@ -8,6 +8,7 @@ import { fullDayFromChain, isWeekly, mergeWindows, pcr, strikesAround, windowFro
 import { useAsync } from '../../hooks/useAsync';
 import { compactIndian, num } from '../../lib/format';
 import { OiChart } from './OiChart';
+import { brokerName } from '../../lib/broker';
 
 const POLL_MS = 60_000;
 const MAX_EXPIRIES = 6;
@@ -123,9 +124,9 @@ export function OpenInterestPage({ symbol, spot, brokerConnected }: { symbol: st
   if (!brokerConnected) {
     return (
       <Card className="flex flex-col items-center gap-3 px-6 py-12 text-center text-sm text-[var(--text-muted)]">
-        Open interest comes from your Upstox option chain.
-        <a href={UPSTOX_LOGIN_URL} target="_blank" rel="noreferrer" className="inline-flex min-h-11 items-center gap-2 rounded-md bg-[var(--series-blue)] px-4 py-2 font-medium text-white">
-          Connect Upstox
+        Open interest comes from your {brokerName()} option chain.
+        <a href={BROKER_LOGIN_URL} target="_blank" rel="noreferrer" className="inline-flex min-h-11 items-center gap-2 rounded-md bg-[var(--series-blue)] px-4 py-2 font-medium text-white">
+          Connect {brokerName()}
           <ExternalLink size={16} aria-hidden="true" />
         </a>
       </Card>

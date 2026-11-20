@@ -62,7 +62,7 @@ export interface ChainRow {
 
 export interface OptionChain {
   /** 'yahoo' and 'model' are the US builder's live chain and its Black-Scholes fallback. */
-  source: 'upstox' | 'yahoo' | 'model';
+  source: 'upstox' | 'zerodha' | 'yahoo' | 'model';
   symbol: string;
   lotSize: number;
   underlyingValue: number | null;
@@ -75,8 +75,12 @@ export interface OptionChain {
 }
 
 export interface AuthStatus {
+  /** Which broker the server uses for live NSE data. */
+  broker?: 'upstox' | 'zerodha';
+  /** Its display name, e.g. "Zerodha". */
+  brokerName?: string;
   configured: boolean;
-  /** Today's Upstox login is active (needed for broker margin). */
+  /** Today's broker login is active (needed for broker margin). */
   authenticated: boolean;
   /** Live quotes, candles and chains are available — via the login or the analytics token. */
   marketData?: boolean;
@@ -162,7 +166,7 @@ export interface NewsItem {
 }
 
 export interface Quotes {
-  /** Last traded price per Upstox instrument key. */
+  /** Last traded price per broker instrument key. */
   quotes: Record<string, number>;
   at: number;
 }

@@ -18,7 +18,20 @@
  */
 
 return [
-    // From https://account.upstox.com/developer/apps
+    // Which broker serves live NSE data: 'zerodha' or 'upstox'. Leave it out
+    // and Zerodha is used whenever kite_api_key and kite_api_secret are set.
+    'broker' => 'zerodha',
+
+    // ---- Zerodha (Kite Connect), from https://developers.kite.trade/apps
+    // Quotes, charts, the option chain and OI need the paid "Connect" plan;
+    // the free "Personal" plan can only log in and fetch margins.
+    // On the Kite app set the Redirect URL to EXACTLY
+    //   https://optionbuilder.adddots.com/api/auth/zerodha/callback
+    // (your own domain and folder). Kite logins expire at 06:00 IST daily.
+    'kite_api_key' => '',
+    'kite_api_secret' => '',
+
+    // ---- Upstox, from https://account.upstox.com/developer/apps
     'upstox_api_key' => '',
     'upstox_api_secret' => '',
     // Must match EXACTLY what is registered on the Upstox app, e.g.

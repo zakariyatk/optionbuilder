@@ -291,7 +291,7 @@ const FEATURES = [
 
 const MORE = [
   { icon: ICON.grid, title: 'Smart option chain', text: 'ITM / ATM shading, IV and volume, and unusual activity — OI walls, volume surges and build-ups — flagged for you.' },
-  { icon: ICON.candles, title: 'Pro charting', text: 'Candles on live Upstox data with indicators, drawing tools, horizontal rays and long / short position boxes.' },
+  { icon: ICON.candles, title: 'Pro charting', text: 'Candles on live broker data (Zerodha or Upstox) with indicators, drawing tools, horizontal rays and long / short position boxes.' },
   { icon: ICON.bolt, title: 'Live watchlists', text: 'Several named watchlists with prices refreshing every few seconds while NSE is open.' },
   { icon: ICON.layers, title: 'Open interest analysis', text: 'See OI change by strike over any window of the session to spot where positions are building.' },
   { icon: ICON.doc, title: 'Daily market report', text: 'Max-OI support and resistance, PCR, FII / DII flows and global cues — export it as an image or carousel.' },
@@ -430,7 +430,7 @@ export function Landing({ onSignIn }: { onSignIn: () => void }) {
             <div className="lp-section-head">
               <span className="lp-eyebrow">Charts</span>
               <h2>Pro charts, with your watchlist alongside</h2>
-              <p>Candles on live Upstox data with indicators, drawing tools, alerts and bar replay, next to watchlists that refresh every few seconds.</p>
+              <p>Candles on live broker data with indicators, drawing tools, alerts and bar replay, next to watchlists that refresh every few seconds.</p>
             </div>
             <Screenshot
               theme={theme}

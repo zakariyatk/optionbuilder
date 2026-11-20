@@ -49,7 +49,7 @@ function ob_reshape_chain(array $data, string $symbol, array $expiries, ?string 
     usort($rows, static fn($a, $b) => $a['strike'] <=> $b['strike']);
 
     return [
-        'source' => 'upstox',
+        'source' => ob_broker(),
         'symbol' => $symbol,
         'lotSize' => $lotSize ?? ob_lot_size_for($symbol),
         'underlyingValue' => isset($data[0]['underlying_spot_price']) ? (float) $data[0]['underlying_spot_price'] : null,

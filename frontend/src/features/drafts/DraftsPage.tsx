@@ -6,6 +6,7 @@ import { formatExpiry } from '../../domain/dates';
 import { draftPnl, draftPrices } from '../../domain/drafts';
 import { inr, signedInr } from '../../lib/format';
 import { dateTime, useDraftQuotes } from './useDraftQuotes';
+import { brokerName } from '../../lib/broker';
 
 const pnlColor = (v: number) => (v > 0 ? 'var(--good-text)' : v < 0 ? 'var(--critical)' : 'var(--text-secondary)');
 
@@ -44,7 +45,7 @@ export function DraftsPage({
           {localSavedCount} strateg{localSavedCount === 1 ? 'y is' : 'ies are'} saved only in this browser from the old Saved menu.
         </Notice>
       )}
-      {!brokerConnected && <Notice>Connect Upstox to see live P&amp;L — until then drafts show their entry prices only.</Notice>}
+      {!brokerConnected && <Notice>Connect {brokerName()} to see live P&amp;L — until then drafts show their entry prices only.</Notice>}
       {error && <Notice tone="critical">Drafts: {error}</Notice>}
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
