@@ -3,11 +3,12 @@ import { FileUp, Trash2 } from 'lucide-react';
 import { api, errorMessage } from '../../api/client';
 import type { PnlHistory } from '../../api/types';
 import { Button, Card, CardHeader, Notice, Skeleton, Stat, type Tone } from '../../components/ui';
-import { SEGMENTS, summarizeHistory, symbolItems, topMovers, type HistoryDay, type Segment } from '../../domain/pnl';
+import { cumulativeSeries, defaultPeriod, groupByPeriod, maxDrawdown, periodLabel, PERIODS, SEGMENTS, summarizeHistory, symbolItems, topMovers, type HistoryDay, type Period, type Segment } from '../../domain/pnl';
 import { useAsync } from '../../hooks/useAsync';
 import { confirmDialog } from '../../lib/dialog';
 import { inr, signedInr } from '../../lib/format';
-import { ColumnBars, DivergingBars, TipLine } from './charts';
+import { Segmented } from '../builder/parts';
+import { CalendarHeatmap, ColumnBars, DivergingBars, LineArea, TipLine } from './charts';
 
 type View = 'all' | Segment;
 
@@ -17,9 +18,8 @@ const labelOf = (s: Segment) => SEGMENTS.find((x) => x.id === s)!.label;
 const fmtDate = (d: string, opts: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'short', year: 'numeric' }) =>
   new Date(`${d}T00:00:00Z`).toLocaleDateString('en-IN', { ...opts, timeZone: 'UTC' });
 
-/** Day-by-day bars up to three months; past that, one bar per month stays readable. */
-function chartRows(daily: HistoryDay[], from: string, to: string, segs: Segment[]) {
-  const long = Date.parse(to) - Date.parse(from) > 92 * 86_400_000;
+/** Chart bars for the chosen period, each with its per-segment breakdown. */
+function chartRows(daily: HistoryDay[], period: Period, segs: Segment[]) {
   const detail = (d: Pick<HistoryDay, Segment | 'total'>) => (
     <div className="flex flex-col gap-0.5">
       {segs.map((s) => (
@@ -28,40 +28,10 @@ function chartRows(daily: HistoryDay[], from: string, to: string, segs: Segment[
       {segs.length > 1 && <TipLine name="Total" value={d.total} />}
     </div>
   );
-  if (!long) {
-    return {
-      monthly: false,
-      months: daily,
-      rows: daily.map((d) => ({ key: d.date, label: fmtDate(d.date, { day: 'numeric', month: 'short' }), value: d.total, detail: detail(d) })),
-    };
-  }
-  const byMonth = new Map<string, HistoryDay>();
-  for (const d of daily) {
-    const k = d.date.slice(0, 7);
-    const m = byMonth.get(k) ?? { date: `${k}-01`, equity: 0, fo: 0, commodity: 0, total: 0 };
-    m.equity += d.equity;
-    m.fo += d.fo;
-    m.commodity += d.commodity;
-    m.total += d.total;
-    byMonth.set(k, m);
-  }
-  // Every month from the first to the last with P&L, empty ones included, so bars sit on a true time scale.
-  const keys = [...byMonth.keys()].sort();
-  const months: HistoryDay[] = [];
-  if (keys.length) {
-    let [y, mo] = keys[0].split('-').map(Number);
-    const [ly, lm] = keys[keys.length - 1].split('-').map(Number);
-    while (y < ly || (y === ly && mo <= lm)) {
-      const k = `${y}-${String(mo).padStart(2, '0')}`;
-      months.push(byMonth.get(k) ?? { date: `${k}-01`, equity: 0, fo: 0, commodity: 0, total: 0 });
-      mo += 1;
-      if (mo > 12) [y, mo] = [y + 1, 1];
-    }
-  }
+  const groups = groupByPeriod(daily, period);
   return {
-    monthly: true,
-    months,
-    rows: months.map((m) => ({ key: m.date, label: fmtDate(m.date, { month: 'short', year: '2-digit' }), value: Math.round(m.total * 100) / 100, detail: detail(m) })),
+    groups,
+    rows: groups.map((g) => ({ key: g.date, label: periodLabel(g.date, period), value: g.total, detail: detail(g) })),
   };
 }
 
@@ -72,6 +42,9 @@ function chartRows(daily: HistoryDay[], from: string, to: string, segs: Segment[
  */
 export function PnlHistoryView({ from, to, rangeLabel, view, onPick }: { from: string; to: string; rangeLabel: string; view: View; onPick: (s: Segment) => void }) {
   const state = useAsync(() => api.pnlHistory(), []);
+  // Day / week / month / year; until picked, whatever suits the range.
+  const [picked, setPicked] = useState<Period | null>(null);
+  const [kind, setKind] = useState<ChartKind>('bars');
   const h = state.data;
   const segs: Segment[] = view === 'all' ? SEGMENTS.map((s) => s.id) : [view];
 
@@ -96,13 +69,15 @@ export function PnlHistoryView({ from, to, rangeLabel, view, onPick }: { from: s
   // Charges are only known from statements whose whole period sits in the range.
   const statementsIn = h.statements.filter((s) => segs.includes(s.segment) && s.from >= from && s.to <= to);
   const charges = statementsIn.reduce((a, s) => a + s.charges - s.other, 0);
-  const chart = chartRows(sum.daily, from, to, segs);
-  // Long ranges read in months: profit / loss counts and best / worst follow the chart.
-  const unit = chart.monthly ? 'month' : 'day';
-  const periods = chart.months.filter((m) => m.total !== 0);
+  const period = picked ?? defaultPeriod(from, to);
+  const meta = PERIODS.find((x) => x.id === period)!;
+  const chart = chartRows(sum.daily, period, segs);
+  // Profit / loss counts and best / worst follow the chart's period.
+  const unit = meta.noun;
+  const periods = chart.groups.filter((m) => m.total !== 0);
   const best = periods.reduce<HistoryDay | null>((a, d) => (d.total > 0 && (!a || d.total > a.total) ? d : a), null);
   const worst = periods.reduce<HistoryDay | null>((a, d) => (d.total < 0 && (!a || d.total < a.total) ? d : a), null);
-  const when = (d: HistoryDay) => (chart.monthly ? fmtDate(d.date, { month: 'long', year: 'numeric' }) : fmtDate(d.date));
+  const when = (d: HistoryDay) => periodLabel(d.date, period, true);
   const empty = sum.daily.every((d) => d.total === 0) && sum.total === 0;
 
   return (
@@ -158,14 +133,6 @@ export function PnlHistoryView({ from, to, rangeLabel, view, onPick }: { from: s
                 />
               </div>
             )}
-            <div>
-              <div className="mb-2 text-xs font-semibold">{chart.monthly ? 'Monthly' : 'Daily'} P&amp;L</div>
-              {chart.rows.length ? (
-                <ColumnBars rows={chart.rows} label={`${chart.monthly ? 'Monthly' : 'Daily'} realised P&L`} />
-              ) : (
-                <p className="py-8 text-center text-sm text-[var(--text-muted)]">No P&amp;L recorded in this range.</p>
-              )}
-            </div>
           </div>
         </div>
       </Card>
@@ -177,21 +144,45 @@ export function PnlHistoryView({ from, to, rangeLabel, view, onPick }: { from: s
         </Notice>
       )}
 
+      <Card>
+        <CardHeader title={CHART_KINDS.find((k) => k.id === kind)!.title(meta.adjective)}>
+          <Segmented<ChartKind> label="Chart" size="xs" value={kind} onChange={setKind} options={CHART_KINDS.map((k) => ({ id: k.id, label: k.label, title: k.hint }))} />
+          {kind !== 'calendar' && (
+            <Segmented<Period> label="Group P&L by" size="xs" value={period} onChange={setPicked} options={PERIODS.map((x) => ({ id: x.id, label: x.label }))} />
+          )}
+        </CardHeader>
+        <div className="p-4">
+          <p className="mb-3 text-xs text-[var(--text-muted)]">{CHART_KINDS.find((k) => k.id === kind)!.hint}</p>
+          {!chart.rows.some((r) => r.value !== 0) ? (
+            <p className="py-8 text-center text-sm text-[var(--text-muted)]">No P&amp;L recorded in this range.</p>
+          ) : kind === 'bars' ? (
+            <ColumnBars rows={chart.rows} label={`${meta.adjective} realised P&L`} />
+          ) : kind === 'calendar' ? (
+            <CalendarHeatmap
+              label="Daily realised P&L calendar"
+              days={Object.fromEntries(sum.daily.map((d) => [d.date, d.total]))}
+              from={sum.daily.length && sum.daily[0].date > from ? sum.daily[0].date : from}
+              to={to}
+            />
+          ) : (
+            <CumulativeView groups={chart.groups} period={period} drawdown={kind === 'drawdown'} />
+          )}
+        </div>
+      </Card>
+
       {undatedIn.length > 0 && (
         <Notice tone="info">
           Equity P&amp;L of {signedInr(undatedIn.reduce((a, s) => a + s.realised, 0))} comes from a P&amp;L statement with no trade dates: it&apos;s in the totals but not in the
-          monthly chart. Upload an equity Tradebook (CSV) to see it month by month.
-        </Notice>
-      )}
-      {undatedOut.length > 0 && (
-        <Notice tone="info">
-          Your equity P&amp;L statement ({undatedOut.map((s) => `${fmtDate(s.from)} – ${fmtDate(s.to)}`).join(', ')}) has no trade dates, so it can only be counted when the range
-          covers its whole period. Upload an equity Tradebook (CSV) to see equity P&amp;L for any dates.
+          charts. Upload an equity Tradebook (CSV) to see it month by month.
         </Notice>
       )}
 
       {segs.map((s) => (
         <SegmentHistory key={s} seg={s} data={sum.segments[s]} onPick={view === 'all' ? () => onPick(s) : undefined} />
+      ))}
+
+      {undatedOut.map((st) => (
+        <WholeStatement key={`${st.segment}:${st.from}:${st.to}`} st={st} />
       ))}
 
       <Sources h={h} onChange={state.reload} />
@@ -248,6 +239,116 @@ function SegmentHistory({ seg, data, onPick }: { seg: Segment; data: { realised:
           </div>
         </div>
       )}
+    </Card>
+  );
+}
+
+type ChartKind = 'bars' | 'cumulative' | 'calendar' | 'drawdown';
+
+const CHART_KINDS: { id: ChartKind; label: string; title: (adjective: string) => string; hint: string }[] = [
+  { id: 'bars', label: 'Bars', title: (a) => `${a} P&L`, hint: 'Each bar is one period: green above the line is profit, red below is loss.' },
+  { id: 'cumulative', label: 'Cumulative', title: () => 'Cumulative P&L', hint: 'Your running total: how profit or loss built up over the range.' },
+  { id: 'calendar', label: 'Calendar', title: () => 'P&L calendar', hint: 'Every trading day in a calendar: deeper green for bigger profit, deeper red for bigger loss.' },
+  { id: 'drawdown', label: 'Drawdown', title: () => 'Drawdown', hint: 'How far the running total fell below its previous high, and when it was made back.' },
+];
+
+/** Running total, or its fall from the high, with the figures that go with it. */
+function CumulativeView({ groups, period, drawdown }: { groups: HistoryDay[]; period: Period; drawdown: boolean }) {
+  const pts = cumulativeSeries(groups);
+  const dd = maxDrawdown(pts);
+  const last = pts[pts.length - 1];
+  const high = pts.reduce((a, p) => (p.cum > a.cum ? p : a), pts[0]);
+  const low = pts.reduce((a, p) => (p.cum < a.cum ? p : a), pts[0]);
+  const label = (d: string) => periodLabel(d, period, true);
+  const current = last ? last.drawdown : 0;
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        {drawdown ? (
+          <>
+            <Stat label="Max drawdown" value={dd ? signedInr(dd.amount) : '—'} tone={dd ? 'critical' : undefined} hint={dd ? `Low on ${label(dd.troughDate)}` : 'Never below a high'} />
+            <Stat label="From the high of" value={dd?.peakDate ? label(dd.peakDate) : dd ? 'Start of range' : '—'} />
+            <Stat label="Made back" value={dd ? (dd.recoveredDate ? label(dd.recoveredDate) : 'Not yet') : '—'} tone={dd && !dd.recoveredDate ? 'warning' : undefined} />
+            <Stat label="Now below high" value={current < 0 ? signedInr(current) : 'At a high'} tone={current < 0 ? 'critical' : 'good'} />
+          </>
+        ) : (
+          <>
+            <Stat label="Total" value={signedInr(last?.cum ?? 0)} tone={tone(last?.cum ?? 0)} />
+            <Stat label="Highest" value={high ? signedInr(high.cum) : '—'} hint={high ? label(high.date) : undefined} />
+            <Stat label="Lowest" value={low ? signedInr(low.cum) : '—'} hint={low ? label(low.date) : undefined} />
+            <Stat label="Max drawdown" value={dd ? signedInr(dd.amount) : '—'} tone={dd ? 'critical' : undefined} />
+          </>
+        )}
+      </div>
+      <LineArea
+        label={drawdown ? 'Drawdown' : 'Cumulative P&L'}
+        tone={drawdown ? 'loss' : 'accent'}
+        points={pts.map((p) => ({
+          key: p.date,
+          label: periodLabel(p.date, period),
+          value: drawdown ? p.drawdown : p.cum,
+          detail: (
+            <div className="flex flex-col gap-0.5">
+              <div className="text-[var(--text-muted)]">{label(p.date)}</div>
+              <TipLine name="This period" value={p.value} />
+              <TipLine name="Running total" value={p.cum} />
+              {drawdown && <TipLine name="Below high" value={p.drawdown} />}
+            </div>
+          ),
+        }))}
+      />
+    </div>
+  );
+}
+
+/**
+ * An equity statement the range only partly covers. It has no trade dates, so
+ * it can't be cut to the range: shown whole, apart from the range's totals.
+ */
+function WholeStatement({ st }: { st: PnlHistory['statements'][number] }) {
+  const items = symbolItems(st.undated ?? {}).filter((i) => i.pnl !== 0);
+  const winners = items.filter((i) => i.pnl > 0);
+  const losers = items.filter((i) => i.pnl < 0);
+  const net = st.realised - st.charges + st.other;
+  return (
+    <Card>
+      <CardHeader
+        title={
+          <span className="flex flex-wrap items-baseline gap-2">
+            {labelOf(st.segment)} · whole statement
+            <span className="text-xs font-normal text-[var(--text-muted)]">
+              {fmtDate(st.from)} – {fmtDate(st.to)} · not split by date, not in this range&apos;s total
+            </span>
+          </span>
+        }
+      >
+        <span className="tabular text-sm font-semibold" style={{ color: pnlColor(st.realised) }}>
+          {signedInr(st.realised)}
+        </span>
+      </CardHeader>
+      <div className="flex flex-col gap-4 p-4">
+        <p className="text-xs text-[var(--text-secondary)]">
+          Console&apos;s equity P&amp;L statement lists each stock&apos;s P&amp;L for the whole period with no trade dates, so it can&apos;t be cut to{' '}
+          your selected range. To see equity for a year or a month, download the equity P&amp;L statement from Console for
+          just that period (Reports → P&amp;L → Equity → date range) and upload it, or upload the equity Tradebook (CSV) for exact days.
+        </p>
+        <div className="grid gap-5 md:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)]">
+          <div>
+            <div className="mb-2 text-xs font-semibold">P&amp;L by instrument</div>
+            <DivergingBars
+              label={`${labelOf(st.segment)} statement P&L by instrument`}
+              rows={topMovers(items, 10).map((r) => ({ key: r.key, label: r.label, value: r.value, detail: r.items.length > 1 ? <div>{r.items.length} instruments</div> : undefined }))}
+            />
+          </div>
+          <div className="grid h-fit grid-cols-2 gap-3">
+            <Stat label="Realised" value={signedInr(st.realised)} tone={tone(st.realised)} size="lg" />
+            <Stat label="Net after charges" value={signedInr(net)} tone={tone(net)} size="lg" hint={`Charges & other debits ${inr(st.charges - st.other)}`} />
+            <Stat label={`Winners · ${winners.length}`} value={signedInr(winners.reduce((a, i) => a + i.pnl, 0))} tone="good" />
+            <Stat label={`Losers · ${losers.length}`} value={signedInr(losers.reduce((a, i) => a + i.pnl, 0))} tone={losers.length ? 'critical' : undefined} />
+          </div>
+        </div>
+      </div>
     </Card>
   );
 }
