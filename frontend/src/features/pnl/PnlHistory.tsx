@@ -160,7 +160,7 @@ export function PnlHistoryView({ from, to, rangeLabel, view, onPick }: { from: s
             )}
             <div>
               <div className="mb-2 text-xs font-semibold">{chart.monthly ? 'Monthly' : 'Daily'} P&amp;L</div>
-              {chart.rows.length ? (
+              {chart.rows.some((r) => r.value !== 0) ? (
                 <ColumnBars rows={chart.rows} label={`${chart.monthly ? 'Monthly' : 'Daily'} realised P&L`} />
               ) : (
                 <p className="py-8 text-center text-sm text-[var(--text-muted)]">No P&amp;L recorded in this range.</p>
@@ -183,15 +183,13 @@ export function PnlHistoryView({ from, to, rangeLabel, view, onPick }: { from: s
           monthly chart. Upload an equity Tradebook (CSV) to see it month by month.
         </Notice>
       )}
-      {undatedOut.length > 0 && (
-        <Notice tone="info">
-          Your equity P&amp;L statement ({undatedOut.map((s) => `${fmtDate(s.from)} – ${fmtDate(s.to)}`).join(', ')}) has no trade dates, so it can only be counted when the range
-          covers its whole period. Upload an equity Tradebook (CSV) to see equity P&amp;L for any dates.
-        </Notice>
-      )}
 
       {segs.map((s) => (
         <SegmentHistory key={s} seg={s} data={sum.segments[s]} onPick={view === 'all' ? () => onPick(s) : undefined} />
+      ))}
+
+      {undatedOut.map((st) => (
+        <WholeStatement key={`${st.segment}:${st.from}:${st.to}`} st={st} />
       ))}
 
       <Sources h={h} onChange={state.reload} />
@@ -248,6 +246,57 @@ function SegmentHistory({ seg, data, onPick }: { seg: Segment; data: { realised:
           </div>
         </div>
       )}
+    </Card>
+  );
+}
+
+/**
+ * An equity statement the range only partly covers. It has no trade dates, so
+ * it can't be cut to the range: shown whole, apart from the range's totals.
+ */
+function WholeStatement({ st }: { st: PnlHistory['statements'][number] }) {
+  const items = symbolItems(st.undated ?? {}).filter((i) => i.pnl !== 0);
+  const winners = items.filter((i) => i.pnl > 0);
+  const losers = items.filter((i) => i.pnl < 0);
+  const net = st.realised - st.charges + st.other;
+  return (
+    <Card>
+      <CardHeader
+        title={
+          <span className="flex flex-wrap items-baseline gap-2">
+            {labelOf(st.segment)} · whole statement
+            <span className="text-xs font-normal text-[var(--text-muted)]">
+              {fmtDate(st.from)} – {fmtDate(st.to)} · not split by date, not in this range&apos;s total
+            </span>
+          </span>
+        }
+      >
+        <span className="tabular text-sm font-semibold" style={{ color: pnlColor(st.realised) }}>
+          {signedInr(st.realised)}
+        </span>
+      </CardHeader>
+      <div className="flex flex-col gap-4 p-4">
+        <p className="text-xs text-[var(--text-secondary)]">
+          Console&apos;s equity P&amp;L statement lists each stock&apos;s P&amp;L for the whole period with no trade dates, so it can&apos;t be cut to{' '}
+          your selected range. To see equity for a year or a month, download the equity P&amp;L statement from Console for
+          just that period (Reports → P&amp;L → Equity → date range) and upload it, or upload the equity Tradebook (CSV) for exact days.
+        </p>
+        <div className="grid gap-5 md:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)]">
+          <div>
+            <div className="mb-2 text-xs font-semibold">P&amp;L by instrument</div>
+            <DivergingBars
+              label={`${labelOf(st.segment)} statement P&L by instrument`}
+              rows={topMovers(items, 10).map((r) => ({ key: r.key, label: r.label, value: r.value, detail: r.items.length > 1 ? <div>{r.items.length} instruments</div> : undefined }))}
+            />
+          </div>
+          <div className="grid h-fit grid-cols-2 gap-3">
+            <Stat label="Realised" value={signedInr(st.realised)} tone={tone(st.realised)} size="lg" />
+            <Stat label="Net after charges" value={signedInr(net)} tone={tone(net)} size="lg" hint={`Charges & other debits ${inr(st.charges - st.other)}`} />
+            <Stat label={`Winners · ${winners.length}`} value={signedInr(winners.reduce((a, i) => a + i.pnl, 0))} tone="good" />
+            <Stat label={`Losers · ${losers.length}`} value={signedInr(losers.reduce((a, i) => a + i.pnl, 0))} tone={losers.length ? 'critical' : undefined} />
+          </div>
+        </div>
+      </div>
     </Card>
   );
 }
