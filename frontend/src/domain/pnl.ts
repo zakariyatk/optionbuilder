@@ -224,8 +224,12 @@ export function summarizeHistory(
   const best = traded.reduce<HistoryDay | null>((a, d) => (!a || d.total > a.total ? d : a), null);
   const worst = traded.reduce<HistoryDay | null>((a, d) => (!a || d.total < a.total ? d : a), null);
 
+  // Gaps only count from where the data starts: a range reaching back to 1947
+  // isn't "missing" decades before the first trade or upload.
+  const starts = [...days.map((d) => d.date), ...covered.map(([f]) => f)].sort();
+  const start = starts.length && starts[0] > from ? starts[0] : from;
   let missingWeekdays = 0;
-  for (let t = Date.parse(`${from}T00:00:00Z`); t <= Date.parse(`${to}T00:00:00Z`); t += 86_400_000) {
+  for (let t = Date.parse(`${start}T00:00:00Z`); starts.length && t <= Date.parse(`${to}T00:00:00Z`); t += 86_400_000) {
     const dt = new Date(t);
     const wd = dt.getUTCDay();
     const day = dt.toISOString().slice(0, 10);

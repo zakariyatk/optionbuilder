@@ -99,10 +99,13 @@ describe('summarizeHistory', () => {
   });
 
   it('counts weekdays with no record', () => {
-    // 1–9 Oct 2026: weekdays are 1,2,5,6,7,8,9; records on 5 and 6.
-    expect(summarizeHistory(days, '2026-10-01', '2026-10-09').missingWeekdays).toBe(5);
+    // 1–9 Oct 2026: records on 5 and 6; data starts on 5 Oct, so only 7, 8, 9 are gaps.
+    expect(summarizeHistory(days, '2026-10-01', '2026-10-09').missingWeekdays).toBe(3);
     // An uploaded statement for 1–7 Oct accounts for those days.
     expect(summarizeHistory(days, '2026-10-01', '2026-10-09', undefined, [['2026-10-01', '2026-10-07']]).missingWeekdays).toBe(2);
+    // Before the first record nothing is missing: 1947 → 9 Oct counts from 5 Oct (5–9 Oct: 3 gaps).
+    expect(summarizeHistory(days, '1947-01-01', '2026-10-09').missingWeekdays).toBe(3);
+    expect(summarizeHistory([], '2026-10-01', '2026-10-09').missingWeekdays).toBe(0);
   });
 
   it('filters to chosen segments', () => {
